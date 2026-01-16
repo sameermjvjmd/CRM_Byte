@@ -21,32 +21,42 @@ const ActivityDemoPage = () => {
         {
             id: 1,
             subject: 'Client Meeting with John',
-            activityType: 'Meeting',
+            type: 'Meeting',
             startTime: new Date(new Date().setHours(10, 0, 0)).toISOString(),
             endTime: new Date(new Date().setHours(11, 0, 0)).toISOString(),
-            duration: 60,
+            durationMinutes: 60,
             priority: 'High',
             isCompleted: false,
-            location: 'Conference Room A'
+            location: 'Conference Room A',
+            isAllDay: false,
+            isRecurring: false,
+            hasReminder: false
         },
         {
             id: 2,
             subject: 'Follow-up Call',
-            activityType: 'Call',
+            type: 'Call',
             startTime: new Date(new Date().setHours(14, 30, 0)).toISOString(),
             endTime: new Date(new Date().setHours(15, 0, 0)).toISOString(),
-            duration: 30,
+            durationMinutes: 30,
             priority: 'Medium',
-            isCompleted: false
+            isCompleted: false,
+            isAllDay: false,
+            isRecurring: false,
+            hasReminder: false
         },
         {
             id: 3,
             subject: 'Send Proposal',
-            activityType: 'To-Do',
+            type: 'To-Do',
             startTime: new Date(new Date().setHours(16, 0, 0)).toISOString(),
-            duration: 30,
+            endTime: new Date(new Date().setHours(16, 30, 0)).toISOString(),
+            durationMinutes: 30,
             priority: 'High',
-            isCompleted: false
+            isCompleted: false,
+            isAllDay: false,
+            isRecurring: false,
+            hasReminder: false
         }
     ];
 
@@ -62,7 +72,7 @@ const ActivityDemoPage = () => {
 
     const handleActivityClick = (activity: Activity) => {
         console.log('Activity Clicked:', activity);
-        alert(`Activity: ${activity.subject}\nType: ${activity.activityType}`);
+        alert(`Activity: ${activity.subject}\nType: ${activity.type}`);
     };
 
     const handleTimeSlotClick = (date: Date, hour: number) => {
@@ -85,8 +95,8 @@ const ActivityDemoPage = () => {
                         <button
                             onClick={() => setActiveTab('recurring')}
                             className={`flex-1 px-6 py-4 font-bold text-sm transition-all ${activeTab === 'recurring'
-                                    ? 'border-b-2 border-indigo-600 text-indigo-600 bg-indigo-50'
-                                    : 'text-slate-600 hover:bg-slate-50'
+                                ? 'border-b-2 border-indigo-600 text-indigo-600 bg-indigo-50'
+                                : 'text-slate-600 hover:bg-slate-50'
                                 }`}
                         >
                             <Repeat size={18} className="inline mr-2" />
@@ -95,8 +105,8 @@ const ActivityDemoPage = () => {
                         <button
                             onClick={() => setActiveTab('type')}
                             className={`flex-1 px-6 py-4 font-bold text-sm transition-all ${activeTab === 'type'
-                                    ? 'border-b-2 border-indigo-600 text-indigo-600 bg-indigo-50'
-                                    : 'text-slate-600 hover:bg-slate-50'
+                                ? 'border-b-2 border-indigo-600 text-indigo-600 bg-indigo-50'
+                                : 'text-slate-600 hover:bg-slate-50'
                                 }`}
                         >
                             <Grid size={18} className="inline mr-2" />
@@ -105,8 +115,8 @@ const ActivityDemoPage = () => {
                         <button
                             onClick={() => setActiveTab('calendar')}
                             className={`flex-1 px-6 py-4 font-bold text-sm transition-all ${activeTab === 'calendar'
-                                    ? 'border-b-2 border-indigo-600 text-indigo-600 bg-indigo-50'
-                                    : 'text-slate-600 hover:bg-slate-50'
+                                ? 'border-b-2 border-indigo-600 text-indigo-600 bg-indigo-50'
+                                : 'text-slate-600 hover:bg-slate-50'
                                 }`}
                         >
                             <Calendar size={18} className="inline mr-2" />
@@ -115,8 +125,8 @@ const ActivityDemoPage = () => {
                         <button
                             onClick={() => setActiveTab('templates')}
                             className={`flex-1 px-6 py-4 font-bold text-sm transition-all ${activeTab === 'templates'
-                                    ? 'border-b-2 border-indigo-600 text-indigo-600 bg-indigo-50'
-                                    : 'text-slate-600 hover:bg-slate-50'
+                                ? 'border-b-2 border-indigo-600 text-indigo-600 bg-indigo-50'
+                                : 'text-slate-600 hover:bg-slate-50'
                                 }`}
                         >
                             <FileText size={18} className="inline mr-2" />
@@ -204,8 +214,8 @@ const ActivityDemoPage = () => {
                                         <button
                                             onClick={() => setCalendarView('week')}
                                             className={`px-4 py-2 rounded-lg font-bold text-sm transition-all ${calendarView === 'week'
-                                                    ? 'bg-indigo-600 text-white'
-                                                    : 'bg-slate-200 text-slate-700 hover:bg-slate-300'
+                                                ? 'bg-indigo-600 text-white'
+                                                : 'bg-slate-200 text-slate-700 hover:bg-slate-300'
                                                 }`}
                                         >
                                             Week View
@@ -213,8 +223,8 @@ const ActivityDemoPage = () => {
                                         <button
                                             onClick={() => setCalendarView('day')}
                                             className={`px-4 py-2 rounded-lg font-bold text-sm transition-all ${calendarView === 'day'
-                                                    ? 'bg-indigo-600 text-white'
-                                                    : 'bg-slate-200 text-slate-700 hover:bg-slate-300'
+                                                ? 'bg-indigo-600 text-white'
+                                                : 'bg-slate-200 text-slate-700 hover:bg-slate-300'
                                                 }`}
                                         >
                                             Day View

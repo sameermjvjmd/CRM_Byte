@@ -18,8 +18,18 @@ builder.Services.AddControllers()
     });
 
 // Database Contexts
-builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+builder.Services.AddDbContext<ApplicationDbContext>((sp, options) =>
+{
+    var tenantContext = sp.GetService<ITenantContext>();
+    var connectionString = tenantContext?.ConnectionString;
+
+    if (string.IsNullOrEmpty(connectionString))
+    {
+        connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+    }
+
+    options.UseSqlServer(connectionString);
+});
 
 builder.Services.AddDbContext<MasterDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("MasterConnection")));

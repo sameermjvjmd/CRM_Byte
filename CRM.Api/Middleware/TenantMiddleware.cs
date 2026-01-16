@@ -55,12 +55,22 @@ namespace CRM.Api.Middleware
 
             _logger.LogDebug("Host: {Host}, Extracted subdomain: {Subdomain}", host, subdomain);
 
-            // If no subdomain or reserved subdomain, use default database
+            // If no subdomain or reserved subdomain, check for X-Tenant header
             if (string.IsNullOrEmpty(subdomain) || _reservedSubdomains.Contains(subdomain.ToLower()))
             {
-                _logger.LogDebug("Using default database (no tenant subdomain)");
-                await _next(context);
-                return;
+                // Check for X-Tenant header as fallback
+                if (context.Request.Headers.TryGetValue("X-Tenant", out var tenantHeader) && 
+                    !string.IsNullOrWhiteSpace(tenantHeader.ToString()))
+                {
+                    subdomain = tenantHeader.ToString().Trim();
+                    _logger.LogDebug("Using tenant from X-Tenant header: {Subdomain}", subdomain);
+                }
+                else
+                {
+                    _logger.LogDebug("Using default database (no tenant subdomain or header)");
+                    await _next(context);
+                    return;
+                }
             }
 
             // Resolve tenant from subdomain

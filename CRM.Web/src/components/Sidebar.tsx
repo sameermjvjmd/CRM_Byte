@@ -2,7 +2,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import {
     Home, Users, Building2, UsersRound, Briefcase, CheckSquare, History,
     BarChart3, Megaphone, Lightbulb, TrendingUp, Calendar, Search, Mail,
-    Settings, Table, MessageSquare, Calculator, FileText, Cloud
+    Settings, Table, MessageSquare, Calculator, FileText, Cloud, Package
 } from 'lucide-react';
 
 const Sidebar = () => {
@@ -20,6 +20,7 @@ const Sidebar = () => {
         { path: '/opportunities', icon: Briefcase, label: 'Opportunities' },
         { path: '/opportunities/analytics', icon: BarChart3, label: 'Pipeline Analytics' },
         { path: '/opportunities/forecast', icon: TrendingUp, label: 'Sales Forecast' },
+        { path: '/products', icon: Package, label: 'Products' },
     ];
 
     const activityItems = [

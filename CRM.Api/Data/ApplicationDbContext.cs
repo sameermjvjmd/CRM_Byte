@@ -57,6 +57,9 @@ namespace CRM.Api.Data
         public DbSet<StageHistory> StageHistories { get; set; }
         public DbSet<OpportunityProduct> OpportunityProducts { get; set; }
 
+        // Product Catalog (Week 15-16)
+        public DbSet<Product> Products { get; set; }
+
         // Tenant Email Configuration (SaaS)
         public DbSet<TenantEmailSettings> TenantEmailSettings { get; set; }
 

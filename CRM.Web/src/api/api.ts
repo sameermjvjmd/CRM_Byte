@@ -3,20 +3,55 @@ import axios, { type AxiosError, type InternalAxiosRequestConfig } from 'axios';
 const TOKEN_KEY = 'nexus_access_token';
 const REFRESH_TOKEN_KEY = 'nexus_refresh_token';
 
+// Extract tenant from URL subdomain
+// Examples:
+//   byte.crm.bytesymphony.in → "byte"
+//   demo.app.bytesymphony.in → "demo"
+//   crm.bytesymphony.in → null (no tenant)
+//   localhost:5173 → null (development)
+const getTenant = (): string | null => {
+    const hostname = window.location.hostname;
+    const parts = hostname.split('.');
+
+    // Skip localhost and IP addresses
+    if (hostname === 'localhost' || /^\d+\.\d+\.\d+\.\d+$/.test(hostname)) {
+        return null;
+    }
+
+    // For URLs like: byte.crm.bytesymphony.in (4+ parts)
+    // Or: byte.bytesymphony.in (3 parts where first is tenant)
+    if (parts.length >= 3) {
+        const firstPart = parts[0].toLowerCase();
+        // Skip reserved subdomains
+        const reserved = ['www', 'app', 'api', 'admin', 'crm', 'mail', 'ftp'];
+        if (!reserved.includes(firstPart)) {
+            return firstPart;
+        }
+    }
+
+    return null;
+};
+
 const api = axios.create({
-    baseURL: 'http://localhost:5000/api',
+    baseURL: 'https://api.bytesymphony.in/api',
     headers: {
         'Content-Type': 'application/json',
     },
 });
 
-// Request interceptor - add auth token to requests
+// Request interceptor - add auth token and tenant header to requests
 api.interceptors.request.use(
     (config: InternalAxiosRequestConfig) => {
         const token = localStorage.getItem(TOKEN_KEY);
+        const tenant = getTenant();
 
         if (token && config.headers) {
             config.headers.Authorization = `Bearer ${token}`;
+        }
+
+        // Add tenant header if available
+        if (tenant && config.headers) {
+            config.headers['X-Tenant'] = tenant;
         }
 
         return config;
@@ -60,7 +95,7 @@ api.interceptors.response.use(
                 try {
                     // Try to refresh the token
                     const response = await axios.post(
-                        'http://localhost:5000/api/auth/refresh',
+                        'https://api.bytesymphony.in/api/auth/refresh',
                         { refreshToken },
                         { headers: { 'Content-Type': 'application/json' } }
                     );

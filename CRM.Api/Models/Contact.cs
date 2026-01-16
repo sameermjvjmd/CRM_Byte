@@ -18,11 +18,11 @@ namespace CRM.Api.Models
         // Primary email (legacy - for backward compatibility)
         [EmailAddress]
         [StringLength(255)]
-        public string Email { get; set; } = string.Empty;
+        public string? Email { get; set; }
 
         [Phone]
         [StringLength(20)]
-        public string Phone { get; set; } = string.Empty;
+        public string? Phone { get; set; }
 
         [StringLength(200)]
         public string? JobTitle { get; set; }

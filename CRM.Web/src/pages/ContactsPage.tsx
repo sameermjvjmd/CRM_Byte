@@ -4,6 +4,7 @@ import api from '../api/api';
 import type { Contact } from '../types/contact';
 import { MoreVertical, Mail, Building2, Filter, ChevronRight, Search, Plus, LayoutList, Columns, X } from 'lucide-react';
 import ContactDetailView from '../components/views/ContactDetailView';
+import CreateModal from '../components/CreateModal';
 import BulkActionsToolbar from '../components/BulkActionsToolbar';
 import SavedViewsManager from '../components/SavedViewsManager';
 import type { SavedView } from '../components/SavedViewsManager';
@@ -19,6 +20,7 @@ const ContactsPage = () => {
     const [loading, setLoading] = useState(true);
     const [viewMode, setViewMode] = useState<'list' | 'detail'>('list');
     const [activeContactId, setActiveContactId] = useState<number | null>(null);
+    const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
     // Selection State
     const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
@@ -216,7 +218,9 @@ const ContactsPage = () => {
                         <Filter size={14} />
                         COLUMNS
                     </button>
-                    <button className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg text-xs font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200">
+                    <button
+                        onClick={() => setIsCreateModalOpen(true)}
+                        className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg text-xs font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200">
                         <Plus size={16} />
                         NEW CONTACT
                     </button>
@@ -431,6 +435,16 @@ const ContactsPage = () => {
                     </div>
                 </div>
             )}
+            {/* Create Modal */}
+            <CreateModal
+                isOpen={isCreateModalOpen}
+                onClose={() => setIsCreateModalOpen(false)}
+                onSuccess={() => {
+                    fetchContacts();
+                    // Optional: Show success toast
+                }}
+                initialType="Contact"
+            />
         </div>
     );
 };

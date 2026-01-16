@@ -104,7 +104,7 @@ const EnhancedActivitiesTable = ({
                             <td className="px-4 py-3">
                                 <span className="inline-flex items-center gap-2 px-2 py-1 rounded-md bg-slate-100 text-xs font-bold text-slate-700">
                                     <Calendar size={12} />
-                                    {activity.activityType}
+                                    {activity.type}
                                 </span>
                             </td>
                             <td className="px-4 py-3 text-sm font-bold text-slate-900">
@@ -125,17 +125,17 @@ const EnhancedActivitiesTable = ({
                                 <div className="font-bold text-sm text-slate-900">{activity.subject}</div>
                             </td>
                             <td className="px-4 py-3 text-sm font-bold text-slate-600">
-                                {activity.duration ? `${activity.duration} min` : '-'}
+                                {activity.durationMinutes ? `${activity.durationMinutes} min` : '-'}
                             </td>
                             <td className="px-4 py-3">
                                 <div className="flex flex-col gap-1">
-                                    {activity.associatedCompany && (
+                                    {activity.company && (
                                         <span className="inline-flex items-center gap-1 text-xs font-bold text-slate-600">
                                             <Building2 size={12} />
                                             Company
                                         </span>
                                     )}
-                                    {activity.associatedContact && (
+                                    {activity.contact && (
                                         <span className="inline-flex items-center gap-1 text-xs font-bold text-slate-600">
                                             <UserCircle size={12} />
                                             Contact

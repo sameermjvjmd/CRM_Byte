@@ -43,6 +43,7 @@ import EmailTemplatesPage from './pages/EmailTemplatesPage';
 import EmailSignaturesPage from './pages/EmailSignaturesPage';
 import SentEmailsPage from './pages/SentEmailsPage';
 import EmailSettingsPage from './pages/settings/EmailSettingsPage';
+import ProductsPage from './pages/ProductsPage';
 
 const AppContent = () => {
     const location = useLocation();
@@ -102,6 +103,7 @@ const AppContent = () => {
 
                             <Route path="/custom-tables" element={<ProtectedRoute><CustomTablesPage /></ProtectedRoute>} />
                             <Route path="/accounting" element={<ProtectedRoute><AccountingPage /></ProtectedRoute>} />
+                            <Route path="/products" element={<ProtectedRoute><ProductsPage /></ProtectedRoute>} />
 
                             {/* Admin Only */}
                             <Route path="/users" element={

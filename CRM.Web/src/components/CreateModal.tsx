@@ -61,13 +61,13 @@ const CreateModal = ({ isOpen, onClose, onSuccess, initialType = 'Contact', init
                         firstName: formData.firstName,
                         lastName: formData.lastName,
                         email: formData.email,
-                        phone: formData.phone,
-                        jobTitle: formData.jobTitle,
-                        address1: formData.address1,
-                        city: formData.city,
-                        state: formData.state,
-                        zip: formData.zip,
-                        country: formData.country
+                        phone: formData.phone || null,
+                        jobTitle: formData.jobTitle || null,
+                        address1: formData.address1 || null,
+                        city: formData.city || null,
+                        state: formData.state || null,
+                        zip: formData.zip || null,
+                        country: formData.country || null
                     };
                     break;
                 case 'Company':
@@ -146,9 +146,19 @@ const CreateModal = ({ isOpen, onClose, onSuccess, initialType = 'Contact', init
                 isCompleted: false,
                 regarding: '', details: ''
             });
-        } catch (error) {
+        } catch (error: any) {
             console.error('Error creating:', error);
-            alert('Failed to create record. Please ensure the backend is running.');
+            const data = error.response?.data;
+            let details = '';
+
+            if (data?.errors) {
+                details = '\nDetails:\n' + Object.entries(data.errors)
+                    .map(([key, val]) => `${key}: ${(val as any[]).join(', ')}`)
+                    .join('\n');
+            }
+
+            const msg = (data?.title || data?.message || error.message) + details;
+            alert(`Failed to create record: ${msg}`);
         } finally {
             setLoading(false);
         }

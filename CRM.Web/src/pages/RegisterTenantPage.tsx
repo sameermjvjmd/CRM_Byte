@@ -64,6 +64,7 @@ const RegisterTenantPage = () => {
     const [step, setStep] = useState(1);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [registrationComplete, setRegistrationComplete] = useState(false);
 
     // Subdomain check state
     const [isCheckingSubdomain, setIsCheckingSubdomain] = useState(false);
@@ -180,8 +181,8 @@ const RegisterTenantPage = () => {
             const result = await authApi.registerTenant(request);
 
             if (result.success) {
-                // Redirect to login with success message
-                navigate(`/login?registered=true&subdomain=${subdomain}`);
+                // Show success page with link to tenant URL
+                setRegistrationComplete(true);
             } else {
                 setError(result.message || 'Registration failed');
             }
@@ -221,8 +222,8 @@ const RegisterTenantPage = () => {
                     {[1, 2, 3].map((s) => (
                         <div key={s} className="flex items-center">
                             <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold transition-all ${step >= s
-                                    ? 'bg-indigo-600 text-white'
-                                    : 'bg-slate-800 text-slate-400'
+                                ? 'bg-indigo-600 text-white'
+                                : 'bg-slate-800 text-slate-400'
                                 }`}>
                                 {step > s ? <CheckCircle size={20} /> : s}
                             </div>
@@ -276,10 +277,10 @@ const RegisterTenantPage = () => {
                                             onChange={(e) => handleSubdomainChange(e.target.value)}
                                             placeholder="yourcompany"
                                             className={`w-full px-4 py-3 bg-slate-800/50 border rounded-xl text-white placeholder:text-slate-500 focus:ring-2 outline-none transition-all ${subdomainAvailable === true
-                                                    ? 'border-green-500 focus:ring-green-500/20'
-                                                    : subdomainAvailable === false
-                                                        ? 'border-red-500 focus:ring-red-500/20'
-                                                        : 'border-slate-700 focus:border-indigo-500 focus:ring-indigo-500/20'
+                                                ? 'border-green-500 focus:ring-green-500/20'
+                                                : subdomainAvailable === false
+                                                    ? 'border-red-500 focus:ring-red-500/20'
+                                                    : 'border-slate-700 focus:border-indigo-500 focus:ring-indigo-500/20'
                                                 }`}
                                         />
                                         <div className="absolute right-3 top-1/2 -translate-y-1/2">
@@ -288,7 +289,7 @@ const RegisterTenantPage = () => {
                                             {!isCheckingSubdomain && subdomainAvailable === false && <AlertCircle className="w-5 h-5 text-red-500" />}
                                         </div>
                                     </div>
-                                    <span className="text-slate-400 text-sm">.nexuscrm.com</span>
+                                    <span className="text-slate-400 text-sm">.bytesymphony.in</span>
                                 </div>
                                 {subdomainMessage && (
                                     <p className={`text-sm mt-2 ${subdomainAvailable ? 'text-green-400' : 'text-red-400'}`}>
@@ -421,8 +422,8 @@ const RegisterTenantPage = () => {
                                         key={plan.id}
                                         onClick={() => setSelectedPlan(plan.id)}
                                         className={`relative p-6 rounded-2xl border-2 cursor-pointer transition-all ${selectedPlan === plan.id
-                                                ? 'border-indigo-500 bg-indigo-500/10'
-                                                : 'border-slate-700 bg-slate-800/30 hover:border-slate-600'
+                                            ? 'border-indigo-500 bg-indigo-500/10'
+                                            : 'border-slate-700 bg-slate-800/30 hover:border-slate-600'
                                             }`}
                                     >
                                         {plan.popular && (
@@ -459,7 +460,7 @@ const RegisterTenantPage = () => {
                                 </div>
                                 <div className="flex justify-between">
                                     <span className="text-slate-400">Subdomain</span>
-                                    <span className="text-white font-medium">{subdomain}.nexuscrm.com</span>
+                                    <span className="text-white font-medium">{subdomain}.bytesymphony.in</span>
                                 </div>
                                 <div className="flex justify-between">
                                     <span className="text-slate-400">Admin</span>
@@ -505,6 +506,42 @@ const RegisterTenantPage = () => {
                             {' '}and{' '}
                             <a href="#" className="text-indigo-400 hover:text-indigo-300">Privacy Policy</a>
                         </p>
+                    </div>
+                )}
+                {/* Registration Complete */}
+                {registrationComplete && (
+                    <div className="bg-white/5 backdrop-blur-xl rounded-2xl border border-white/10 p-8 max-w-lg mx-auto text-center">
+                        <div className="w-20 h-20 bg-gradient-to-br from-green-500 to-emerald-600 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg shadow-green-500/30">
+                            <CheckCircle size={40} className="text-white" />
+                        </div>
+                        <h2 className="text-2xl font-bold text-white mb-2">Registration Complete!</h2>
+                        <p className="text-slate-400 mb-6">
+                            Your organization <span className="text-white font-semibold">{companyName}</span> has been created successfully.
+                        </p>
+
+                        <div className="bg-slate-800/50 rounded-xl p-4 mb-6">
+                            <p className="text-slate-400 text-sm mb-2">Your CRM is available at:</p>
+                            <a
+                                href={`https://${subdomain}.bytesymphony.in`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-xl font-bold text-indigo-400 hover:text-indigo-300 transition-colors"
+                            >
+                                {subdomain}.bytesymphony.in
+                            </a>
+                        </div>
+
+                        <div className="space-y-3">
+                            <a
+                                href={`https://${subdomain}.bytesymphony.in`}
+                                className="block w-full bg-gradient-to-r from-indigo-600 to-violet-600 text-white font-semibold py-3.5 rounded-xl hover:shadow-lg hover:shadow-indigo-500/30 transition-all"
+                            >
+                                Go to Your CRM →
+                            </a>
+                            <p className="text-slate-500 text-sm">
+                                Login with: <span className="text-slate-300">{adminEmail}</span>
+                            </p>
+                        </div>
                     </div>
                 )}
             </div>
