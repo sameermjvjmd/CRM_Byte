@@ -1,0 +1,117 @@
+import axios, { type AxiosError, type InternalAxiosRequestConfig } from 'axios';
+
+const TOKEN_KEY = 'nexus_access_token';
+const REFRESH_TOKEN_KEY = 'nexus_refresh_token';
+
+const api = axios.create({
+    baseURL: 'http://localhost:5000/api',
+    headers: {
+        'Content-Type': 'application/json',
+    },
+});
+
+// Request interceptor - add auth token to requests
+api.interceptors.request.use(
+    (config: InternalAxiosRequestConfig) => {
+        const token = localStorage.getItem(TOKEN_KEY);
+
+        if (token && config.headers) {
+            config.headers.Authorization = `Bearer ${token}`;
+        }
+
+        return config;
+    },
+    (error) => {
+        return Promise.reject(error);
+    }
+);
+
+// Response interceptor - handle 401 errors and token refresh
+let isRefreshing = false;
+let refreshSubscribers: ((token: string) => void)[] = [];
+
+const subscribeTokenRefresh = (callback: (token: string) => void) => {
+    refreshSubscribers.push(callback);
+};
+
+const onTokenRefreshed = (token: string) => {
+    refreshSubscribers.forEach((callback) => callback(token));
+    refreshSubscribers = [];
+};
+
+api.interceptors.response.use(
+    (response) => response,
+    async (error: AxiosError) => {
+        const originalRequest = error.config;
+
+        // If error is 401 and we have a refresh token
+        if (error.response?.status === 401 && originalRequest) {
+            const refreshToken = localStorage.getItem(REFRESH_TOKEN_KEY);
+
+            // Skip if this is a login/refresh request
+            if (originalRequest.url?.includes('/auth/login') ||
+                originalRequest.url?.includes('/auth/refresh')) {
+                return Promise.reject(error);
+            }
+
+            if (refreshToken && !isRefreshing) {
+                isRefreshing = true;
+
+                try {
+                    // Try to refresh the token
+                    const response = await axios.post(
+                        'http://localhost:5000/api/auth/refresh',
+                        { refreshToken },
+                        { headers: { 'Content-Type': 'application/json' } }
+                    );
+
+                    if (response.data.success && response.data.accessToken) {
+                        const newToken = response.data.accessToken;
+
+                        // Store new tokens
+                        localStorage.setItem(TOKEN_KEY, newToken);
+                        if (response.data.refreshToken) {
+                            localStorage.setItem(REFRESH_TOKEN_KEY, response.data.refreshToken);
+                        }
+
+                        // Notify waiting requests
+                        onTokenRefreshed(newToken);
+                        isRefreshing = false;
+
+                        // Retry original request with new token
+                        if (originalRequest.headers) {
+                            originalRequest.headers.Authorization = `Bearer ${newToken}`;
+                        }
+                        return api(originalRequest);
+                    }
+                } catch (refreshError) {
+                    isRefreshing = false;
+
+                    // Refresh failed - clear tokens and redirect to login
+                    localStorage.removeItem(TOKEN_KEY);
+                    localStorage.removeItem(REFRESH_TOKEN_KEY);
+                    localStorage.removeItem('nexus_user');
+
+                    // Redirect to login
+                    window.location.href = '/login';
+
+                    return Promise.reject(refreshError);
+                }
+            } else if (isRefreshing) {
+                // Wait for token refresh
+                return new Promise((resolve) => {
+                    subscribeTokenRefresh((token: string) => {
+                        if (originalRequest.headers) {
+                            originalRequest.headers.Authorization = `Bearer ${token}`;
+                        }
+                        resolve(api(originalRequest));
+                    });
+                });
+            }
+        }
+
+        return Promise.reject(error);
+    }
+);
+
+export default api;

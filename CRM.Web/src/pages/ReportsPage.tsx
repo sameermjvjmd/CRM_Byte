@@ -1,0 +1,322 @@
+// Reports Page Component
+import React, { useState, useEffect } from 'react';
+import api from '../api/api';
+import {
+    BarChart3, PieChart, TrendingUp, Users, Building,
+    Calendar, FileText, Download, Plus, Filter,
+    Play, MoreHorizontal
+} from 'lucide-react';
+import type { DashboardSummary, SavedReport } from '../types/reporting';
+import { formatCurrency } from '../utils/formatters';
+import ReportBuilderModal from '../components/reports/ReportBuilderModal';
+
+const ReportsPage = () => {
+    const [activeTab, setActiveTab] = useState<'dashboard' | 'standard' | 'custom'>('dashboard');
+    const [dashboardData, setDashboardData] = useState<DashboardSummary | null>(null);
+    const [savedReports, setSavedReports] = useState<SavedReport[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [isBuilderOpen, setIsBuilderOpen] = useState(false);
+
+    useEffect(() => {
+        fetchDashboardData();
+        fetchSavedReports();
+    }, []);
+
+    const fetchDashboardData = async () => {
+        try {
+            const response = await api.get('/reports/dashboard');
+            setDashboardData(response.data);
+        } catch (error) {
+            console.error('Error fetching dashboard data:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const fetchSavedReports = async () => {
+        try {
+            const response = await api.get('/reports/saved');
+            setSavedReports(response.data);
+        } catch (error) {
+            console.error('Error fetching saved reports:', error);
+        }
+    };
+
+    const StatCard = ({ title, value, subValue, icon: Icon, color }: any) => (
+        <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+            <div className="flex justify-between items-start mb-4">
+                <div>
+                    <p className="text-slate-500 text-sm font-medium mb-1">{title}</p>
+                    <h3 className="text-2xl font-bold text-slate-800">{value}</h3>
+                </div>
+                <div className={`p-3 rounded-lg ${color}`}>
+                    <Icon size={24} className="text-white" />
+                </div>
+            </div>
+            {subValue && (
+                <div className="flex items-center text-sm text-slate-500">
+                    <TrendingUp size={16} className="text-emerald-500 mr-1" />
+                    <span className="text-emerald-600 font-medium mr-1">{subValue}</span>
+                    <span>this month</span>
+                </div>
+            )}
+        </div>
+    );
+
+    const renderDashboard = () => {
+        if (!dashboardData) return <div className="p-8 text-center text-slate-500">Loading dashboard...</div>;
+
+        return (
+            <div className="space-y-8">
+                {/* Key Metrics */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    <StatCard
+                        title="Total Pipeline"
+                        value={formatCurrency(dashboardData.opportunities.pipelineValue)}
+                        subValue={dashboardData.opportunities.wonThisMonth + " won"}
+                        icon={TrendingUp}
+                        color="bg-emerald-500"
+                    />
+                    <StatCard
+                        title="Active Contacts"
+                        value={dashboardData.contacts.total}
+                        subValue={dashboardData.contacts.newThisMonth + " new"}
+                        icon={Users}
+                        color="bg-blue-500"
+                    />
+                    <StatCard
+                        title="Total Companies"
+                        value={dashboardData.companies.total}
+                        subValue={dashboardData.companies.newThisMonth + " new"}
+                        icon={Building}
+                        color="bg-indigo-500"
+                    />
+                    <StatCard
+                        title="Activities To-Do"
+                        value={dashboardData.activities.total}
+                        subValue={dashboardData.activities.completedThisMonth + " done"}
+                        icon={Calendar}
+                        color="bg-amber-500"
+                    />
+                </div>
+
+                {/* Charts Row */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+                        <h3 className="font-bold text-slate-800 mb-6 flex items-center gap-2">
+                            <BarChart3 size={20} className="text-indigo-600" />
+                            Pipeline by Stage
+                        </h3>
+                        {/* Placeholder for real chart - we'll need to fetch this specific data */}
+                        <div className="h-64 flex items-center justify-center bg-slate-50 rounded-lg text-slate-400">
+                            Loading Chart...
+                        </div>
+                    </div>
+                    <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+                        <h3 className="font-bold text-slate-800 mb-6 flex items-center gap-2">
+                            <PieChart size={20} className="text-purple-600" />
+                            Activities by Type
+                        </h3>
+                        {/* Placeholder for real chart */}
+                        <div className="h-64 flex items-center justify-center bg-slate-50 rounded-lg text-slate-400">
+                            Loading Chart...
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+    };
+
+    const renderStandardReports = () => {
+        const standardReports = [
+            { id: 'contacts', title: 'All Contacts', category: 'Contacts', desc: 'List of all active contacts with contact details.' },
+            { id: 'companies', title: 'All Companies', category: 'Companies', desc: 'List of all companies with industry and location.' },
+            { id: 'opportunities', title: 'Sales Pipeline', category: 'Opportunities', desc: 'All open and closed opportunities by stage.' },
+            { id: 'activities', title: 'Activity Log', category: 'Activities', desc: 'History of all scheduled and completed activities.' },
+            { id: 'marketing', title: 'Campaign Performance', category: 'Marketing', desc: 'Summary of marketing campaigns and engagement.' },
+        ];
+
+        return (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {standardReports.map(report => (
+                    <div key={report.id} className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow group">
+                        <div className="flex justify-between items-start mb-4">
+                            <div className="p-3 bg-indigo-50 rounded-lg group-hover:bg-indigo-100 transition-colors">
+                                <FileText className="text-indigo-600" size={24} />
+                            </div>
+                            <span className="px-2 py-1 bg-slate-100 text-slate-600 text-xs rounded-full font-medium">
+                                {report.category}
+                            </span>
+                        </div>
+                        <h3 className="font-bold text-slate-800 mb-2">{report.title}</h3>
+                        <p className="text-slate-500 text-sm mb-6 h-10">{report.desc}</p>
+
+                        <div className="flex gap-2">
+                            <a
+                                href={`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/reports/export/${report.id}/csv`}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-white border border-slate-300 text-slate-700 rounded-lg text-sm font-medium hover:bg-slate-50"
+                            >
+                                <Download size={16} />
+                                Export CSV
+                            </a>
+                            <button className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700">
+                                View
+                            </button>
+                        </div>
+                    </div>
+                ))}
+            </div>
+        );
+    };
+
+    const renderCustomReports = () => (
+        <div className="space-y-6">
+            <div className="flex justify-between items-center">
+                <h3 className="text-lg font-bold text-slate-800">Saved Reports</h3>
+                <button
+                    onClick={() => setIsBuilderOpen(true)}
+                    className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 shadow-sm"
+                >
+                    <Plus size={18} />
+                    Create New Report
+                </button>
+            </div>
+
+            {savedReports.length > 0 ? (
+                <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                    <table className="w-full text-sm text-left">
+                        <thead className="text-xs text-slate-500 uppercase bg-slate-50 border-b border-slate-200">
+                            <tr>
+                                <th className="px-6 py-4 font-semibold">Report Name</th>
+                                <th className="px-6 py-4 font-semibold">Category</th>
+                                <th className="px-6 py-4 font-semibold">Created By</th>
+                                <th className="px-6 py-4 font-semibold">Last Run</th>
+                                <th className="px-6 py-4 font-semibold text-right">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                            {savedReports.map((report) => (
+                                <tr key={report.id} className="hover:bg-slate-50 transition-colors">
+                                    <td className="px-6 py-4 font-medium text-slate-900">{report.name}</td>
+                                    <td className="px-6 py-4">
+                                        <span className="px-2 py-1 bg-slate-100 text-slate-600 text-xs rounded-full">
+                                            {report.category}
+                                        </span>
+                                    </td>
+                                    <td className="px-6 py-4 text-slate-500">You</td>
+                                    <td className="px-6 py-4 text-slate-500">
+                                        {report.lastRunAt ? new Date(report.lastRunAt).toLocaleDateString() : 'Never'}
+                                    </td>
+                                    <td className="px-6 py-4 text-right">
+                                        <div className="flex items-center justify-end gap-2">
+                                            <button className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors">
+                                                <Play size={16} />
+                                            </button>
+                                            <button
+                                                onClick={() => {
+                                                    // Handle run report logic (maybe open builder in view mode)
+                                                }}
+                                                className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                                            >
+                                                <Download size={16} />
+                                            </button>
+                                            <button className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
+                                                <MoreHorizontal size={16} />
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            ) : (
+                <div className="bg-white rounded-xl border border-dashed border-slate-300 p-12 text-center">
+                    <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4 text-slate-400">
+                        <Filter size={32} />
+                    </div>
+                    <h3 className="text-lg font-bold text-slate-900 mb-2">No Custom Reports Yet</h3>
+                    <p className="text-slate-500 mb-6 max-w-md mx-auto">
+                        Create custom reports to analyze your data exactly how you need it. filter, sort, and group your data to find insights.
+                    </p>
+                    <button
+                        onClick={() => setIsBuilderOpen(true)}
+                        className="px-6 py-2 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700"
+                    >
+                        Build Your First Report
+                    </button>
+                </div>
+            )}
+        </div>
+    );
+
+    return (
+        <div className="p-8 max-w-7xl mx-auto space-y-8">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                    <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
+                        <BarChart3 className="text-indigo-600" />
+                        Reporting & Analytics
+                    </h1>
+                    <p className="text-slate-500 mt-1">Track performance and generate insights.</p>
+                </div>
+                <div className="flex gap-2">
+                    <button className="px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-lg text-sm font-medium hover:bg-slate-50 shadow-sm flex items-center gap-2">
+                        <Download size={16} />
+                        Export All Data
+                    </button>
+                </div>
+            </div>
+
+            {/* Navigation Tabs */}
+            <div className="border-b border-slate-200">
+                <nav className="flex space-x-8">
+                    {[
+                        { id: 'dashboard', label: 'Dashboard' },
+                        { id: 'standard', label: 'Standard Reports' },
+                        { id: 'custom', label: 'Custom Reports' }
+                    ].map(tab => (
+                        <button
+                            key={tab.id}
+                            onClick={() => setActiveTab(tab.id as any)}
+                            className={`
+                                py-4 px-1 border-b-2 font-medium text-sm transition-colors
+                                ${activeTab === tab.id
+                                    ? 'border-indigo-600 text-indigo-600'
+                                    : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'}
+                            `}
+                        >
+                            {tab.label}
+                        </button>
+                    ))}
+                </nav>
+            </div>
+
+            {/* Content Area */}
+            <div className="min-h-[500px]">
+                {loading ? (
+                    <div className="flex items-center justify-center h-64 text-slate-400">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mr-3"></div>
+                        Loading data...
+                    </div>
+                ) : (
+                    <>
+                        {activeTab === 'dashboard' && renderDashboard()}
+                        {activeTab === 'standard' && renderStandardReports()}
+                        {activeTab === 'custom' && renderCustomReports()}
+                    </>
+                )}
+            </div>
+
+            <ReportBuilderModal
+                isOpen={isBuilderOpen}
+                onClose={() => setIsBuilderOpen(false)}
+                onSaveSuccess={fetchSavedReports}
+            />
+        </div>
+    );
+};
+
+export default ReportsPage;
