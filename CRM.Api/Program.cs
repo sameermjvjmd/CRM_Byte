@@ -7,6 +7,8 @@ using CRM.Api.Services;
 using CRM.Api.Services.Email;
 using CRM.Api.Services.Security;
 using CRM.Api.Middleware;
+using CRM.Api.Services.Import;
+using CRM.Api.Services.DataQuality;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -42,13 +44,26 @@ builder.Services.AddScoped<ITenantDbContextFactory, TenantDbContextFactory>();
 // Auth Services
 builder.Services.AddScoped<IJwtService, JwtService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
+// Data Quality
+// Data Quality
+builder.Services.AddScoped<IImportService, ImportService>();
+builder.Services.AddScoped<IDuplicateService, DuplicateService>();
 
 // Email Services
 // Email Services
 builder.Services.AddScoped<IEmailService, SmtpEmailService>();
 
+// Workflow Automation
+builder.Services.AddScoped<WorkflowExecutionService>();
+
+// Reporting Services
+builder.Services.AddScoped<CRM.Api.Services.Reporting.IReportBuilderService, CRM.Api.Services.Reporting.ReportBuilderService>();
+
 // Security Services
 builder.Services.AddSingleton<IEncryptionService, EncryptionService>();
+
+// Search Services
+builder.Services.AddScoped<CRM.Api.Services.Search.ISearchService, CRM.Api.Services.Search.SearchService>();
 
 // JWT Authentication
 var jwtSettings = builder.Configuration.GetSection("JwtSettings");

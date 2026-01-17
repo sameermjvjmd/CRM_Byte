@@ -56,11 +56,10 @@ const ContactsPage = () => {
         setLoading(true);
         try {
             // Apply advanced search if passed from nav state
-            if (location.state?.advancedSearch) {
-                // In a real implementation this would call a specific search endpoint
-                // For now, we fetch all and filter client side if needed, or assume backend handles it
-                const response = await api.get('/contacts');
-                setContacts(response.data);
+            // Apply advanced search if passed from nav state
+            if (location.state?.lookupActive && location.state?.lookupResults) {
+                setContacts(location.state.lookupResults);
+                setActiveSearchQuery("Current Lookup");
             } else {
                 const response = await api.get('/contacts');
                 setContacts(response.data);

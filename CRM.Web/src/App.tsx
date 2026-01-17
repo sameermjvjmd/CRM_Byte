@@ -5,6 +5,7 @@ import { AuthProvider } from './context/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import TopNavigation from './components/TopNavigation';
 import ActionToolbar from './components/ActionToolbar';
+import ReminderNotification from './components/ReminderNotification';
 
 import Sidebar from './components/Sidebar';
 import ContactsPage from './pages/ContactsPage';
@@ -12,6 +13,7 @@ import DashboardPage from './pages/DashboardPage';
 import PipelineBoardPage from './pages/PipelineBoardPage';
 import PipelineAnalyticsPage from './pages/PipelineAnalyticsPage';
 import SalesForecastPage from './pages/SalesForecastPage';
+import OpportunityDetailPage from './pages/OpportunityDetailPage';
 import OpportunitiesPage from './pages/OpportunitiesPage';
 import ActivitiesPage from './pages/ActivitiesPage';
 import ContactDetailPage from './pages/ContactDetailPage';
@@ -44,6 +46,10 @@ import EmailSignaturesPage from './pages/EmailSignaturesPage';
 import SentEmailsPage from './pages/SentEmailsPage';
 import EmailSettingsPage from './pages/settings/EmailSettingsPage';
 import ProductsPage from './pages/ProductsPage';
+import QuotesPage from './pages/QuotesPage';
+import QuoteDetailPage from './pages/QuoteDetailPage';
+import WorkflowsPage from './pages/WorkflowsPage';
+import CustomFieldsPage from './pages/CustomFieldsPage';
 
 const AppContent = () => {
     const location = useLocation();
@@ -51,7 +57,12 @@ const AppContent = () => {
 
     return (
         <div className="flex flex-col h-screen w-full bg-[#f8fafc] overflow-hidden">
-            {!isPublicPage && <TopNavigation />}
+            {!isPublicPage && (
+                <>
+                    <TopNavigation />
+                    <ReminderNotification />
+                </>
+            )}
 
             <div className="flex flex-1 min-h-0">
                 {!isPublicPage && <Sidebar />}
@@ -77,6 +88,7 @@ const AppContent = () => {
                             {/* Opportunities */}
                             <Route path="/opportunities" element={<ProtectedRoute><PipelineBoardPage /></ProtectedRoute>} />
                             <Route path="/opportunities/list" element={<ProtectedRoute><OpportunitiesPage /></ProtectedRoute>} />
+                            <Route path="/opportunities/:id" element={<ProtectedRoute><OpportunityDetailPage /></ProtectedRoute>} />
                             <Route path="/opportunities/analytics" element={<ProtectedRoute><PipelineAnalyticsPage /></ProtectedRoute>} />
                             <Route path="/opportunities/forecast" element={<ProtectedRoute><SalesForecastPage /></ProtectedRoute>} />
 
@@ -103,7 +115,31 @@ const AppContent = () => {
 
                             <Route path="/custom-tables" element={<ProtectedRoute><CustomTablesPage /></ProtectedRoute>} />
                             <Route path="/accounting" element={<ProtectedRoute><AccountingPage /></ProtectedRoute>} />
-                            <Route path="/products" element={<ProtectedRoute><ProductsPage /></ProtectedRoute>} />
+                            <Route path="/products" element={
+                                <ProtectedRoute>
+                                    <ProductsPage />
+                                </ProtectedRoute>
+                            } />
+                            <Route path="/quotes" element={
+                                <ProtectedRoute>
+                                    <QuotesPage />
+                                </ProtectedRoute>
+                            } />
+                            <Route path="/quotes/:id" element={
+                                <ProtectedRoute>
+                                    <QuoteDetailPage />
+                                </ProtectedRoute>
+                            } />
+                            <Route path="/workflows" element={
+                                <ProtectedRoute>
+                                    <WorkflowsPage />
+                                </ProtectedRoute>
+                            } />
+                            <Route path="/custom-fields" element={
+                                <ProtectedRoute>
+                                    <CustomFieldsPage />
+                                </ProtectedRoute>
+                            } />
 
                             {/* Admin Only */}
                             <Route path="/users" element={

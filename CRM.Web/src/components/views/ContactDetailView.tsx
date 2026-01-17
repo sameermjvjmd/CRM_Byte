@@ -50,7 +50,7 @@ const ContactDetailView = ({ contactId, navigation }: ContactDetailViewProps) =>
     const [companies, setCompanies] = useState<any[]>([]);
     const [personalInfo, setPersonalInfo] = useState<any>({});
     const [webInfo, setWebInfo] = useState<any>({ customLinks: [] });
-    const [customFields, setCustomFields] = useState<any[]>([]);
+
     const [modalType, setModalType] = useState<'Activity' | 'Note' | 'Contact' | 'Company' | 'Opportunity' | 'Group'>('Activity');
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [editFormData, setEditFormData] = useState<any>({});
@@ -79,17 +79,15 @@ const ContactDetailView = ({ contactId, navigation }: ContactDetailViewProps) =>
                 // Fetch extended data (Week 7-8 features)
                 // We wrap these in try-catch blocks individually or together so one failure doesn't break the page
                 try {
-                    const [groupsRes, personalRes, webRes, fieldsRes] = await Promise.all([
+                    const [groupsRes, personalRes, webRes] = await Promise.all([
                         api.get(`/groups/contact/${contactId}`),
                         api.get(`/contacts/${contactId}/personalinfo`),
-                        api.get(`/contacts/${contactId}/webinfo`),
-                        api.get(`/contacts/${contactId}/customfields`)
+                        api.get(`/contacts/${contactId}/webinfo`)
                     ]);
 
                     setGroups(groupsRes.data || []);
                     setPersonalInfo(personalRes.data || {});
                     setWebInfo(webRes.data || { customLinks: [] });
-                    setCustomFields(fieldsRes.data || []);
                 } catch (extError) {
                     console.error('Error fetching extended data:', extError);
                 }
@@ -252,12 +250,16 @@ const ContactDetailView = ({ contactId, navigation }: ContactDetailViewProps) =>
     };
 
     // Custom fields handler
-    const handleUpdateCustomFields = async (fields: any[]) => {
+    const handleUpdateCustomFields = async (values: any[]) => {
+        if (!contact) return;
         try {
-            await api.put(`/contacts/${contactId}/customfields`, fields);
-            // Refresh to get new IDs
-            const fieldsRes = await api.get(`/contacts/${contactId}/customfields`);
-            setCustomFields(fieldsRes.data);
+            const updatedContact = { ...contact, customValues: values };
+            await api.put(`/contacts/${contactId}`, updatedContact);
+
+            // Refresh to confirm save
+            const res = await api.get(`/contacts/${contactId}`);
+            setContact(res.data);
+
             alert('Custom fields updated successfully!');
         } catch (error) {
             console.error('Error updating custom fields:', error);
@@ -504,12 +506,12 @@ const ContactDetailView = ({ contactId, navigation }: ContactDetailViewProps) =>
                             <TabItem id="Documents" icon={<FileText size={16} />} active={activeTab === 'Documents'} onClick={() => setActiveTab('Documents')} />
                             <TabItem id="Groups" icon={<Users size={16} />} active={activeTab === 'Groups'} onClick={() => setActiveTab('Groups')} />
                             <TabItem id="Companies" icon={<Building2 size={16} />} active={activeTab === 'Companies'} onClick={() => setActiveTab('Companies')} />
-                            <TabItem id="Personal" icon={<User size={16} />} active={activeTab === 'Personal'} onClick={() => setActiveTab('Personal')} />
-                            <TabItem id="WebInfo" icon={<Globe size={16} />} active={activeTab === 'WebInfo'} onClick={() => setActiveTab('WebInfo')} />
-                            <TabItem id="CustomFields" icon={<Sliders size={16} />} active={activeTab === 'CustomFields'} onClick={() => setActiveTab('CustomFields')} />
-                            <TabItem id="EmailAddresses" icon={<Mail size={16} />} active={activeTab === 'EmailAddresses'} onClick={() => setActiveTab('EmailAddresses')} />
+                            <TabItem id="Personal" label="Personal Info" icon={<User size={16} />} active={activeTab === 'Personal'} onClick={() => setActiveTab('Personal')} />
+                            <TabItem id="WebInfo" label="Web Info" icon={<Globe size={16} />} active={activeTab === 'WebInfo'} onClick={() => setActiveTab('WebInfo')} />
+                            <TabItem id="CustomFields" label="Custom Fields" icon={<Sliders size={16} />} active={activeTab === 'CustomFields'} onClick={() => setActiveTab('CustomFields')} />
+                            <TabItem id="EmailAddresses" label="Emails" icon={<Mail size={16} />} active={activeTab === 'EmailAddresses'} onClick={() => setActiveTab('EmailAddresses')} />
                             <TabItem id="Addresses" icon={<MapPin size={16} />} active={activeTab === 'Addresses'} onClick={() => setActiveTab('Addresses')} />
-                            <TabItem id="Emails" icon={<Mail size={16} />} active={activeTab === 'Emails'} onClick={() => setActiveTab('Emails')} />
+                            <TabItem id="Emails" label="Correspondence" icon={<Mail size={16} />} active={activeTab === 'Emails'} onClick={() => setActiveTab('Emails')} />
                         </div>
 
                         <div className="flex-1 p-8 overflow-y-auto custom-scrollbar">
@@ -697,8 +699,9 @@ const ContactDetailView = ({ contactId, navigation }: ContactDetailViewProps) =>
 
                             {activeTab === 'CustomFields' && (
                                 <UserFieldsTab
-                                    contactId={contactId}
-                                    customFields={customFields}
+                                    entityId={contactId}
+                                    entityType="Contact"
+                                    customValues={contact.customValues || []}
                                     onUpdate={handleUpdateCustomFields}
                                 />
                             )}
@@ -1082,13 +1085,13 @@ const InfoRow = ({ icon, label, value }: { icon: any, label: string, value: stri
     </div>
 );
 
-const TabItem = ({ id, icon, active, onClick }: any) => (
+const TabItem = ({ id, label, icon, active, onClick }: any) => (
     <button
         onClick={onClick}
         className={`flex items-center gap-2 px-6 py-4 text-[10px] font-black uppercase tracking-[0.2em] transition-all relative whitespace-nowrap ${active ? 'text-indigo-600' : 'text-slate-400 hover:text-slate-600'}`}
     >
         {icon}
-        {id}
+        {label || id}
         {active && <div className="absolute bottom-0 left-0 w-full h-1 bg-indigo-600 rounded-t-full shadow-[0_-2px_8px_rgba(99,102,241,0.5)]" />}
     </button>
 );

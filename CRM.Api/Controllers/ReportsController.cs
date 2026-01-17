@@ -3,6 +3,9 @@ using Microsoft.EntityFrameworkCore;
 using CRM.Api.Data;
 using CRM.Api.Models;
 using CRM.Api.Models.Marketing;
+using CRM.Api.DTOs.Reporting;
+using CRM.Api.Services.Reporting;
+using System.Security.Claims;
 using System.Text;
 
 namespace CRM.Api.Controllers
@@ -13,11 +16,19 @@ namespace CRM.Api.Controllers
     {
         private readonly ApplicationDbContext _context;
         private readonly ILogger<ReportsController> _logger;
+        private readonly IReportBuilderService _reportService;
 
-        public ReportsController(ApplicationDbContext context, ILogger<ReportsController> logger)
+        public ReportsController(ApplicationDbContext context, ILogger<ReportsController> logger, IReportBuilderService reportService)
         {
             _context = context;
             _logger = logger;
+            _reportService = reportService;
+        }
+
+        private int GetUserId()
+        {
+            var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            return int.TryParse(userIdStr, out int uid) ? uid : 0;
         }
 
         // =============================================
@@ -555,6 +566,57 @@ namespace CRM.Api.Controllers
                     Overdue = activities.Count(a => !a.IsCompleted && a.EndTime < DateTime.UtcNow)
                 }
             });
+        }
+        
+        // =============================================
+        // CUSTOM REPORT BUILDER (Module 8)
+        // =============================================
+
+        [HttpPost("saved/run")]
+        public async Task<ActionResult<ReportResultDto>> RunCustomReport([FromBody] ReportRunRequestDto request)
+        {
+            try 
+            {
+                var result = await _reportService.ExecuteReportAsync(request, GetUserId());
+                return Ok(result);
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+
+        [HttpGet("saved")]
+        public async Task<ActionResult<IEnumerable<SavedReportDto>>> GetSavedReports()
+        {
+            var userId = GetUserId();
+            var reports = await _reportService.GetSavedReportsAsync(userId);
+            return Ok(reports);
+        }
+
+        [HttpGet("saved/{id}")]
+        public async Task<ActionResult<SavedReportDto>> GetSavedReport(int id)
+        {
+            var report = await _reportService.GetSavedReportAsync(id);
+            if (report == null) return NotFound();
+            return Ok(report);
+        }
+
+        [HttpPost("saved")]
+        public async Task<ActionResult<SavedReportDto>> CreateSavedReport([FromBody] CreateSavedReportDto dto)
+        {
+            var userId = GetUserId();
+            var report = await _reportService.CreateSavedReportAsync(userId, dto);
+            return CreatedAtAction(nameof(GetSavedReport), new { id = report.Id }, report);
+        }
+
+        [HttpDelete("saved/{id}")]
+        public async Task<IActionResult> DeleteSavedReport(int id)
+        {
+            var userId = GetUserId();
+            var result = await _reportService.DeleteSavedReportAsync(id, userId);
+            if (!result) return NotFound(); // Or Forbidden, but service returns false for both currently
+            return NoContent();
         }
     }
 }

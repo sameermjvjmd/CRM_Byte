@@ -1,244 +1,186 @@
-import { useState } from 'react';
-import { Sliders, Plus, Edit, Trash2, Save, X } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Save } from 'lucide-react';
+import api from '../../api/api';
 
-interface CustomField {
-    id: string;
-    label: string;
+interface CustomFieldDefinition {
+    id: number;
+    entityType: string;
+    fieldName: string;
+    fieldKey: string;
+    fieldType: string;
+    isRequired: boolean;
+    optionsJson?: string;
+}
+
+interface CustomFieldValue {
+    customFieldDefinitionId: number;
     value: string;
-    type: 'text' | 'number' | 'date' | 'dropdown' | 'checkbox';
-    options?: string[]; // For dropdown
 }
 
 interface UserFieldsTabProps {
-    contactId: number;
-    customFields: CustomField[];
-    onUpdate: (fields: CustomField[]) => void;
+    entityId: number;
+    entityType: string;
+    customValues: CustomFieldValue[]; // Values from the entity
+    onUpdate: (values: CustomFieldValue[]) => void;
 }
 
-const UserFieldsTab = ({ contactId, customFields, onUpdate }: UserFieldsTabProps) => {
-    const [fields, setFields] = useState<CustomField[]>(customFields);
-    const [isAdding, setIsAdding] = useState(false);
-    const [newFieldLabel, setNewFieldLabel] = useState('');
-    const [newFieldType, setNewFieldType] = useState<CustomField['type']>('text');
+const UserFieldsTab = ({ entityId, entityType, customValues, onUpdate }: UserFieldsTabProps) => {
+    const [definitions, setDefinitions] = useState<CustomFieldDefinition[]>([]);
+    const [values, setValues] = useState<CustomFieldValue[]>(customValues || []);
+    const [loading, setLoading] = useState(true);
 
-    const handleAddField = () => {
-        if (newFieldLabel.trim()) {
-            const newField: CustomField = {
-                id: Date.now().toString(),
-                label: newFieldLabel,
-                value: '',
-                type: newFieldType
-            };
-            setFields(prev => [...prev, newField]);
-            setNewFieldLabel('');
-            setNewFieldType('text');
-            setIsAdding(false);
-        }
-    };
+    useEffect(() => {
+        const fetchDefinitions = async () => {
+            try {
+                const res = await api.get(`/customfields/${entityType}`);
+                setDefinitions(res.data);
+            } catch (err) {
+                console.error("Failed to load field definitions", err);
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchDefinitions();
+    }, []);
 
-    const handleUpdateField = (id: string, value: string) => {
-        setFields(prev => prev.map(field =>
-            field.id === id ? { ...field, value } : field
-        ));
-    };
+    // Sync values when props change
+    useEffect(() => {
+        if (customValues) setValues(customValues);
+    }, [customValues]);
 
-    const handleDeleteField = (id: string) => {
-        setFields(prev => prev.filter(field => field.id !== id));
+    const handleChange = (defId: number, newVal: string) => {
+        setValues(prev => {
+            const existing = prev.find(v => v.customFieldDefinitionId === defId);
+            if (existing) {
+                return prev.map(v => v.customFieldDefinitionId === defId ? { ...v, value: newVal } : v);
+            } else {
+                return [...prev, { customFieldDefinitionId: defId, value: newVal }];
+            }
+        });
     };
 
     const handleSave = () => {
-        onUpdate(fields);
+        onUpdate(values);
     };
 
-    const renderFieldInput = (field: CustomField) => {
-        switch (field.type) {
-            case 'text':
-                return (
-                    <input
-                        type="text"
-                        value={field.value}
-                        onChange={(e) => handleUpdateField(field.id, e.target.value)}
-                        className="w-full px-4 py-2 border border-slate-300 rounded-lg font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                        placeholder="Enter value..."
-                    />
-                );
-            case 'number':
-                return (
-                    <input
-                        type="number"
-                        value={field.value}
-                        onChange={(e) => handleUpdateField(field.id, e.target.value)}
-                        className="w-full px-4 py-2 border border-slate-300 rounded-lg font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                        placeholder="Enter number..."
-                    />
-                );
-            case 'date':
-                return (
-                    <input
-                        type="date"
-                        value={field.value}
-                        onChange={(e) => handleUpdateField(field.id, e.target.value)}
-                        className="w-full px-4 py-2 border border-slate-300 rounded-lg font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                    />
-                );
-            case 'checkbox':
-                return (
-                    <label className="flex items-center gap-2">
-                        <input
-                            type="checkbox"
-                            checked={field.value === 'true'}
-                            onChange={(e) => handleUpdateField(field.id, e.target.checked.toString())}
-                            className="w-5 h-5 rounded border-slate-300"
-                        />
-                        <span className="font-bold text-slate-700">Enabled</span>
-                    </label>
-                );
-            default:
-                return (
-                    <input
-                        type="text"
-                        value={field.value}
-                        onChange={(e) => handleUpdateField(field.id, e.target.value)}
-                        className="w-full px-4 py-2 border border-slate-300 rounded-lg font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                    />
-                );
-        }
-    };
+    const getValue = (defId: number) => values.find(v => v.customFieldDefinitionId === defId)?.value || '';
 
-    const getFieldTypeIcon = (type: string) => {
-        const icons: Record<string, string> = {
-            text: '📝',
-            number: '🔢',
-            date: '📅',
-            dropdown: '▼',
-            checkbox: '☑️'
-        };
-        return icons[type] || '📝';
-    };
+    if (loading) return <div className="p-8 text-center text-slate-400">Loading schema...</div>;
+
+    if (definitions.length === 0) return (
+        <div className="p-8 text-center border-2 border-dashed border-slate-200 rounded-xl">
+            <p className="text-slate-500 font-bold mb-2">No custom fields defined</p>
+            <p className="text-xs text-slate-400">Go to Tools &gt; Custom Fields to configure fields for Contacts.</p>
+        </div>
+    );
 
     return (
-        <div className="space-y-6">
-            {/* Header */}
-            <div className="flex items-center justify-between">
-                <div>
-                    <h3 className="text-lg font-black text-slate-900">Custom Fields</h3>
-                    <p className="text-sm font-bold text-slate-500">
-                        {fields.length} custom field{fields.length !== 1 ? 's' : ''}
-                    </p>
-                </div>
-                <div className="flex gap-2">
-                    {!isAdding && (
-                        <button
-                            onClick={() => setIsAdding(true)}
-                            className="px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-bold text-slate-700 hover:bg-slate-50 transition-all flex items-center gap-2"
-                        >
-                            <Plus size={16} />
-                            Add Field
-                        </button>
-                    )}
-                    <button
-                        onClick={handleSave}
-                        className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-bold hover:bg-indigo-700 transition-all flex items-center gap-2 shadow-lg shadow-indigo-200"
-                    >
-                        <Save size={16} />
-                        Save All
-                    </button>
-                </div>
+        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+            <div className="flex justify-between items-center mb-6">
+                <h3 className="font-black text-slate-900 uppercase tracking-wide text-sm">Custom Details</h3>
+                <button
+                    onClick={handleSave}
+                    className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg font-bold text-xs uppercase hover:bg-indigo-700 transition-all shadow-sm"
+                >
+                    <Save size={14} /> Save Changes
+                </button>
             </div>
 
-            {/* Add Field Form */}
-            {isAdding && (
-                <div className="p-6 bg-indigo-50 border-2 border-indigo-200 rounded-xl">
-                    <h4 className="text-sm font-black text-indigo-900 mb-4">Add Custom Field</h4>
-                    <div className="grid grid-cols-2 gap-4">
-                        <div>
-                            <label className="text-xs font-bold text-indigo-700 uppercase mb-1 block">Field Label</label>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {definitions.map(def => (
+                    <div key={def.id}>
+                        <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
+                            {def.fieldName} {def.isRequired && <span className="text-red-500">*</span>}
+                        </label>
+
+                        {def.fieldType === 'Text' && (
                             <input
                                 type="text"
-                                value={newFieldLabel}
-                                onChange={(e) => setNewFieldLabel(e.target.value)}
-                                placeholder="e.g., Customer ID"
-                                className="w-full px-4 py-2 border border-indigo-300 rounded-lg font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                                autoFocus
+                                className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all outline-none"
+                                value={getValue(def.id)}
+                                onChange={e => handleChange(def.id, e.target.value)}
                             />
-                        </div>
-                        <div>
-                            <label className="text-xs font-bold text-indigo-700 uppercase mb-1 block">Field Type</label>
-                            <select
-                                value={newFieldType}
-                                onChange={(e) => setNewFieldType(e.target.value as CustomField['type'])}
-                                className="w-full px-4 py-2 border border-indigo-300 rounded-lg font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                            >
-                                <option value="text">Text</option>
-                                <option value="number">Number</option>
-                                <option value="date">Date</option>
-                                <option value="checkbox">Checkbox</option>
-                            </select>
-                        </div>
-                    </div>
-                    <div className="flex gap-2 mt-4">
-                        <button
-                            onClick={() => setIsAdding(false)}
-                            className="flex-1 px-4 py-2 bg-white border border-indigo-300 rounded-lg font-bold text-sm text-indigo-700 hover:bg-indigo-100 transition-all"
-                        >
-                            Cancel
-                        </button>
-                        <button
-                            onClick={handleAddField}
-                            className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg font-bold text-sm hover:bg-indigo-700 transition-all"
-                        >
-                            Add Field
-                        </button>
-                    </div>
-                </div>
-            )}
+                        )}
 
-            {/* Fields List */}
-            <div className="space-y-4">
-                {fields.length === 0 ? (
-                    <div className="text-center py-12 bg-slate-50 rounded-xl border-2 border-dashed border-slate-300">
-                        <Sliders size={48} className="mx-auto text-slate-300 mb-4" />
-                        <p className="text-sm font-bold text-slate-500">No custom fields</p>
-                        <p className="text-xs font-bold text-slate-400 mt-1">Add custom fields to track additional information</p>
-                    </div>
-                ) : (
-                    fields.map((field) => (
-                        <div
-                            key={field.id}
-                            className="p-4 bg-white border-2 border-slate-200 rounded-xl hover:shadow-md transition-all group"
-                        >
-                            <div className="flex items-center gap-3 mb-3">
-                                <span className="text-2xl">{getFieldTypeIcon(field.type)}</span>
-                                <div className="flex-1">
-                                    <label className="text-sm font-black text-slate-900">{field.label}</label>
-                                    <div className="text-xs font-bold text-slate-400 uppercase">{field.type}</div>
-                                </div>
-                                <button
-                                    onClick={() => handleDeleteField(field.id)}
-                                    className="p-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-all opacity-0 group-hover:opacity-100"
-                                    title="Delete field"
-                                >
-                                    <Trash2 size={16} />
-                                </button>
+                        {def.fieldType === 'URL' && (
+                            <input
+                                type="url"
+                                className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all outline-none"
+                                value={getValue(def.id)}
+                                onChange={e => handleChange(def.id, e.target.value)}
+                            />
+                        )}
+
+                        {def.fieldType === 'Email' && (
+                            <input
+                                type="email"
+                                className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all outline-none"
+                                value={getValue(def.id)}
+                                onChange={e => handleChange(def.id, e.target.value)}
+                            />
+                        )}
+
+                        {def.fieldType === 'Currency' && (
+                            <div className="relative">
+                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold">$</span>
+                                <input
+                                    type="number"
+                                    className="w-full pl-8 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all outline-none"
+                                    value={getValue(def.id)}
+                                    onChange={e => handleChange(def.id, e.target.value)}
+                                />
                             </div>
-                            {renderFieldInput(field)}
-                        </div>
-                    ))
-                )}
-            </div>
+                        )}
 
-            {/* Info */}
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <div className="flex items-start gap-3">
-                    <Sliders size={16} className="text-blue-600 mt-0.5" />
-                    <div className="text-xs font-bold text-blue-800">
-                        <strong>Custom Fields:</strong> Use custom fields to track any additional information specific to your business needs. Changes are saved when you click "Save All".
+                        {def.fieldType === 'Number' && (
+                            <input
+                                type="number"
+                                className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all outline-none"
+                                value={getValue(def.id)}
+                                onChange={e => handleChange(def.id, e.target.value)}
+                            />
+                        )}
+
+                        {def.fieldType === 'Date' && (
+                            <input
+                                type="date"
+                                className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all outline-none"
+                                value={getValue(def.id)}
+                                onChange={e => handleChange(def.id, e.target.value)}
+                            />
+                        )}
+
+                        {(def.fieldType === 'Select' || def.fieldType === 'MultiSelect') && (
+                            <select
+                                className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all outline-none"
+                                value={getValue(def.id)}
+                                onChange={e => handleChange(def.id, e.target.value)}
+                                multiple={def.fieldType === 'MultiSelect'}
+                            >
+                                <option value="">Select...</option>
+                                {def.optionsJson && JSON.parse(def.optionsJson).map((opt: string) => (
+                                    <option key={opt} value={opt}>{opt}</option>
+                                ))}
+                            </select>
+                        )}
+
+                        {def.fieldType === 'Bool' && (
+                            <div className="flex items-center gap-3 mt-2">
+                                <input
+                                    type="checkbox"
+                                    id={`field-${def.id}`}
+                                    className="w-5 h-5 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500"
+                                    checked={getValue(def.id) === 'true'}
+                                    onChange={e => handleChange(def.id, e.target.checked ? 'true' : 'false')}
+                                />
+                                <label htmlFor={`field-${def.id}`} className="text-sm font-medium text-slate-700">Yes</label>
+                            </div>
+                        )}
                     </div>
-                </div>
+                ))}
             </div>
         </div>
     );
 };
 
 export default UserFieldsTab;
-export type { CustomField };

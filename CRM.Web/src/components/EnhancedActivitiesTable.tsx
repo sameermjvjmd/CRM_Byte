@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Calendar, Clock, Flag, Users, Building2, UserCircle, Tag, MoreVertical } from 'lucide-react';
 import type { Activity } from '../types/activity';
+import { getActivityLightColor, getActivityTextColor, getActivityBorderColor } from '../utils/activityStyles';
 
 interface EnhancedActivitiesTableProps {
     activities: Activity[];
@@ -101,44 +102,53 @@ const EnhancedActivitiesTable = ({
                                     className="rounded border-slate-300"
                                 />
                             </td>
+
                             <td className="px-4 py-3">
-                                <span className="inline-flex items-center gap-2 px-2 py-1 rounded-md bg-slate-100 text-xs font-bold text-slate-700">
-                                    <Calendar size={12} />
+                                <span
+                                    style={{
+                                        backgroundColor: getActivityLightColor(activity.type),
+                                        color: getActivityTextColor(activity.type),
+                                        borderColor: getActivityBorderColor(activity.type)
+                                    }}
+                                    className="inline-flex items-center gap-2 px-2.5 py-1 rounded-lg border-l-2 text-[10px] font-black uppercase tracking-tight shadow-sm"
+                                >
+                                    <Clock size={12} />
                                     {activity.type}
                                 </span>
                             </td>
-                            <td className="px-4 py-3 text-sm font-bold text-slate-900">
+                            <td className="px-4 py-3 text-sm font-black text-slate-900">
                                 {formatDate(activity.startTime)}
                             </td>
-                            <td className="px-4 py-3 text-sm font-bold text-slate-600">
+                            <td className="px-4 py-3 text-sm font-bold text-slate-500">
                                 {formatTime(activity.startTime)}
                             </td>
                             <td className="px-4 py-3">
                                 {activity.priority && (
-                                    <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-bold ${getPriorityColor(activity.priority)}`}>
+                                    <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-tight shadow-sm ${getPriorityColor(activity.priority)}`}>
                                         <Flag size={12} />
                                         {activity.priority}
                                     </span>
                                 )}
                             </td>
                             <td className="px-4 py-3">
-                                <div className="font-bold text-sm text-slate-900">{activity.subject}</div>
+                                <div className="font-black text-sm text-slate-900 leading-tight">{activity.subject}</div>
+                                {activity.location && <div className="text-[10px] font-bold text-slate-400 mt-0.5 select-none">📍 {activity.location}</div>}
                             </td>
                             <td className="px-4 py-3 text-sm font-bold text-slate-600">
                                 {activity.durationMinutes ? `${activity.durationMinutes} min` : '-'}
                             </td>
                             <td className="px-4 py-3">
-                                <div className="flex flex-col gap-1">
+                                <div className="flex flex-col gap-1.5">
                                     {activity.company && (
-                                        <span className="inline-flex items-center gap-1 text-xs font-bold text-slate-600">
-                                            <Building2 size={12} />
-                                            Company
+                                        <span className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md w-fit ring-1 ring-emerald-100">
+                                            <Building2 size={10} />
+                                            {activity.company.name}
                                         </span>
                                     )}
                                     {activity.contact && (
-                                        <span className="inline-flex items-center gap-1 text-xs font-bold text-slate-600">
-                                            <UserCircle size={12} />
-                                            Contact
+                                        <span className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-md w-fit ring-1 ring-indigo-100">
+                                            <UserCircle size={10} />
+                                            {activity.contact.firstName} {activity.contact.lastName}
                                         </span>
                                     )}
                                 </div>

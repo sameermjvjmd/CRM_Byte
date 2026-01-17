@@ -2,6 +2,8 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using CRM.Api.Data;
 using CRM.Api.Models;
+using CRM.Api.DTOs;
+using CRM.Api.DTOs.Search;
 
 namespace CRM.Api.Controllers
 {
@@ -74,10 +76,17 @@ namespace CRM.Api.Controllers
             if (opportunity == null) return NotFound();
 
             // Calculate days in current stage
+            // Calculate days in current stage
             if (opportunity.LastStageChangeDate.HasValue)
             {
                 opportunity.DaysInCurrentStage = (DateTime.UtcNow - opportunity.LastStageChangeDate.Value).Days;
             }
+
+            // Populate Custom Fields
+            opportunity.CustomValues = await _context.CustomFieldValues
+                .Include(v => v.CustomFieldDefinition)
+                .Where(v => v.EntityId == id && v.EntityType == "Opportunity")
+                .ToListAsync();
 
             return opportunity;
         }
@@ -205,6 +214,20 @@ namespace CRM.Api.Controllers
             _context.StageHistories.Add(stageHistory);
             await _context.SaveChangesAsync();
 
+            // Handle Custom Values for Create
+             if (opportunity.CustomValues != null && opportunity.CustomValues.Any())
+            {
+                foreach (var field in opportunity.CustomValues)
+                {
+                    field.EntityId = opportunity.Id;
+                    field.EntityType = "Opportunity";
+                    field.UpdatedAt = DateTime.UtcNow;
+                    field.CustomFieldDefinition = null; 
+                    _context.CustomFieldValues.Add(field);
+                }
+                await _context.SaveChangesAsync();
+            }
+
             return CreatedAtAction(nameof(GetOpportunity), new { id = opportunity.Id }, opportunity);
         }
 
@@ -281,6 +304,31 @@ namespace CRM.Api.Controllers
             existingOpportunity.CompetitivePosition = opportunity.CompetitivePosition;
             existingOpportunity.RecurringValue = opportunity.RecurringValue;
             existingOpportunity.Currency = opportunity.Currency;
+
+             // Handle Custom Values Update
+            if (opportunity.CustomValues != null)
+            {
+                foreach (var val in opportunity.CustomValues)
+                {
+                    var existing = await _context.CustomFieldValues
+                        .FirstOrDefaultAsync(v => v.EntityId == id && v.EntityType == "Opportunity" && v.CustomFieldDefinitionId == val.CustomFieldDefinitionId);
+                        
+                    if (existing != null)
+                    {
+                        existing.Value = val.Value;
+                        existing.UpdatedAt = DateTime.UtcNow;
+                        _context.Entry(existing).State = EntityState.Modified;
+                    }
+                    else
+                    {
+                        val.EntityId = id;
+                        val.EntityType = "Opportunity";
+                        val.UpdatedAt = DateTime.UtcNow;
+                        val.CustomFieldDefinition = null!;
+                        _context.CustomFieldValues.Add(val);
+                    }
+                }
+            }
 
             // Recalculate weighted value
             existingOpportunity.WeightedValue = existingOpportunity.Amount * ((decimal)existingOpportunity.Probability / 100);
@@ -391,6 +439,23 @@ namespace CRM.Api.Controllers
         }
 
         // =============================================
+        // GET: api/Opportunities/{id}/activities
+        // =============================================
+        [HttpGet("{id}/activities")]
+        public async Task<ActionResult<IEnumerable<Activity>>> GetActivities(int id)
+        {
+            if (!OpportunityExists(id)) return NotFound();
+
+            var activities = await _context.Activities
+                .Where(a => a.OpportunityId == id)
+                .Include(a => a.Contact)
+                .OrderByDescending(a => a.StartTime)
+                .ToListAsync();
+
+            return Ok(activities);
+        }
+
+        // =============================================
         // GET: api/Opportunities/stats
         // =============================================
         [HttpGet("stats")]
@@ -460,8 +525,8 @@ namespace CRM.Api.Controllers
                 .GroupBy(sh => sh.ToStage)
                 .Select(g => new
                 {
-                    Stage = g.Key,
-                    AvgDaysInStage = g.Average(sh => sh.DaysInPreviousStage)
+                    Stage = g.Key ?? "Unknown",
+                    AvgDaysInStage = g.Select(sh => (double)sh.DaysInPreviousStage).DefaultIfEmpty(0).Average()
                 })
                 .ToListAsync();
 
@@ -634,8 +699,9 @@ namespace CRM.Api.Controllers
             return _context.Opportunities.Any(e => e.Id == id);
         }
 
-        private static string GetStageColor(string stage)
+        private static string GetStageColor(string? stage)
         {
+            if (string.IsNullOrEmpty(stage)) return "#6366F1";
             return OpportunityStages.Colors.TryGetValue(stage, out var color) ? color : "#6366F1";
         }
 
@@ -697,6 +763,92 @@ namespace CRM.Api.Controllers
                 _ => "Stalled"
             };
         }
+        // POST: api/opportunities/search
+        [HttpPost("search")]
+        public async Task<ActionResult<IEnumerable<Opportunity>>> SearchOpportunities(AdvancedSearchRequestDto request)
+        {
+            var query = _context.Opportunities
+                .Include(o => o.Contact)
+                .Include(o => o.Company)
+                .AsQueryable();
+
+            if (request.Criteria == null || !request.Criteria.Any())
+            {
+                return await query.OrderByDescending(o => o.CreatedAt).ToListAsync();
+            }
+
+            if (request.MatchType == "Any")
+            {
+                var combinedResults = new List<Opportunity>();
+                foreach (var criteria in request.Criteria)
+                {
+                    var fieldQuery = _context.Opportunities
+                        .Include(o => o.Contact)
+                        .Include(o => o.Company)
+                        .AsQueryable();
+                    fieldQuery = ApplyCriteria(fieldQuery, criteria);
+                    combinedResults.AddRange(await fieldQuery.ToListAsync());
+                }
+                return combinedResults.DistinctBy(o => o.Id).OrderByDescending(o => o.CreatedAt).ToList();
+            }
+            else
+            {
+                foreach (var criteria in request.Criteria)
+                {
+                    query = ApplyCriteria(query, criteria);
+                }
+                return await query.OrderByDescending(o => o.CreatedAt).ToListAsync();
+            }
+        }
+
+        private IQueryable<Opportunity> ApplyCriteria(IQueryable<Opportunity> query, SearchCriteriaDto criteria)
+        {
+            var field = criteria.Field.ToLower();
+            var op = criteria.Operator;
+            var val = criteria.Value; // Case sensitive for parsing, lower for string match
+
+            if (string.IsNullOrEmpty(val)) return query;
+
+            switch (field)
+            {
+                case "name":
+                case "opportunity":
+                    if (op == "Contains") return query.Where(o => o.Name.ToLower().Contains(val.ToLower()));
+                    else if (op == "Equals") return query.Where(o => o.Name.ToLower() == val.ToLower());
+                    break;
+                case "stage":
+                    if (op == "Contains") return query.Where(o => o.Stage.ToLower().Contains(val.ToLower()));
+                    else if (op == "Equals") return query.Where(o => o.Stage == val);
+                    break;
+                case "amount":
+                    if (decimal.TryParse(val, out var amountVal))
+                    {
+                        if (op == "Greater Than" || op == ">") return query.Where(o => o.Amount > amountVal);
+                        else if (op == "Less Than" || op == "<") return query.Where(o => o.Amount < amountVal);
+                        else if (op == "Equals" || op == "=") return query.Where(o => o.Amount == amountVal);
+                    }
+                    else
+                    {
+                        // Fallback to string match if not a number? Or ignore.
+                    }
+                    break;
+                case "probability":
+                    if (double.TryParse(val, out var probVal))
+                    {
+                        if (op == "Greater Than" || op == ">") return query.Where(o => o.Probability > probVal);
+                        else if (op == "Less Than" || op == "<") return query.Where(o => o.Probability < probVal);
+                        else if (op == "Equals" || op == "=") return query.Where(o => o.Probability == probVal);
+                    }
+                    break;
+                case "contact":
+                    if (op == "Contains") return query.Where(o => o.Contact != null && (o.Contact.FirstName.ToLower().Contains(val.ToLower()) || o.Contact.LastName.ToLower().Contains(val.ToLower())));
+                    break;
+                case "company":
+                    if (op == "Contains") return query.Where(o => o.Company != null && o.Company.Name.ToLower().Contains(val.ToLower()));
+                    break;
+            }
+            return query;
+        }
     }
 
     // =============================================
@@ -709,3 +861,4 @@ namespace CRM.Api.Controllers
         public string? Reason { get; set; }
     }
 }
+

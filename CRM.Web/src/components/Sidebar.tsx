@@ -2,7 +2,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import {
     Home, Users, Building2, UsersRound, Briefcase, CheckSquare, History,
     BarChart3, Megaphone, Lightbulb, TrendingUp, Calendar, Search, Mail,
-    Settings, Table, MessageSquare, Calculator, FileText, Cloud, Package
+    Settings, Table, MessageSquare, Calculator, FileText, Cloud, Package, Zap, Layout
 } from 'lucide-react';
 
 const Sidebar = () => {
@@ -21,6 +21,8 @@ const Sidebar = () => {
         { path: '/opportunities/analytics', icon: BarChart3, label: 'Pipeline Analytics' },
         { path: '/opportunities/forecast', icon: TrendingUp, label: 'Sales Forecast' },
         { path: '/products', icon: Package, label: 'Products' },
+        { path: '/quotes', icon: FileText, label: 'Quotes' },
+        { path: '/workflows', icon: Zap, label: 'Workflows' },
     ];
 
     const activityItems = [
@@ -47,6 +49,7 @@ const Sidebar = () => {
     const adminItems = [
         { path: '/tools', icon: Settings, label: 'Tools' },
         { path: '/custom-tables', icon: Table, label: 'Custom Tables' },
+        { path: '/custom-fields', icon: Layout, label: 'Custom Fields' },
         { path: '/accounting', icon: Calculator, label: 'Accounting' },
     ];
 

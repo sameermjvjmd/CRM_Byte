@@ -50,10 +50,8 @@ const CompaniesPage = () => {
     const fetchCompanies = async () => {
         setLoading(true);
         try {
-            if (location.state?.advancedSearch) {
-                // Mock search fetch
-                const response = await api.get('/companies');
-                setCompanies(response.data);
+            if (location.state?.lookupActive && location.state?.lookupResults) {
+                setCompanies(location.state.lookupResults);
             } else {
                 const response = await api.get('/companies');
                 setCompanies(response.data);

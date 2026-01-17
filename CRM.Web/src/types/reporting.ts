@@ -46,17 +46,11 @@ export interface SavedReport {
 }
 
 export interface ReportResult {
-    category: string;
     columns: string[];
     rows: any[];
     totalCount: number;
     page: number;
     pageSize: number;
-    totalPages: number;
-    summary?: {
-        rowCount: number;
-        aggregations?: Record<string, any>;
-    };
 }
 
 export interface DashboardSummary {
@@ -87,7 +81,20 @@ export interface RunReportRequest {
     filters?: ReportFilter[];
     sorting?: ReportSorting;
     groupBy?: string;
+    savedReportId?: number;
+    reportName?: string;
     page: number;
     pageSize: number;
     exportFormat?: string;
+}
+
+export interface CreateSavedReportRequest {
+    name: string;
+    description?: string;
+    category: string;
+    reportType: string;
+    columns: string; // JSON string
+    filters: string; // JSON string
+    sorting: string; // JSON string
+    isPublic: boolean;
 }

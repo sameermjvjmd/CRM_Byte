@@ -1,52 +1,57 @@
-# Week 15-16 Implementation Status Report
+# Week 15-16 Status Report: Workflow Automation & Quote Management
 
-**Date**: 2026-01-16
-**Status**: Not Started (0% Complete)
+## ✅ Completed Features
 
-## 📊 Summary
-An analysis of the codebase reveals that the implementation for "Workflow Automation & Quotes" (Week 15-16 Plan) has not yet begun. No files related to Products, Quotes, or Workflows were found in either the backend API or the frontend Web application.
+### 1. Quote Management
+- **Models**: Created `Quote` and `QuoteLineItem` entities with full relationship mapping.
+- **API**: Implemented `QuotesController` with endpoints for:
+  - CRUD operations
+  - Creating/Updating line items with auto-calculation
+  - Sending, Accepting, Declining, and Duplicating quotes
+- **Frontend**:
+  - **Quote List**: Filtering, Sorting, and Status tracking.
+  - **Quote Detail**: Full editability, Line Item management, and Timeline view.
+  - **PDF Export**: Professional PDF generation using `jspdf` and `jspdf-autotable`.
 
----
+### 2. Workflow Automation
+- **Models**: Created `WorkflowRule` and `WorkflowExecutionLog`.
+- **API**: Implemented `WorkflowsController` and `WorkflowExecutionService`.
+- **Triggers**:
+  - `OnRecordCreate` (Implemented for Quotes)
+  - `OnRecordUpdate` (Implemented foundation)
+- **Actions**:
+  - **Create Activity**: Automatically creates generic activities or tasks.
+  - **Send Email**: Integrated with `IEmailService` for dynamic notifications.
+  - **Update Field**: Uses Reflection to dynamically update record fields (e.g., changing Opportunity stage).
+  - **Webhook**: Sends HTTP POST payloads to external systems.
+- **Frontend**:
+  - **Workflow Builder**: Visual interface to define Triggers and Actions.
+  - **Stats Dashboard**: Monitor execution success/failure rates.
 
-## ⏳ Pending Features
+### 3. System Integration
+- **Dashboard**: "Recent Activity" widget now shows automated automation tasks alongside user activities.
+- **Dependency Injection**: Registered new services in `Program.cs`.
+- **Multi-tenancy**: Ensured all new entities support multi-tenant data isolation via `ApplicationDbContext`.
 
-### Backend (CRM.Api)
-| Feature | Component | Status |
-| :--- | :--- | :--- |
-| **Product Catalog** | `Product` Model | � Implemented |
-| | `ProductsController` | � Implemented |
-| | EF Core Migrations | � Implemented |
-| **Quote Management** | `Quote` Model | 🔴 Pending |
-| | `QuoteLineItem` Model | 🔴 Pending |
-| | `QuotesController` | 🔴 Pending |
-| | PDF Generation Service | 🔴 Pending |
-| **Workflow Automation** | `WorkflowRule` Model | 🔴 Pending |
-| | `WorkflowService` | 🔴 Pending |
-| | Trigger Logic (`OnRecordCreate`, etc.) | 🔴 Pending |
-| | Action Logic (`SendEmail`, etc.) | 🔴 Pending |
+## 🚧 Pending / Future Improvements
 
-### Frontend (CRM.Web)
-| Feature | Component | Status |
-| :--- | :--- | :--- |
-| **Product Management** | `ProductsPage.tsx` | � Implemented |
-| | Product Picker Component | 🔴 Pending |
-| **Quote Builder** | `QuotesPage.tsx` | 🔴 Pending |
-| | Quote Editor UI | 🔴 Pending |
-| | PDF Export Logic | 🔴 Pending |
-| **Workflow Editor** | `WorkflowsPage.tsx` | 🔴 Pending |
-| | Rule Builder UI | 🔴 Pending |
+1. **Email SMTP Setup**: The `SendEmail` action works in code but requires valid SMTP credentials in `appsettings.json` or the Tenant settings to actually deliver mail.
+2. **Advanced Workflow Triggers**:
+   - "On Field Change" (Detecting *specific* field changes during update).
+   - "On Schedule" (Time-based triggers e.g., "7 days before Expiration").
+3. **Condition Logic**: Currently workflows fire for *all* records of a type. We need to implement the JSON condition evaluator (e.g., `Amount > 10000`).
 
----
+## 🧪 How to Test
 
-## 🚀 Recommended Next Steps
-Since the implementation is at the starting line, the recommended order of operations is:
+1. **Create a Workflow**:
+   - Go to `/workflows`
+   - Create a rule: `Entity: Quote`, `Trigger: On Create`, `Action: Create Activity` or `Update Field`.
+2. **Trigger it**:
+   - Go to `/quotes` and create a new Quote.
+3. **Verify**:
+   - Go to `/dashboard` to see the new auto-created activity.
+   - Or check the Entity itself to see if the field was updated.
 
-1.  **Backend - Product Catalog**:
-    *   Create the `Product` entity in `CRM.Api`.
-    *   Scaffold the `ProductsController` with CRUD endpoints.
-2.  **Frontend - Product Management**:
-    *   Create the basic List/Create/Edit views for Products to verify the foundation.
-3.  **Backend - Quote Management**:
-    *   Implement `Quote` and `QuoteLineItem` entities (dependent on Products).
-4.  **Frontend - Quote Builder**:
-    *   Build the interactive Quote Editor.
+## 📦 Deployment
+- Run `dotnet publish` to generate the latest API package.
+- Run `npm run build` for the frontend.

@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { ChevronLeft, ChevronRight, Plus } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Bell, MapPin, Clock } from 'lucide-react';
 import type { Activity } from '../types/activity';
+import { getActivityLightColor, getActivityTextColor, getActivityBorderColor } from '../utils/activityStyles';
 
 interface CalendarDayViewProps {
     activities: Activity[];
@@ -35,15 +36,24 @@ const CalendarDayView = ({
         setSelectedDate(new Date());
     };
 
-    const getActivitiesForHour = (hour: number): Activity[] => {
+    const getAllDayActivities = (): Activity[] => {
         return activities.filter(activity => {
             const activityDate = new Date(activity.startTime);
-            return (
+            return activity.isAllDay &&
+                activityDate.getFullYear() === selectedDate.getFullYear() &&
+                activityDate.getMonth() === selectedDate.getMonth() &&
+                activityDate.getDate() === selectedDate.getDate();
+        });
+    };
+
+    const getTimedActivitiesForHour = (hour: number): Activity[] => {
+        return activities.filter(activity => {
+            const activityDate = new Date(activity.startTime);
+            return !activity.isAllDay &&
                 activityDate.getFullYear() === selectedDate.getFullYear() &&
                 activityDate.getMonth() === selectedDate.getMonth() &&
                 activityDate.getDate() === selectedDate.getDate() &&
-                activityDate.getHours() === hour
-            );
+                activityDate.getHours() === hour;
         });
     };
 
@@ -54,101 +64,124 @@ const CalendarDayView = ({
     };
 
     const isToday = selectedDate.toDateString() === new Date().toDateString();
+    const allDayActivities = getAllDayActivities();
 
     return (
-        <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex flex-col h-full">
             {/* Header */}
-            <div className="flex items-center justify-between p-4 border-b border-slate-200 bg-slate-50">
-                <div className="flex items-center gap-4">
-                    <button
-                        onClick={previousDay}
-                        className="p-2 hover:bg-slate-200 rounded-lg transition-all"
-                    >
-                        <ChevronLeft size={20} />
+            <div className="flex items-center justify-between p-6 border-b border-slate-200 bg-slate-50 shrink-0">
+                <div className="flex items-center gap-6">
+                    <button onClick={previousDay} className="p-2.5 hover:bg-slate-200 rounded-xl transition-all text-slate-600">
+                        <ChevronLeft size={24} />
                     </button>
                     <div>
-                        <h2 className="text-2xl font-black text-slate-900">
+                        <h2 className="text-2xl font-black text-slate-900 leading-tight">
                             {selectedDate.toLocaleDateString('en-US', { weekday: 'long' })}
                         </h2>
-                        <p className="text-sm font-bold text-slate-500">
+                        <p className="text-sm font-bold text-slate-500 uppercase tracking-widest mt-0.5">
                             {selectedDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
                         </p>
                     </div>
-                    <button
-                        onClick={nextDay}
-                        className="p-2 hover:bg-slate-200 rounded-lg transition-all"
-                    >
-                        <ChevronRight size={20} />
+                    <button onClick={nextDay} className="p-2.5 hover:bg-slate-200 rounded-xl transition-all text-slate-600">
+                        <ChevronRight size={24} />
                     </button>
                 </div>
-                <button
-                    onClick={goToToday}
-                    className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-bold hover:bg-indigo-700 transition-all"
-                >
+                <button onClick={goToToday} className="px-6 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100">
                     Today
                 </button>
             </div>
 
+            {/* All Day Section */}
+            {allDayActivities.length > 0 && (
+                <div className="px-6 py-4 bg-slate-50 border-b border-slate-200 shrink-0">
+                    <h3 className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-3">All Day Events</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        {allDayActivities.map(activity => (
+                            <div
+                                key={activity.id}
+                                onClick={() => onActivityClick?.(activity)}
+                                style={{
+                                    backgroundColor: getActivityLightColor(activity.type),
+                                    color: getActivityTextColor(activity.type),
+                                    borderLeftColor: getActivityBorderColor(activity.type)
+                                }}
+                                className="p-3 rounded-xl border-l-4 shadow-sm cursor-pointer hover:brightness-95 transition-all flex items-center justify-between"
+                            >
+                                <div className="flex items-center gap-3">
+                                    <div className="w-8 h-8 rounded-lg bg-white/50 flex items-center justify-center">
+                                        <Bell size={16} />
+                                    </div>
+                                    <span className="font-bold text-sm">{activity.subject}</span>
+                                </div>
+                                <span className="text-[10px] font-black opacity-50 uppercase tracking-widest">{activity.type}</span>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+
             {/* Time Slots */}
-            <div className="overflow-auto max-h-[700px]">
+            <div className="flex-1 overflow-auto custom-scrollbar">
                 {hours.map(hour => {
-                    const hourActivities = getActivitiesForHour(hour);
-                    const currentHour = new Date().getHours();
-                    const isCurrentHour = isToday && hour === currentHour;
+                    const hourActivities = getTimedActivitiesForHour(hour);
+                    const isCurrentHour = isToday && hour === new Date().getHours();
 
                     return (
-                        <div
-                            key={hour}
-                            className={`flex border-b border-slate-200 ${isCurrentHour ? 'bg-indigo-50' : ''}`}
-                        >
-                            {/* Hour label */}
-                            <div className="w-24 p-4 text-sm font-bold text-slate-500 text-right border-r border-slate-200 bg-slate-50">
+                        <div key={hour} className={`flex border-b border-slate-100 min-h-[100px] ${isCurrentHour ? 'bg-indigo-50/30' : ''}`}>
+                            {/* Hour Column */}
+                            <div className="w-24 p-4 text-xs font-black text-slate-400 text-right bg-slate-50/50 border-r border-slate-100 sticky left-0 z-10 shrink-0">
                                 {formatHour(hour)}
                             </div>
 
-                            {/* Activity slot */}
+                            {/* Activities Area */}
                             <div
-                                className="flex-1 p-4 min-h-[100px] hover:bg-slate-50 cursor-pointer transition-colors relative group"
+                                className="flex-1 p-3 cursor-pointer group hover:bg-slate-50/30 transition-all relative"
                                 onClick={() => onTimeSlotClick?.(hour, 0)}
                             >
-                                {hourActivities.length === 0 ? (
-                                    <div className="opacity-0 group-hover:opacity-100 flex items-center justify-center h-full">
-                                        <Plus size={20} className="text-slate-400" />
-                                        <span className="ml-2 text-sm font-bold text-slate-400">Add activity</span>
-                                    </div>
-                                ) : (
-                                    <div className="space-y-2">
-                                        {hourActivities.map(activity => (
-                                            <div
-                                                key={activity.id}
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    onActivityClick?.(activity);
-                                                }}
-                                                className="p-4 rounded-lg bg-gradient-to-r from-indigo-100 to-indigo-50 border-l-4 border-indigo-600 hover:shadow-lg transition-all cursor-pointer"
-                                            >
-                                                <div className="flex items-start justify-between mb-2">
-                                                    <h3 className="font-black text-slate-900">{activity.subject}</h3>
-                                                    <span className="px-2 py-1 rounded-full bg-white text-xs font-bold text-indigo-600">
-                                                        {new Date(activity.startTime).toLocaleTimeString('en-US', {
-                                                            hour: 'numeric',
-                                                            minute: '2-digit'
-                                                        })}
-                                                    </span>
-                                                </div>
-                                                <div className="text-sm font-bold text-slate-600">
-                                                    {activity.type}
-                                                    {activity.durationMinutes && ` • ${activity.durationMinutes} min`}
-                                                </div>
-                                                {activity.location && (
-                                                    <div className="text-xs font-bold text-slate-500 mt-1">
-                                                        📍 {activity.location}
+                                <div className="grid grid-cols-1 gap-3">
+                                    {hourActivities.map(activity => (
+                                        <div
+                                            key={activity.id}
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                onActivityClick?.(activity);
+                                            }}
+                                            style={{
+                                                backgroundColor: getActivityLightColor(activity.type),
+                                                color: getActivityTextColor(activity.type),
+                                                borderLeftColor: getActivityBorderColor(activity.type)
+                                            }}
+                                            className="p-4 rounded-2xl border-l-4 shadow-sm hover:shadow-md hover:scale-[1.01] transition-all cursor-pointer group/card"
+                                        >
+                                            <div className="flex items-start justify-between mb-2">
+                                                <div>
+                                                    <h3 className="font-black text-base leading-tight mb-1">{activity.subject}</h3>
+                                                    <div className="flex items-center gap-3 text-xs opacity-70 font-bold">
+                                                        <span className="flex items-center gap-1">
+                                                            <Clock size={12} />
+                                                            {new Date(activity.startTime).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
+                                                            {activity.durationMinutes && ` (${activity.durationMinutes} min)`}
+                                                        </span>
+                                                        {activity.location && (
+                                                            <span className="flex items-center gap-1">
+                                                                <MapPin size={12} />
+                                                                {activity.location}
+                                                            </span>
+                                                        )}
                                                     </div>
-                                                )}
+                                                </div>
+                                                <div className="px-2.5 py-1 bg-white/50 rounded-lg text-[10px] font-black uppercase tracking-tight">
+                                                    {activity.type}
+                                                </div>
                                             </div>
-                                        ))}
-                                    </div>
-                                )}
+                                            {activity.notes && (
+                                                <p className="text-xs line-clamp-2 opacity-60 font-medium mt-2 leading-relaxed italic">
+                                                    {activity.notes}
+                                                </p>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
                             </div>
                         </div>
                     );

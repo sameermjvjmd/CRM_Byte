@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import type { Activity } from '../types/activity';
+import { getActivityLightColor, getActivityTextColor, getActivityBorderColor } from '../utils/activityStyles';
 
 interface CalendarMonthViewProps {
     activities: Activity[];
@@ -136,15 +137,16 @@ const CalendarMonthView = ({
                                             e.stopPropagation();
                                             onActivityClick?.(activity);
                                         }}
-                                        className={`px-1.5 py-0.5 rounded text-[10px] font-bold truncate border-l-2 mb-0.5 cursor-pointer
-                                            ${activity.type === 'Call' ? 'bg-blue-100 text-blue-800 border-blue-500' :
-                                                activity.type === 'Meeting' ? 'bg-purple-100 text-purple-800 border-purple-500' :
-                                                    'bg-slate-100 text-slate-700 border-slate-400'}
-                                        `}
+                                        style={{
+                                            backgroundColor: getActivityLightColor(activity.type),
+                                            color: getActivityTextColor(activity.type),
+                                            borderLeftColor: getActivityBorderColor(activity.type)
+                                        }}
+                                        className="px-1.5 py-0.5 rounded text-[10px] font-bold truncate border-l-2 mb-0.5 cursor-pointer shadow-sm hover:brightness-95 transition-all"
                                         title={`${activity.subject} (${new Date(activity.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })})`}
                                     >
-                                        <span className="mr-1 opacity-75 text-[9px]">
-                                            {new Date(activity.startTime).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }).replace(':00', '').replace(' ', '')}
+                                        <span className="mr-1 opacity-60 text-[8px]">
+                                            {activity.isAllDay ? 'ALL' : new Date(activity.startTime).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }).replace(':00', '').replace(' ', '')}
                                         </span>
                                         {activity.subject}
                                     </div>

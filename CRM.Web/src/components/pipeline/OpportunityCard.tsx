@@ -4,6 +4,8 @@ import { Clock, DollarSign, AlertCircle, Calendar, Tag, MoreHorizontal, Copy, Sh
 import type { Opportunity } from '../../types/opportunity';
 import toast from 'react-hot-toast';
 
+import { useNavigate } from 'react-router-dom';
+
 interface OpportunityCardProps {
     opportunity: Opportunity;
     index: number;
@@ -12,8 +14,15 @@ interface OpportunityCardProps {
 }
 
 const OpportunityCard = ({ opportunity, index, onClone, onDelete }: OpportunityCardProps) => {
+    const navigate = useNavigate();
     const [showMenu, setShowMenu] = useState(false);
     const menuRef = useRef<HTMLDivElement>(null);
+
+    const handleCardClick = () => {
+        if (opportunity.id) {
+            navigate(`/opportunities/${opportunity.id}`);
+        }
+    };
 
     // Close menu when clicking outside
     useEffect(() => {
@@ -68,8 +77,9 @@ const OpportunityCard = ({ opportunity, index, onClone, onDelete }: OpportunityC
                     ref={provided.innerRef}
                     {...provided.draggableProps}
                     {...provided.dragHandleProps}
+                    onClick={handleCardClick}
                     className={`
-                        relative bg-white p-4 rounded-xl border mb-3 shadow-sm hover:shadow-md transition-all group
+                        relative bg-white p-4 rounded-xl border mb-3 shadow-sm hover:shadow-md transition-all group cursor-pointer
                         ${snapshot.isDragging ? 'shadow-lg ring-2 ring-indigo-500 rotate-2' : 'border-slate-200'}
                     `}
                     style={provided.draggableProps.style}

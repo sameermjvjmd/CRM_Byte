@@ -50,7 +50,7 @@ const GroupsPage = () => {
                         onClick={() => navigate(`/groups/${group.id}`)}
                     >
                         <div className="flex justify-between items-start mb-4">
-                            <div className="w-12 h-12 rounded-lg bg-orange-100 text-orange-600 flex items-center justify-center">
+                            <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${group.isDynamic ? 'bg-purple-100 text-purple-600' : 'bg-orange-100 text-orange-600'}`}>
                                 <Users size={24} />
                             </div>
                             <button className="text-slate-400 hover:text-slate-600">
@@ -58,13 +58,16 @@ const GroupsPage = () => {
                             </button>
                         </div>
 
-                        <h3 className="text-lg font-bold text-slate-900 mb-2 group-hover:text-primary transition-colors">{group.name}</h3>
+                        <div className="flex items-center gap-2 mb-2">
+                            <h3 className="text-lg font-bold text-slate-900 group-hover:text-primary transition-colors">{group.name}</h3>
+                            {group.isDynamic && <span className="text-[10px] font-black uppercase tracking-wider bg-purple-100 text-purple-600 px-1.5 py-0.5 rounded border border-purple-200">Dynamic</span>}
+                        </div>
                         <p className="text-sm text-slate-500 mb-6 line-clamp-2">{group.description || "No description provided."}</p>
 
                         <div className="flex items-center justify-between pt-4 border-t border-slate-100 text-xs text-slate-500">
                             <div className="flex items-center gap-1">
                                 <Users size={14} />
-                                <span>{group.contacts?.length || 0} Members</span>
+                                <span>{group.isDynamic ? 'Auto-Managed' : `${group.contacts?.length || 0} Members`}</span>
                             </div>
                             <div className="flex items-center gap-1">
                                 <Calendar size={14} />

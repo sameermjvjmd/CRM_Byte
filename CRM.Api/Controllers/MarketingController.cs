@@ -150,7 +150,7 @@ namespace CRM.Api.Controllers
         {
             var campaign = await _context.MarketingCampaigns
                 .Include(c => c.MarketingList)
-                    .ThenInclude(l => l!.Members.Where(m => m.Status == "Subscribed"))
+                    .ThenInclude(l => l.Members)
                 .FirstOrDefaultAsync(c => c.Id == id);
 
             if (campaign == null) return NotFound();

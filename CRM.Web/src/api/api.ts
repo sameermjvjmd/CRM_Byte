@@ -32,8 +32,21 @@ const getTenant = (): string | null => {
     return null;
 };
 
+// Use localhost for development, production URL for deployed
+const getApiBaseUrl = (): string => {
+    const hostname = window.location.hostname;
+
+    // Local development
+    if (hostname === 'localhost' || hostname === '127.0.0.1') {
+        return 'http://localhost:5000/api';
+    }
+
+    // Production
+    return 'https://api.bytesymphony.in/api';
+};
+
 const api = axios.create({
-    baseURL: 'https://api.bytesymphony.in/api',
+    baseURL: getApiBaseUrl(),
     headers: {
         'Content-Type': 'application/json',
     },

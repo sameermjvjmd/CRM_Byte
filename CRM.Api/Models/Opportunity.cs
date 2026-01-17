@@ -142,6 +142,9 @@ namespace CRM.Api.Models
         // =============================================
         public ICollection<StageHistory>? StageHistory { get; set; }
         public ICollection<OpportunityProduct>? Products { get; set; }
+
+        [NotMapped]
+        public IEnumerable<CustomFieldValue>? CustomValues { get; set; }
     }
 
     // =============================================

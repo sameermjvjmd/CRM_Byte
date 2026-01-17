@@ -22,6 +22,7 @@ namespace CRM.Api.Data
         public DbSet<HistoryItem> HistoryItems { get; set; }
         public DbSet<User> Users { get; set; }
         public DbSet<Document> Documents { get; set; }
+        public DbSet<SavedSearch> SavedSearches { get; set; }
         
         // Marketing Automation (Module 7)
         public DbSet<MarketingCampaign> MarketingCampaigns { get; set; }
@@ -59,6 +60,17 @@ namespace CRM.Api.Data
 
         // Product Catalog (Week 15-16)
         public DbSet<Product> Products { get; set; }
+        public DbSet<Quote> Quotes { get; set; }
+        public DbSet<QuoteLineItem> QuoteLineItems { get; set; }
+
+        // Workflow Automation (Week 16)
+        public DbSet<WorkflowRule> WorkflowRules { get; set; }
+        public DbSet<WorkflowExecutionLog> WorkflowExecutionLogs { get; set; }
+
+        // Custom Fields (Week 17)
+        public DbSet<CustomFieldDefinition> CustomFieldDefinitions { get; set; }
+        public DbSet<CustomFieldValue> CustomFieldValues { get; set; }
+
 
         // Tenant Email Configuration (SaaS)
         public DbSet<TenantEmailSettings> TenantEmailSettings { get; set; }

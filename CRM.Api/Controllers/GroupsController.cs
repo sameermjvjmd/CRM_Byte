@@ -2,6 +2,8 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using CRM.Api.Data;
 using CRM.Api.Models;
+using CRM.Api.DTOs;
+using CRM.Api.DTOs.Search;
 using System.Text.Json;
 
 namespace CRM.Api.Controllers
@@ -90,22 +92,33 @@ namespace CRM.Api.Controllers
                 return BadRequest("This is not a dynamic group or has no query defined.");
             }
 
-            // Parse the dynamic query (JSON format)
+            // Parse the dynamic query (JSON format) - Standardized to SavedSearchCriteriaContainer
             try
             {
-                var queryDef = JsonSerializer.Deserialize<DynamicQueryDefinition>(group.DynamicQuery);
-                if (queryDef == null) return BadRequest("Invalid query definition.");
+                var container = JsonSerializer.Deserialize<SavedSearchCriteriaContainer>(group.DynamicQuery);
+                if (container == null || container.Criteria == null) return BadRequest("Invalid query definition.");
 
-                var contactsQuery = _context.Contacts.Include(c => c.Company).AsQueryable();
+                var query = _context.Contacts.Include(c => c.Company).AsQueryable();
 
-                // Apply filters
-                foreach (var filter in queryDef.Filters)
+                if (container.MatchType == "Any")
                 {
-                    contactsQuery = ApplyFilter(contactsQuery, filter);
+                    var combinedResults = new List<Contact>();
+                    foreach (var criteria in container.Criteria)
+                    {
+                        var fieldQuery = _context.Contacts.Include(c => c.Company).AsQueryable();
+                        fieldQuery = ApplyCriteria(fieldQuery, criteria);
+                        combinedResults.AddRange(await fieldQuery.ToListAsync());
+                    }
+                    return Ok(combinedResults.DistinctBy(c => c.Id).OrderBy(c => c.LastName).ThenBy(c => c.FirstName).ToList());
                 }
-
-                var results = await contactsQuery.OrderBy(c => c.LastName).ToListAsync();
-                return Ok(results);
+                else
+                {
+                    foreach (var criteria in container.Criteria)
+                    {
+                        query = ApplyCriteria(query, criteria);
+                    }
+                    return Ok(await query.OrderBy(c => c.LastName).ThenBy(c => c.FirstName).ToListAsync());
+                }
             }
             catch (Exception ex)
             {
@@ -304,54 +317,48 @@ namespace CRM.Api.Controllers
             return Ok(subgroups);
         }
 
-        // Helper method to apply dynamic query filters
-        private IQueryable<Contact> ApplyFilter(IQueryable<Contact> query, QueryFilter filter)
+        // Helper method to apply dynamic query criteria (Copied from ContactsController)
+        private IQueryable<Contact> ApplyCriteria(IQueryable<Contact> query, SearchCriteriaDto criteria)
         {
-            switch (filter.Field.ToLower())
+            var field = criteria.Field.ToLower();
+            var op = criteria.Operator;
+            var val = criteria.Value.ToLower();
+
+            if (string.IsNullOrEmpty(val)) return query;
+
+            if (field == "company")
             {
-                case "city":
-                    return filter.Operator switch
-                    {
-                        "equals" => query.Where(c => c.City == filter.Value),
-                        "contains" => query.Where(c => c.City != null && c.City.Contains(filter.Value)),
-                        _ => query
-                    };
-                case "state":
-                    return filter.Operator switch
-                    {
-                        "equals" => query.Where(c => c.State == filter.Value),
-                        "contains" => query.Where(c => c.State != null && c.State.Contains(filter.Value)),
-                        _ => query
-                    };
-                case "company":
-                    return filter.Operator switch
-                    {
-                        "equals" => query.Where(c => c.Company != null && c.Company.Name == filter.Value),
-                        "contains" => query.Where(c => c.Company != null && c.Company.Name.Contains(filter.Value)),
-                        _ => query
-                    };
-                case "jobtitle":
-                    return filter.Operator switch
-                    {
-                        "equals" => query.Where(c => c.JobTitle == filter.Value),
-                        "contains" => query.Where(c => c.JobTitle != null && c.JobTitle.Contains(filter.Value)),
-                        _ => query
-                    };
-                case "leadsource":
-                    return filter.Operator switch
-                    {
-                        "equals" => query.Where(c => c.LeadSource == filter.Value),
-                        _ => query
-                    };
-                case "status":
-                    return filter.Operator switch
-                    {
-                        "equals" => query.Where(c => c.Status == filter.Value),
-                        _ => query
-                    };
-                default:
-                    return query;
+                if (op == "Contains") return query.Where(c => c.Company != null && c.Company.Name.ToLower().Contains(val));
+                else if (op == "Equals") return query.Where(c => c.Company != null && c.Company.Name.ToLower() == val);
             }
+            else if (field == "firstname" || field == "first name" || field == "contact")
+            {
+                if (op == "Contains") return query.Where(c => c.FirstName.ToLower().Contains(val) || c.LastName.ToLower().Contains(val));
+                else if (op == "Equals") return query.Where(c => c.FirstName.ToLower() == val || c.LastName.ToLower() == val);
+                else if (op == "Starts With") return query.Where(c => c.FirstName.ToLower().StartsWith(val));
+            }
+            else if (field == "lastname" || field == "last name")
+            {
+                if (op == "Contains") return query.Where(c => c.LastName.ToLower().Contains(val));
+                else if (op == "Equals") return query.Where(c => c.LastName.ToLower() == val);
+            }
+            else if (field == "email")
+            {
+                if (op == "Contains") return query.Where(c => c.Email != null && c.Email.ToLower().Contains(val));
+            }
+            else if (field == "jobtitle" || field == "job title")
+            {
+                if (op == "Contains") return query.Where(c => c.JobTitle != null && c.JobTitle.ToLower().Contains(val));
+            }
+            else if (field == "city")
+            {
+                if (op == "Contains") return query.Where(c => c.City != null && c.City.ToLower().Contains(val));
+            }
+             else if (field == "state")
+            {
+                if (op == "Contains") return query.Where(c => c.State != null && c.State.ToLower().Contains(val));
+            }
+            return query;
         }
 
         private bool GroupExists(int id) => _context.Groups.Any(e => e.Id == id);
@@ -386,15 +393,5 @@ namespace CRM.Api.Controllers
         public int TotalMembers { get; set; }
     }
 
-    public class DynamicQueryDefinition
-    {
-        public List<QueryFilter> Filters { get; set; } = new();
-    }
 
-    public class QueryFilter
-    {
-        public string Field { get; set; } = string.Empty;
-        public string Operator { get; set; } = "equals";
-        public string Value { get; set; } = string.Empty;
-    }
 }

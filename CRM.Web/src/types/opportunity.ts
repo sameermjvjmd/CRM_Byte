@@ -1,4 +1,4 @@
-import type { Contact } from './contact';
+import type { Contact, CustomFieldValue } from './contact';
 import type { Company } from './company';
 
 // =============================================
@@ -82,6 +82,7 @@ export interface Opportunity {
     // Navigation
     stageHistory?: StageHistory[];
     products?: OpportunityProduct[];
+    customValues?: CustomFieldValue[];
 }
 
 // =============================================

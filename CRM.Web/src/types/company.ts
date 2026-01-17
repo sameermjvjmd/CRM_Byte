@@ -1,4 +1,4 @@
-import type { Contact } from './contact';
+import type { Contact, CustomFieldValue } from './contact';
 import type { Opportunity } from './opportunity';
 
 export interface Company {
@@ -51,6 +51,9 @@ export interface Company {
     // Relationships
     contacts?: Contact[];
     opportunities?: Opportunity[];
+
+    // Custom Fields
+    customValues?: CustomFieldValue[];
 
     // Computed
     formattedAddress?: string;

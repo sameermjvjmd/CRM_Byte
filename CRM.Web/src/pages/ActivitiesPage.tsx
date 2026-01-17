@@ -10,6 +10,7 @@ import ActivityTypeSelector from '../components/ActivityTypeSelector';
 import RecurringActivityModal from '../components/RecurringActivityModal';
 import ActivityTemplateSelector from '../components/ActivityTemplateSelector';
 import EnhancedActivitiesTable from '../components/EnhancedActivitiesTable';
+import ActivityDetailModal from '../components/ActivityDetailModal';
 import type { RecurringPattern } from '../components/RecurringActivityModal';
 import type { ActivityTemplate } from '../components/ActivityTemplateSelector';
 
@@ -24,6 +25,8 @@ const ActivitiesPage = () => {
     const [selectedType, setSelectedType] = useState('Call');
     const [recurringPattern, setRecurringPattern] = useState<RecurringPattern | null>(null);
     const [templateData, setTemplateData] = useState<any>(null);
+    const [selectedActivityId, setSelectedActivityId] = useState<number | null>(null);
+    const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
 
     useEffect(() => {
         fetchActivities();
@@ -41,8 +44,8 @@ const ActivitiesPage = () => {
     };
 
     const handleActivityClick = (activity: Activity) => {
-        console.log('Activity clicked:', activity);
-        // TODO: Open activity detail modal
+        setSelectedActivityId(activity.id);
+        setIsDetailModalOpen(true);
     };
 
     const handleTimeSlotClick = (date: Date, hour: number) => {
@@ -241,6 +244,18 @@ const ActivitiesPage = () => {
                 }}
                 initialType="Activity"
                 templateData={templateData}
+            />
+
+            {/* Activity Detail Modal */}
+            <ActivityDetailModal
+                isOpen={isDetailModalOpen}
+                onClose={() => setIsDetailModalOpen(false)}
+                activityId={selectedActivityId}
+                onUpdate={fetchActivities}
+                onComplete={(followUpData) => {
+                    setTemplateData(followUpData);
+                    setIsModalOpen(true);
+                }}
             />
         </div>
     );

@@ -138,7 +138,7 @@ const PipelineAnalyticsPage = () => {
                                 <XAxis dataKey="stage" tick={{ fontSize: 11 }} />
                                 <YAxis tickFormatter={(v) => `$${v / 1000}k`} />
                                 <Tooltip
-                                    formatter={(value: number | string) => formatCurrency(Number(value))}
+                                    formatter={(value: any) => formatCurrency(Number(value))}
                                     contentStyle={{ borderRadius: '8px', border: '1px solid #e2e8f0' }}
                                 />
                                 <Bar dataKey="value" fill="#6366f1" radius={[4, 4, 0, 0]}>
@@ -163,7 +163,7 @@ const PipelineAnalyticsPage = () => {
                                     outerRadius={100}
                                     paddingAngle={2}
                                     dataKey="value"
-                                    label={({ name, percent }) => `${name} (${(percent * 100).toFixed(0)}%)`}
+                                    label={({ name, percent }: any) => `${name} (${((percent || 0) * 100).toFixed(0)}%)`}
                                     labelLine={false}
                                 >
                                     {pieData.map((entry, index) => (
@@ -186,7 +186,7 @@ const PipelineAnalyticsPage = () => {
                                 <XAxis dataKey="monthName" tick={{ fontSize: 11 }} />
                                 <YAxis tickFormatter={(v) => `$${v / 1000}k`} />
                                 <Tooltip
-                                    formatter={(value: number | string) => formatCurrency(Number(value))}
+                                    formatter={(value: any) => formatCurrency(Number(value))}
                                     contentStyle={{ borderRadius: '8px', border: '1px solid #e2e8f0' }}
                                 />
                                 <Legend />

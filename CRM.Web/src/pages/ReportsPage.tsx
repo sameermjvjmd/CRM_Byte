@@ -1,6 +1,6 @@
 // Reports Page Component
 import React, { useState, useEffect } from 'react';
-import api from '../api/api';
+import { reportsApi } from '../api/reportsApi';
 import {
     BarChart3, PieChart, TrendingUp, Users, Building,
     Calendar, FileText, Download, Plus, Filter,
@@ -9,6 +9,7 @@ import {
 import type { DashboardSummary, SavedReport } from '../types/reporting';
 import { formatCurrency } from '../utils/formatters';
 import ReportBuilderModal from '../components/reports/ReportBuilderModal';
+import toast from 'react-hot-toast';
 
 const ReportsPage = () => {
     const [activeTab, setActiveTab] = useState<'dashboard' | 'standard' | 'custom'>('dashboard');
@@ -16,6 +17,7 @@ const ReportsPage = () => {
     const [savedReports, setSavedReports] = useState<SavedReport[]>([]);
     const [loading, setLoading] = useState(true);
     const [isBuilderOpen, setIsBuilderOpen] = useState(false);
+    const [selectedReport, setSelectedReport] = useState<SavedReport | null>(null);
 
     useEffect(() => {
         fetchDashboardData();
@@ -24,8 +26,8 @@ const ReportsPage = () => {
 
     const fetchDashboardData = async () => {
         try {
-            const response = await api.get('/reports/dashboard');
-            setDashboardData(response.data);
+            const data = await reportsApi.getDashboardSummary();
+            setDashboardData(data);
         } catch (error) {
             console.error('Error fetching dashboard data:', error);
         } finally {
@@ -35,10 +37,70 @@ const ReportsPage = () => {
 
     const fetchSavedReports = async () => {
         try {
-            const response = await api.get('/reports/saved');
-            setSavedReports(response.data);
+            const data = await reportsApi.getSavedReports();
+            setSavedReports(data);
         } catch (error) {
             console.error('Error fetching saved reports:', error);
+        }
+    };
+
+    const handleCreateNew = () => {
+        setSelectedReport(null);
+        setIsBuilderOpen(true);
+    };
+
+    const handleEditReport = (report: SavedReport) => {
+        setSelectedReport(report);
+        setIsBuilderOpen(true);
+    };
+
+    const handleDeleteReport = async (id: number) => {
+        if (!window.confirm('Are you sure you want to delete this report?')) return;
+        try {
+            await reportsApi.deleteSavedReport(id);
+            toast.success('Report deleted');
+            fetchSavedReports();
+        } catch (error) {
+            console.error(error);
+            toast.error('Failed to delete report');
+        }
+    };
+
+    const handleExport = async (reportId: string) => {
+        const toastId = toast.loading('Generating export...');
+        try {
+            let blob: any;
+            let filename = `${reportId}_export.csv`;
+
+            switch (reportId) {
+                case 'contacts':
+                    blob = await reportsApi.exportContactsCsv();
+                    break;
+                case 'companies':
+                    blob = await reportsApi.exportCompaniesCsv();
+                    break;
+                case 'opportunities':
+                    blob = await reportsApi.exportOpportunitiesCsv();
+                    break;
+                case 'activities':
+                    blob = await reportsApi.exportActivitiesCsv();
+                    break;
+                default:
+                    throw new Error('Unknown report type');
+            }
+
+            // Create download link
+            const url = window.URL.createObjectURL(new Blob([blob]));
+            const link = document.createElement('a');
+            link.href = url;
+            link.setAttribute('download', filename);
+            document.body.appendChild(link);
+            link.click();
+            link.parentNode?.removeChild(link);
+            toast.success('Export downloaded', { id: toastId });
+        } catch (error) {
+            console.error(error);
+            toast.error('Failed to export report', { id: toastId });
         }
     };
 
@@ -133,7 +195,6 @@ const ReportsPage = () => {
             { id: 'companies', title: 'All Companies', category: 'Companies', desc: 'List of all companies with industry and location.' },
             { id: 'opportunities', title: 'Sales Pipeline', category: 'Opportunities', desc: 'All open and closed opportunities by stage.' },
             { id: 'activities', title: 'Activity Log', category: 'Activities', desc: 'History of all scheduled and completed activities.' },
-            { id: 'marketing', title: 'Campaign Performance', category: 'Marketing', desc: 'Summary of marketing campaigns and engagement.' },
         ];
 
         return (
@@ -152,15 +213,13 @@ const ReportsPage = () => {
                         <p className="text-slate-500 text-sm mb-6 h-10">{report.desc}</p>
 
                         <div className="flex gap-2">
-                            <a
-                                href={`${import.meta.env.VITE_API_URL || 'https://api.bytesymphony.in/api'}/reports/export/${report.id}/csv`}
-                                target="_blank"
-                                rel="noreferrer"
+                            <button
+                                onClick={() => handleExport(report.id)}
                                 className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-white border border-slate-300 text-slate-700 rounded-lg text-sm font-medium hover:bg-slate-50"
                             >
                                 <Download size={16} />
                                 Export CSV
-                            </a>
+                            </button>
                             <button className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700">
                                 View
                             </button>
@@ -176,7 +235,7 @@ const ReportsPage = () => {
             <div className="flex justify-between items-center">
                 <h3 className="text-lg font-bold text-slate-800">Saved Reports</h3>
                 <button
-                    onClick={() => setIsBuilderOpen(true)}
+                    onClick={handleCreateNew}
                     className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 shadow-sm"
                 >
                     <Plus size={18} />
@@ -211,18 +270,17 @@ const ReportsPage = () => {
                                     </td>
                                     <td className="px-6 py-4 text-right">
                                         <div className="flex items-center justify-end gap-2">
-                                            <button className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors">
+                                            <button
+                                                onClick={() => handleEditReport(report)}
+                                                className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                                                title="Run / Edit"
+                                            >
                                                 <Play size={16} />
                                             </button>
                                             <button
-                                                onClick={() => {
-                                                    // Handle run report logic (maybe open builder in view mode)
-                                                }}
-                                                className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                                                onClick={() => handleDeleteReport(report.id)}
+                                                className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                                             >
-                                                <Download size={16} />
-                                            </button>
-                                            <button className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
                                                 <MoreHorizontal size={16} />
                                             </button>
                                         </div>
@@ -242,7 +300,7 @@ const ReportsPage = () => {
                         Create custom reports to analyze your data exactly how you need it. filter, sort, and group your data to find insights.
                     </p>
                     <button
-                        onClick={() => setIsBuilderOpen(true)}
+                        onClick={handleCreateNew}
                         className="px-6 py-2 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700"
                     >
                         Build Your First Report
@@ -314,6 +372,7 @@ const ReportsPage = () => {
                 isOpen={isBuilderOpen}
                 onClose={() => setIsBuilderOpen(false)}
                 onSaveSuccess={fetchSavedReports}
+                initialReport={selectedReport}
             />
         </div>
     );

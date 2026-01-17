@@ -33,6 +33,15 @@ export interface ContactAddress {
     singleLineAddress?: string;
 }
 
+// Custom Fields
+export interface CustomFieldValue {
+    id?: number;
+    entityId?: number;
+    entityType?: string;
+    customFieldDefinitionId: number;
+    value: string;
+}
+
 export interface Contact {
     id: number;
     firstName: string;
@@ -66,6 +75,8 @@ export interface Contact {
     // Multiple emails and addresses
     contactEmails?: ContactEmail[];
     contactAddresses?: ContactAddress[];
+    // Custom Fields
+    customValues?: CustomFieldValue[];
 }
 
 export interface Company {

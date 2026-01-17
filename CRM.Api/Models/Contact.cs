@@ -57,6 +57,10 @@ namespace CRM.Api.Models
         [StringLength(20)]
         public string? Zip { get; set; }
         
+        // Custom Fields (Runtime only)
+        [NotMapped]
+        public IEnumerable<CustomFieldValue>? CustomValues { get; set; }
+        
         [StringLength(50)]
         public string? Country { get; set; }
 

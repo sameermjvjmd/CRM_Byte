@@ -4,17 +4,18 @@ import {
     Filter as FilterIcon, Columns, ArrowUpDown, Save, Play
 } from 'lucide-react';
 import { REPORT_CATEGORIES } from '../../constants/reportFields';
-import type { ReportFilter, ReportResult, ReportSorting } from '../../types/reporting';
-import api from '../../api/api';
+import type { ReportFilter, ReportResult, ReportSorting, SavedReport } from '../../types/reporting';
+import { reportsApi } from '../../api/reportsApi';
 import toast from 'react-hot-toast';
 
 interface ReportBuilderModalProps {
     isOpen: boolean;
     onClose: () => void;
     onSaveSuccess: () => void;
+    initialReport?: SavedReport | null;
 }
 
-export default function ReportBuilderModal({ isOpen, onClose, onSaveSuccess }: ReportBuilderModalProps) {
+export default function ReportBuilderModal({ isOpen, onClose, onSaveSuccess, initialReport }: ReportBuilderModalProps) {
     const [step, setStep] = useState(1);
     const [name, setName] = useState('');
     const [description, setDescription] = useState('');
@@ -29,16 +30,41 @@ export default function ReportBuilderModal({ isOpen, onClose, onSaveSuccess }: R
     const [previewData, setPreviewData] = useState<ReportResult | null>(null);
     const [loading, setLoading] = useState(false);
 
-    // Initial columns selection when category changes
+    // Load initial report if provided
     useEffect(() => {
-        if (category) {
+        if (initialReport && isOpen) {
+            setName(initialReport.name);
+            setDescription(initialReport.description || '');
+            setCategory(initialReport.category);
+
+            try {
+                if (initialReport.columns) setSelectedColumns(JSON.parse(initialReport.columns));
+                if (initialReport.filters) setFilters(JSON.parse(initialReport.filters));
+                if (initialReport.sorting) setSorting(JSON.parse(initialReport.sorting));
+            } catch (e) {
+                console.error("Failed to parse report config", e);
+            }
+        } else if (!initialReport && isOpen) {
+            // Reset if opening new
+            setName('');
+            setDescription('');
+            setCategory(REPORT_CATEGORIES[0].category);
+            setFilters([]);
+            setPreviewData(null);
+            setStep(1);
+        }
+    }, [initialReport, isOpen]);
+
+    // Initial columns selection when category changes (only for new reports)
+    useEffect(() => {
+        if (category && !initialReport) {
             const cat = REPORT_CATEGORIES.find(c => c.category === category);
             if (cat) {
                 // Select first 5 columns by default (excluding ID if any)
                 setSelectedColumns(cat.fields.slice(0, 5).map(f => f.name));
             }
         }
-    }, [category]);
+    }, [category, initialReport]);
 
     const activeCategory = REPORT_CATEGORIES.find(c => c.category === category);
 
@@ -53,8 +79,8 @@ export default function ReportBuilderModal({ isOpen, onClose, onSaveSuccess }: R
                 page: 1,
                 pageSize: 10
             };
-            const response = await api.post('/reports/saved/run', request);
-            setPreviewData(response.data);
+            const data = await reportsApi.runCustomReport(request);
+            setPreviewData(data);
         } catch (error) {
             console.error(error);
             toast.error('Failed to run report');
@@ -77,7 +103,7 @@ export default function ReportBuilderModal({ isOpen, onClose, onSaveSuccess }: R
                 sorting: JSON.stringify(sorting),
                 isPublic: false
             };
-            await api.post('/reports/saved', payload);
+            await reportsApi.createSavedReport(payload);
             toast.success('Report saved successfully');
             onSaveSuccess();
             onClose();

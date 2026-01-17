@@ -23,7 +23,18 @@ const GroupDetailPage = () => {
         const fetchGroup = async () => {
             try {
                 const response = await api.get(`/groups/${id}`);
-                setGroup(response.data);
+                const groupData = response.data;
+
+                if (groupData.isDynamic) {
+                    try {
+                        const dynamicResponse = await api.get(`/groups/${id}/dynamic-members`);
+                        groupData.contacts = dynamicResponse.data;
+                    } catch (err) {
+                        console.error('Error fetching dynamic members:', err);
+                    }
+                }
+
+                setGroup(groupData);
             } catch (error) {
                 console.error('Error fetching group:', error);
             } finally {
@@ -34,6 +45,7 @@ const GroupDetailPage = () => {
     }, [id]);
 
     const handleOpenAddMemberModal = async () => {
+        if (group?.isDynamic) return; // Prevent for dynamic groups
         try {
             // Fetch all contacts
             const response = await api.get('/contacts');
@@ -48,6 +60,7 @@ const GroupDetailPage = () => {
     };
 
     const handleAddMembers = async () => {
+        if (group?.isDynamic) return;
         try {
             // Use bulk add endpoint for efficiency
             const response = await api.post(`/groups/${id}/members/bulk`, { contactIds: selectedContacts });
@@ -55,7 +68,10 @@ const GroupDetailPage = () => {
 
             // Refresh group data
             const groupResponse = await api.get(`/groups/${id}`);
-            setGroup(groupResponse.data);
+            const updatedGroup = groupResponse.data;
+            // Re-fetch dynamic members if needed (unlikely if we just added static, but safe)
+            // actually for static groups no need to worry about dynamic logic here
+            setGroup(updatedGroup);
             setIsAddMemberModalOpen(false);
             setSelectedContacts([]);
         } catch (error) {
@@ -110,7 +126,12 @@ const GroupDetailPage = () => {
                     </button>
                     <button
                         onClick={handleOpenAddMemberModal}
-                        className="px-4 py-2 bg-indigo-600 text-white rounded shadow-md text-xs font-black uppercase tracking-widest hover:bg-indigo-700 active:scale-95 transition-all flex items-center gap-2"
+                        disabled={group.isDynamic}
+                        title={group.isDynamic ? "Dynamic groups are managed automatically based on criteria." : "Add members manually"}
+                        className={`px-4 py-2 rounded shadow-md text-xs font-black uppercase tracking-widest transition-all flex items-center gap-2 ${group.isDynamic
+                                ? 'bg-slate-100 text-slate-400 cursor-not-allowed border border-slate-200 shadow-none'
+                                : 'bg-indigo-600 text-white hover:bg-indigo-700 active:scale-95'
+                            }`}
                     >
                         <Plus size={14} strokeWidth={3} />
                         Add Member

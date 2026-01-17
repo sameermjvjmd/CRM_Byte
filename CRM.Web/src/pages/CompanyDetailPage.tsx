@@ -8,9 +8,13 @@ import {
 } from 'lucide-react';
 import type { Contact } from '../types/contact';
 import type { Opportunity } from '../types/opportunity';
-import type { Company, COMPANY_TYPES, INDUSTRIES } from '../types/company';
+import type { Company } from '../types/company';
 import DocumentsTab from '../components/DocumentsTab';
 import CreateModal from '../components/CreateModal';
+import EditCompanyModal from '../components/modals/EditCompanyModal'; // Import
+import UserFieldsTab from '../components/tabs/UserFieldsTab';
+
+// ... (interfaces remain same)
 
 interface Activity {
     id: number;
@@ -36,9 +40,10 @@ const CompanyDetailPage = () => {
     const navigate = useNavigate();
     const [company, setCompany] = useState<Company | null>(null);
     const [loading, setLoading] = useState(true);
-    const [activeTab, setActiveTab] = useState<'Overview' | 'Contacts' | 'Activities' | 'History' | 'Opportunities' | 'Documents' | 'Subsidiaries'>('Overview');
+    const [activeTab, setActiveTab] = useState<'Overview' | 'Contacts' | 'Activities' | 'History' | 'Opportunities' | 'Documents' | 'Subsidiaries' | 'CustomFields'>('Overview');
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [modalType, setModalType] = useState<'Activity' | 'Note' | 'Contact' | 'Company' | 'Opportunity' | 'Group'>('Activity');
+    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
     // Tab-specific data
     const [activities, setActivities] = useState<Activity[]>([]);
@@ -47,6 +52,23 @@ const CompanyDetailPage = () => {
     const [contacts, setContacts] = useState<Contact[]>([]);
     const [subsidiaries, setSubsidiaries] = useState<Company[]>([]);
     const [tabLoading, setTabLoading] = useState(false);
+
+    const handleUpdateCustomFields = async (values: any[]) => {
+        if (!company || !id) return;
+        try {
+            const updatedCompany = { ...company, customValues: values };
+            await api.put(`/companies/${id}`, updatedCompany);
+
+            // Refresh
+            const res = await api.get(`/companies/${id}`);
+            setCompany(res.data);
+
+            alert('Custom fields updated successfully!');
+        } catch (error) {
+            console.error('Error updating custom fields:', error);
+            alert('Failed to update custom fields');
+        }
+    };
 
     useEffect(() => {
         const fetchCompany = async () => {
@@ -152,7 +174,10 @@ const CompanyDetailPage = () => {
                         <Plus size={14} strokeWidth={3} />
                         Add Contact
                     </button>
-                    <button className="px-4 py-2 bg-indigo-600 text-white rounded shadow-md text-xs font-black uppercase tracking-widest hover:bg-indigo-700 active:scale-95 transition-all flex items-center gap-2">
+                    <button
+                        onClick={() => setIsEditModalOpen(true)}
+                        className="px-4 py-2 bg-indigo-600 text-white rounded shadow-md text-xs font-black uppercase tracking-widest hover:bg-indigo-700 active:scale-95 transition-all flex items-center gap-2"
+                    >
                         <Edit2 size={14} />
                         Edit Company
                     </button>
@@ -229,6 +254,7 @@ const CompanyDetailPage = () => {
                             <TabItem id="Activities" icon={<Calendar size={16} />} active={activeTab === 'Activities'} onClick={() => setActiveTab('Activities')} />
                             <TabItem id="History" icon={<History size={16} />} active={activeTab === 'History'} onClick={() => setActiveTab('History')} />
                             <TabItem id="Documents" icon={<FileText size={16} />} active={activeTab === 'Documents'} onClick={() => setActiveTab('Documents')} />
+                            <TabItem id="CustomFields" icon={<FileText size={16} />} active={activeTab === 'CustomFields'} onClick={() => setActiveTab('CustomFields')} />
                             {(subsidiaries.length > 0 || company.parentCompanyId) && (
                                 <TabItem id="Subsidiaries" icon={<Building size={16} />} active={activeTab === 'Subsidiaries'} onClick={() => setActiveTab('Subsidiaries')} count={subsidiaries.length} />
                             )}
@@ -393,6 +419,15 @@ const CompanyDetailPage = () => {
                                         <DocumentsTab entityType="Company" entityId={Number(id)} />
                                     )}
 
+                                    {activeTab === 'CustomFields' && (
+                                        <UserFieldsTab
+                                            entityId={Number(id)}
+                                            entityType="Company"
+                                            customValues={company.customValues || []}
+                                            onUpdate={handleUpdateCustomFields}
+                                        />
+                                    )}
+
                                     {activeTab === 'Subsidiaries' && (
                                         <div className="p-6 space-y-4">
                                             <h4 className="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em] mb-4">Subsidiary Companies</h4>
@@ -434,6 +469,17 @@ const CompanyDetailPage = () => {
                 }}
                 initialType={modalType}
             />
+
+            {company && (
+                <EditCompanyModal
+                    isOpen={isEditModalOpen}
+                    company={company}
+                    onClose={() => setIsEditModalOpen(false)}
+                    onSuccess={() => {
+                        api.get(`/companies/${id}`).then(res => setCompany(res.data));
+                    }}
+                />
+            )}
         </div>
     );
 };
