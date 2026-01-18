@@ -41,6 +41,7 @@ import DefineFieldsPage from './pages/tools/DefineFieldsPage';
 import ActivityDemoPage from './pages/ActivityDemoPage';
 import RolesPage from './pages/admin/RolesPage';
 import RoleManagePage from './pages/admin/RoleManagePage';
+import PublicQuotePage from './pages/PublicQuotePage';
 import EmailTemplatesPage from './pages/EmailTemplatesPage';
 import EmailSignaturesPage from './pages/EmailSignaturesPage';
 import SentEmailsPage from './pages/SentEmailsPage';
@@ -53,7 +54,9 @@ import CustomFieldsPage from './pages/CustomFieldsPage';
 
 const AppContent = () => {
     const location = useLocation();
-    const isPublicPage = location.pathname === '/login' || location.pathname === '/register';
+    const isPublicPage = location.pathname === '/login' ||
+        location.pathname === '/register' ||
+        location.pathname.startsWith('/portal');
 
     return (
         <div className="flex flex-col h-screen w-full bg-[#f8fafc] overflow-hidden">
@@ -75,6 +78,7 @@ const AppContent = () => {
                             {/* Public Routes */}
                             <Route path="/login" element={<LoginPage />} />
                             <Route path="/register" element={<RegisterTenantPage />} />
+                            <Route path="/portal/quotes/:token" element={<PublicQuotePage />} />
 
                             {/* Protected Routes */}
                             <Route path="/" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />

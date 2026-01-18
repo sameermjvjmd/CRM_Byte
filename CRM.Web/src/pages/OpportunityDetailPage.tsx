@@ -11,6 +11,7 @@ import UserFieldsTab from '../components/tabs/UserFieldsTab';
 import DocumentsTab from '../components/DocumentsTab';
 import CreateModal from '../components/CreateModal';
 import CloseOpportunityModal from '../components/CloseOpportunityModal';
+import CreateQuoteModal from '../components/CreateQuoteModal';
 
 const OpportunityDetailPage = () => {
     const { id } = useParams();
@@ -24,6 +25,7 @@ const OpportunityDetailPage = () => {
     const [products, setProducts] = useState<any[]>([]);
     const [historyItems, setHistoryItems] = useState<any[]>([]);
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+    const [isQuoteModalOpen, setIsQuoteModalOpen] = useState(false);
     const [isCloseModalOpen, setIsCloseModalOpen] = useState(false);
     const [closeTarget, setCloseTarget] = useState<'Closed Won' | 'Closed Lost'>('Closed Won');
 
@@ -147,6 +149,12 @@ const OpportunityDetailPage = () => {
                             </button>
                         </>
                     )}
+                    <button
+                        onClick={() => setIsQuoteModalOpen(true)}
+                        className="px-4 py-2 bg-white text-indigo-600 border border-indigo-200 rounded shadow-sm text-xs font-black uppercase tracking-widest hover:bg-indigo-50 active:scale-95 transition-all flex items-center gap-2"
+                    >
+                        <FileText size={14} /> Create Quote
+                    </button>
                     <button className="px-4 py-2 bg-indigo-600 text-white rounded shadow-md text-xs font-black uppercase tracking-widest hover:bg-indigo-700 active:scale-95 transition-all flex items-center gap-2">
                         <Edit2 size={14} /> Edit
                     </button>
@@ -441,6 +449,33 @@ const OpportunityDetailPage = () => {
                     fetchOpportunity();
                 }}
             />
+
+            {isQuoteModalOpen && opportunity && (
+                <CreateQuoteModal
+                    onClose={() => setIsQuoteModalOpen(false)}
+                    onSuccess={() => {
+                        setIsQuoteModalOpen(false);
+                        // Maybe switch to Activities tab to show new activity? Or navigate to Quotes?
+                        // For now just close.
+                        alert('Quote created successfully!');
+                    }}
+                    initialData={{
+                        opportunityId: Number(id),
+                        contactId: opportunity.contactId,
+                        companyId: opportunity.companyId,
+                        subject: `Quote for ${opportunity.name}`,
+                        lineItems: products.map(p => ({
+                            productId: p.productId,
+                            name: p.productName,
+                            quantity: p.quantity,
+                            unitPrice: p.unitPrice,
+                            discountPercent: p.discountType === 'Percentage' ? p.discount : 0,
+                            isTaxable: true, // Default
+                            taxRate: 0 // Default
+                        }))
+                    }}
+                />
+            )}
         </div>
     );
 };

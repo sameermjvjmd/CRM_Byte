@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { X, Send, FileText, Eye, EyeOff, Pen } from 'lucide-react';
-import { emailApi, type SendEmailRequest, type EmailTemplate, type EmailSignature } from '../../api/emailApi';
+import React, { useState, useEffect, useRef } from 'react';
+import { X, Send, FileText, Eye, EyeOff, Pen, Paperclip, Trash2 } from 'lucide-react';
+import { emailApi, type SendEmailRequest, type EmailTemplate, type EmailSignature, type EmailAttachment } from '../../api/emailApi';
 import { toast } from 'react-hot-toast';
 
 interface EmailComposerProps {
@@ -31,6 +31,9 @@ const EmailComposer: React.FC<EmailComposerProps> = ({
     const [body, setBody] = useState('');
     const [isSending, setIsSending] = useState(false);
     const [showPreview, setShowPreview] = useState(false);
+    const [attachments, setAttachments] = useState<EmailAttachment[]>([]);
+    const [isUploading, setIsUploading] = useState(false);
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
     // Placeholder values for template replacement
     const [placeholders, setPlaceholders] = useState<Record<string, string>>({
@@ -93,6 +96,45 @@ const EmailComposer: React.FC<EmailComposerProps> = ({
         return result;
     };
 
+    const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files && e.target.files.length > 0) {
+            const file = e.target.files[0];
+
+            // Check file size (10MB limit)
+            if (file.size > 10 * 1024 * 1024) {
+                toast.error('File size exceeds 10MB limit');
+                return;
+            }
+
+            setIsUploading(true);
+            try {
+                const attachment = await emailApi.uploadAttachment(file);
+                setAttachments(prev => [...prev, attachment]);
+                toast.success('File uploaded');
+            } catch (error) {
+                console.error('Failed to upload file:', error);
+                toast.error('Failed to upload file');
+            } finally {
+                setIsUploading(false);
+                // Reset input
+                if (fileInputRef.current) {
+                    fileInputRef.current.value = '';
+                }
+            }
+        }
+    };
+
+    const handleRemoveAttachment = async (id: number) => {
+        try {
+            await emailApi.deleteAttachment(id);
+            setAttachments(prev => prev.filter(a => a.id !== id));
+        } catch (error) {
+            console.error('Failed to delete attachment:', error);
+            // Even if API fails, remove from UI to avoid confusion
+            setAttachments(prev => prev.filter(a => a.id !== id));
+        }
+    };
+
     const handleSend = async () => {
         if (!to.trim()) {
             toast.error('Please enter a recipient email address');
@@ -129,6 +171,7 @@ const EmailComposer: React.FC<EmailComposerProps> = ({
                 templateId: selectedTemplateId || undefined,
                 contactId: defaultContactId,
                 placeholders,
+                attachmentIds: attachments.map(a => a.id),
             };
 
             await emailApi.sendEmail(request);
@@ -153,6 +196,7 @@ const EmailComposer: React.FC<EmailComposerProps> = ({
         setBcc('');
         setSubject('');
         setBody('');
+        setAttachments([]);
         setPlaceholders({
             ContactName: defaultContactName,
             CompanyName: '',
@@ -332,6 +376,51 @@ const EmailComposer: React.FC<EmailComposerProps> = ({
                         )}
                     </div>
 
+                    {/* Attachments */}
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            <Paperclip className="inline w-4 h-4 mr-1" />
+                            Attachments
+                        </label>
+
+                        <div className="space-y-2">
+                            {attachments.map(att => (
+                                <div key={att.id} className="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-700 rounded border border-gray-200 dark:border-gray-600">
+                                    <div className="flex items-center gap-2 overflow-hidden">
+                                        <FileText className="w-4 h-4 text-gray-500 flex-shrink-0" />
+                                        <span className="text-sm text-gray-700 dark:text-gray-200 truncate">{att.fileName}</span>
+                                        <span className="text-xs text-gray-400">({(att.fileSize / 1024).toFixed(1)} KB)</span>
+                                    </div>
+                                    <button
+                                        onClick={() => handleRemoveAttachment(att.id)}
+                                        className="text-red-500 hover:text-red-700 p-1"
+                                        title="Remove attachment"
+                                    >
+                                        <Trash2 className="w-4 h-4" />
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+
+                        <div className="mt-2">
+                            <input
+                                type="file"
+                                ref={fileInputRef}
+                                className="hidden"
+                                onChange={handleFileSelect}
+                            />
+                            <button
+                                type="button"
+                                onClick={() => fileInputRef.current?.click()}
+                                disabled={isUploading}
+                                className="text-sm text-indigo-600 hover:text-indigo-800 font-medium flex items-center gap-1"
+                            >
+                                <Paperclip className="w-4 h-4" />
+                                {isUploading ? 'Uploading...' : 'Attach File'}
+                            </button>
+                        </div>
+                    </div>
+
                     {/* Signature Selector */}
                     <div>
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
@@ -373,7 +462,7 @@ const EmailComposer: React.FC<EmailComposerProps> = ({
                     </button>
                     <button
                         onClick={handleSend}
-                        disabled={isSending}
+                        disabled={isSending || isUploading}
                         className="px-6 py-2 text-sm font-medium text-white bg-gradient-to-r from-indigo-600 to-purple-600 rounded-lg hover:from-indigo-700 hover:to-purple-700 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                         <Send className="w-4 h-4" />

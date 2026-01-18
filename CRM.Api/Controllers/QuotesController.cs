@@ -250,10 +250,29 @@ namespace CRM.Api.Controllers
 
             await _context.SaveChangesAsync();
 
-            // TODO: Actually send email with PDF attachment
-            // For now, just update status
-
             return Ok(new { message = "Quote sent successfully", sentTo = request.Email });
+        }
+
+        // POST: api/quotes/5/view
+        [HttpPost("{id}/view")]
+        public async Task<IActionResult> ViewQuote(int id)
+        {
+            var quote = await _context.Quotes.FindAsync(id);
+            if (quote == null)
+            {
+                return NotFound();
+            }
+
+            // Only update status if it's currently Sent (don't overwrite Accepted/Declined)
+            if (quote.Status == QuoteStatus.Sent)
+            {
+                quote.Status = QuoteStatus.Viewed;
+                quote.ViewedDate = DateTime.UtcNow;
+                quote.LastModifiedAt = DateTime.UtcNow;
+                await _context.SaveChangesAsync();
+            }
+
+            return Ok(new { message = "Quote marked as viewed" });
         }
 
         // POST: api/quotes/5/accept
@@ -282,6 +301,86 @@ namespace CRM.Api.Controllers
         public async Task<IActionResult> DeclineQuote(int id, [FromBody] DeclineQuoteRequest request)
         {
             var quote = await _context.Quotes.FindAsync(id);
+            if (quote == null)
+            {
+                return NotFound();
+            }
+
+            quote.Status = QuoteStatus.Declined;
+            quote.DeclinedDate = DateTime.UtcNow;
+            quote.DeclineReason = request.Reason;
+            quote.LastModifiedAt = DateTime.UtcNow;
+
+            await _context.SaveChangesAsync();
+
+            return Ok(new { message = "Quote declined", reason = request.Reason });
+        }
+
+        // GET: api/quotes/public/{token}
+        [HttpGet("public/{token}")]
+        public async Task<ActionResult<Quote>> GetQuoteByToken(Guid token)
+        {
+            var quote = await _context.Quotes
+                .Include(q => q.Contact)
+                .Include(q => q.Company)
+                .Include(q => q.LineItems.OrderBy(li => li.SortOrder))
+                .FirstOrDefaultAsync(q => q.PublicToken == token);
+
+            if (quote == null)
+            {
+                return NotFound();
+            }
+
+            return quote;
+        }
+
+        // POST: api/quotes/public/{token}/view
+        [HttpPost("public/{token}/view")]
+        public async Task<IActionResult> ViewQuoteByToken(Guid token)
+        {
+            var quote = await _context.Quotes.FirstOrDefaultAsync(q => q.PublicToken == token);
+            if (quote == null)
+            {
+                return NotFound();
+            }
+
+            if (quote.Status == QuoteStatus.Sent)
+            {
+                quote.Status = QuoteStatus.Viewed;
+                quote.ViewedDate = DateTime.UtcNow;
+                quote.LastModifiedAt = DateTime.UtcNow;
+                await _context.SaveChangesAsync();
+            }
+
+            return Ok(new { message = "Quote marked as viewed" });
+        }
+
+        // POST: api/quotes/public/{token}/accept
+        [HttpPost("public/{token}/accept")]
+        public async Task<IActionResult> AcceptQuoteByToken(Guid token, [FromBody] AcceptQuoteRequest request)
+        {
+            var quote = await _context.Quotes.FirstOrDefaultAsync(q => q.PublicToken == token);
+            if (quote == null)
+            {
+                return NotFound();
+            }
+
+            quote.Status = QuoteStatus.Accepted;
+            quote.AcceptedDate = DateTime.UtcNow;
+            quote.AcceptedByName = request.AcceptedBy;
+            quote.AcceptedByEmail = request.Email;
+            quote.LastModifiedAt = DateTime.UtcNow;
+
+            await _context.SaveChangesAsync();
+
+            return Ok(new { message = "Quote accepted", acceptedAt = quote.AcceptedDate });
+        }
+
+        // POST: api/quotes/public/{token}/decline
+        [HttpPost("public/{token}/decline")]
+        public async Task<IActionResult> DeclineQuoteByToken(Guid token, [FromBody] DeclineQuoteRequest request)
+        {
+            var quote = await _context.Quotes.FirstOrDefaultAsync(q => q.PublicToken == token);
             if (quote == null)
             {
                 return NotFound();

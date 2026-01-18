@@ -31,6 +31,7 @@ export interface SendEmailRequest {
     templateId?: number;
     placeholders?: Record<string, string>;
     contactId?: number;
+    attachmentIds?: number[];
 }
 
 export interface SentEmail {
@@ -46,6 +47,32 @@ export interface SentEmail {
     templateName?: string;
     openCount: number;
     clickCount: number;
+}
+
+export interface EmailSignature {
+    id: number;
+    name: string;
+    content: string;
+    isDefault: boolean;
+    createdAt: string;
+    updatedAt?: string;
+}
+
+export interface CreateEmailSignatureDto {
+    name: string;
+    content: string;
+    isDefault: boolean;
+}
+
+export interface UpdateEmailSignatureDto extends CreateEmailSignatureDto {
+}
+
+export interface EmailAttachment {
+    id: number;
+    fileName: string;
+    contentType: string;
+    fileSize: number;
+    uploadedAt: string;
 }
 
 export const emailApi = {
@@ -77,6 +104,22 @@ export const emailApi = {
     sendEmail: async (data: SendEmailRequest): Promise<SentEmail> => {
         const response = await api.post('/Emails/send', data);
         return response.data;
+    },
+
+    // Attachments
+    uploadAttachment: async (file: File): Promise<EmailAttachment> => {
+        const formData = new FormData();
+        formData.append('file', file);
+        const response = await api.post('/Emails/attachments/upload', formData, {
+            headers: {
+                'Content-Type': 'multipart/form-data',
+            },
+        });
+        return response.data;
+    },
+
+    deleteAttachment: async (id: number): Promise<void> => {
+        await api.delete(`/Emails/attachments/${id}`);
     },
 
     // History
@@ -125,21 +168,3 @@ export const emailApi = {
         await api.delete(`/EmailSignatures/${id}`);
     }
 };
-
-export interface EmailSignature {
-    id: number;
-    name: string;
-    content: string;
-    isDefault: boolean;
-    createdAt: string;
-    updatedAt?: string;
-}
-
-export interface CreateEmailSignatureDto {
-    name: string;
-    content: string;
-    isDefault: boolean;
-}
-
-export interface UpdateEmailSignatureDto extends CreateEmailSignatureDto {
-}

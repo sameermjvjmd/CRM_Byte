@@ -4,7 +4,7 @@ import api from '../api/api';
 import {
     ArrowLeft, Save, Send, Download, Trash2, Plus, Check,
     X, FileText, Building2, User, Calendar, Clock, DollarSign,
-    Copy, Printer, Mail
+    Copy, Printer, Mail, ExternalLink
 } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -40,6 +40,7 @@ interface Quote {
     recipientEmail?: string;
     recipientAddress?: string;
     version: number;
+    publicToken?: string;
     createdAt: string;
     lastModifiedAt: string;
     lineItems: QuoteLineItem[];
@@ -160,8 +161,18 @@ const QuoteDetailPage = () => {
     };
 
     const handleSend = async () => {
-        const email = prompt('Enter recipient email:', quote?.recipientEmail || quote?.contact?.email || '');
-        if (!email) return;
+        const defaultEmail = quote?.recipientEmail || quote?.contact?.email;
+        let email = defaultEmail;
+
+        if (!email) {
+            email = prompt('Enter recipient email:');
+            if (!email) return;
+        } else {
+            if (!confirm(`Send quote to ${email}? Click Cancel to enter a different address.`)) {
+                email = prompt('Enter recipient email:', defaultEmail);
+                if (!email) return;
+            }
+        }
 
         try {
             await api.post(`/quotes/${id}/send`, { email });
@@ -428,6 +439,14 @@ const QuoteDetailPage = () => {
                             Send Quote
                         </button>
                     )}
+                    <button
+                        onClick={() => window.open(`/portal/quotes/${quote.publicToken}`, '_blank')}
+                        className="flex items-center gap-2 px-4 py-2 bg-slate-100 text-slate-700 rounded-lg font-bold text-sm hover:bg-slate-200 transition-colors"
+                        title="View Public Page"
+                    >
+                        <ExternalLink size={16} />
+                        View
+                    </button>
                     <button
                         onClick={handleDuplicate}
                         className="p-2 hover:bg-slate-200 rounded-lg transition-colors"

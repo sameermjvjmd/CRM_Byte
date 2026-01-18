@@ -23,6 +23,7 @@ const CreateModal = ({ isOpen, onClose, onSuccess, initialType = 'Contact', init
     const [attendeeSearch, setAttendeeSearch] = useState('');
     const [attendeeResults, setAttendeeResults] = useState<any[]>([]);
     const [selectedAttendees, setSelectedAttendees] = useState<any[]>([]);
+    const [products, setProducts] = useState<any[]>([]);
 
     const [formData, setFormData] = useState<any>({
         // Contact
@@ -72,6 +73,10 @@ const CreateModal = ({ isOpen, onClose, onSuccess, initialType = 'Contact', init
 
         if (isOpen && type === 'Group') {
             advancedSearchApi.getSavedSearches().then(setSavedSearches).catch(console.error);
+        }
+
+        if (isOpen && type === 'Product') {
+            api.get('/products?activeOnly=true').then(res => setProducts(res.data)).catch(console.error);
         }
 
         setCustomValues([]);
@@ -816,6 +821,29 @@ const CreateModal = ({ isOpen, onClose, onSuccess, initialType = 'Contact', init
                             {type === 'Product' && (
                                 <>
                                     <div className="grid grid-cols-2 gap-4">
+                                        <div className="col-span-2">
+                                            <label className={labelStyle}>Select from Catalog (Optional)</label>
+                                            <select
+                                                className={inputStyle}
+                                                onChange={(e) => {
+                                                    const prod = products.find(p => p.id === Number(e.target.value));
+                                                    if (prod) {
+                                                        setFormData(prev => ({
+                                                            ...prev,
+                                                            productName: prod.name,
+                                                            productCode: prod.sku || prev.productCode,
+                                                            unitPrice: prod.price || prev.unitPrice,
+                                                            description: prod.description || prev.description
+                                                        }));
+                                                    }
+                                                }}
+                                            >
+                                                <option value="">-- Choose Product --</option>
+                                                {products.map(p => (
+                                                    <option key={p.id} value={p.id}>{p.name} ({p.sku || 'No SKU'}) - ${p.price}</option>
+                                                ))}
+                                            </select>
+                                        </div>
                                         <div className="col-span-2">
                                             <label className={labelStyle}>Product Name *</label>
                                             <input required name="productName" value={formData.productName} onChange={handleChange} className={inputStyle} placeholder="e.g. Professional License" />

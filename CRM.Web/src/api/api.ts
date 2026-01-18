@@ -108,7 +108,7 @@ api.interceptors.response.use(
                 try {
                     // Try to refresh the token
                     const response = await axios.post(
-                        'https://api.bytesymphony.in/api/auth/refresh',
+                        `${getApiBaseUrl()}/auth/refresh`,
                         { refreshToken },
                         { headers: { 'Content-Type': 'application/json' } }
                     );

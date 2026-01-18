@@ -21,6 +21,9 @@ namespace CRM.Api.Models
         [StringLength(20)]
         public string Status { get; set; } = "Draft";
 
+        // Security
+        public Guid PublicToken { get; set; } = Guid.NewGuid();
+
         // Associations
         public int? ContactId { get; set; }
         public Contact? Contact { get; set; }
