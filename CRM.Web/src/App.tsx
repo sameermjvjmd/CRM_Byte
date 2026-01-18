@@ -51,12 +51,16 @@ import QuotesPage from './pages/QuotesPage';
 import QuoteDetailPage from './pages/QuoteDetailPage';
 import WorkflowsPage from './pages/WorkflowsPage';
 import CustomFieldsPage from './pages/CustomFieldsPage';
+import LandingPageBuilder from './components/marketing/LandingPageBuilder';
+import PublicLandingPage from './pages/PublicLandingPage';
 
 const AppContent = () => {
     const location = useLocation();
+
     const isPublicPage = location.pathname === '/login' ||
         location.pathname === '/register' ||
-        location.pathname.startsWith('/portal');
+        location.pathname.startsWith('/portal') ||
+        location.pathname.startsWith('/pages');
 
     return (
         <div className="flex flex-col h-screen w-full bg-[#f8fafc] overflow-hidden">
@@ -79,6 +83,7 @@ const AppContent = () => {
                             <Route path="/login" element={<LoginPage />} />
                             <Route path="/register" element={<RegisterTenantPage />} />
                             <Route path="/portal/quotes/:token" element={<PublicQuotePage />} />
+                            <Route path="/pages/:slug" element={<PublicLandingPage />} />
 
                             {/* Protected Routes */}
                             <Route path="/" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
@@ -142,6 +147,13 @@ const AppContent = () => {
                             <Route path="/custom-fields" element={
                                 <ProtectedRoute>
                                     <CustomFieldsPage />
+                                </ProtectedRoute>
+                            } />
+
+                            {/* Marketing Landing Pages */}
+                            <Route path="/marketing/pages/:id/edit" element={
+                                <ProtectedRoute>
+                                    <LandingPageBuilder />
                                 </ProtectedRoute>
                             } />
 

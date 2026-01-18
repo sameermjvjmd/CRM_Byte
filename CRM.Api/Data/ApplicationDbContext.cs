@@ -32,6 +32,11 @@ namespace CRM.Api.Data
         public DbSet<SuppressionEntry> SuppressionEntries { get; set; }
         public DbSet<LeadScoringRule> LeadScoringRules { get; set; }
         
+        // Landing Pages (Module 7.3)
+        public DbSet<LandingPage> LandingPages { get; set; }
+        public DbSet<WebForm> WebForms { get; set; }
+        public DbSet<LandingPageSubmission> LandingPageSubmissions { get; set; }
+        
         // Reporting & Analytics (Module 8)
         public DbSet<SavedReport> SavedReports { get; set; }
         public DbSet<ReportExecutionLog> ReportExecutionLogs { get; set; }

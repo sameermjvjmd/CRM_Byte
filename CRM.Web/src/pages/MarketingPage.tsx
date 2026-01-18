@@ -4,6 +4,7 @@ import MarketingDashboard from '../components/marketing/MarketingDashboard';
 import MarketingLists from '../components/marketing/MarketingLists';
 import CampaignsList from '../components/marketing/CampaignsList';
 import VisualEmailBuilder from '../components/marketing/VisualEmailBuilder';
+import LandingPagesList from '../components/marketing/LandingPagesList';
 
 const MarketingPage = () => {
     const [activeView, setActiveView] = useState<'Dashboard' | 'Campaigns' | 'Lists' | 'Templates' | 'LandingPages'>('Dashboard');
@@ -72,20 +73,7 @@ const MarketingPage = () => {
                     </div>
                 )}
 
-                {activeView === 'LandingPages' && (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        <div className="col-span-full bg-slate-50 rounded-xl border border-dashed border-slate-300 p-12 flex flex-col items-center justify-center text-center">
-                            <Globe size={48} className="text-slate-300 mb-4" />
-                            <h3 className="text-lg font-bold text-slate-900">Landing Pages Coming Soon</h3>
-                            <p className="text-slate-500 max-w-sm mt-2">
-                                We are currently building a powerful landing page designer to help you capture leads directly into your lists.
-                            </p>
-                            <button className="mt-6 px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium text-slate-400 cursor-not-allowed">
-                                Join Beta Waitlist
-                            </button>
-                        </div>
-                    </div>
-                )}
+                {activeView === 'LandingPages' && <LandingPagesList />}
             </div>
         </div>
     );

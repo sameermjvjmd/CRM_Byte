@@ -374,11 +374,11 @@
 #### 7.3 Landing Pages
 | Feature | Status | Priority | Week |
 |---------|--------|----------|------|
-| Landing page builder | 🟡 In Progress | Medium | 16 |
-| Mobile-responsive templates | ❌ Missing | Medium | 16 |
-| Form builder | ❌ Missing | High | 16 |
-| Lead capture forms | ❌ Missing | High | 16 |
-| Form submission to contact | ❌ Missing | High | 16 |
+| Landing page builder | ✅ Done | Medium | 16 |
+| Mobile-responsive templates | ✅ Done | Medium | 16 |
+| Form builder | ✅ Done | High | 16 |
+| Lead capture forms | ✅ Done | High | 16 |
+| Form submission to contact | ✅ Done | High | 16 |
 | Progressive profiling | ❌ Missing | Low | 18 |
 
 #### 7.4 Lead Scoring & Nurturing
