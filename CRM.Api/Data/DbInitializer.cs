@@ -57,6 +57,33 @@ namespace CRM.Api.Data
                             ALTER TABLE CampaignRecipients ADD NextStepScheduledAt DATETIME2 NULL;
                     END
 
+                    IF EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[CampaignSteps]') AND type in (N'U'))
+                    BEGIN
+                        IF NOT EXISTS(SELECT * FROM sys.columns WHERE Name = N'SentCount' AND Object_ID = Object_ID(N'CampaignSteps')) 
+                            ALTER TABLE CampaignSteps ADD SentCount INT NOT NULL DEFAULT 0;
+                        IF NOT EXISTS(SELECT * FROM sys.columns WHERE Name = N'DeliveredCount' AND Object_ID = Object_ID(N'CampaignSteps')) 
+                            ALTER TABLE CampaignSteps ADD DeliveredCount INT NOT NULL DEFAULT 0;
+                        IF NOT EXISTS(SELECT * FROM sys.columns WHERE Name = N'OpenCount' AND Object_ID = Object_ID(N'CampaignSteps')) 
+                            ALTER TABLE CampaignSteps ADD OpenCount INT NOT NULL DEFAULT 0;
+                        IF NOT EXISTS(SELECT * FROM sys.columns WHERE Name = N'ClickCount' AND Object_ID = Object_ID(N'CampaignSteps')) 
+                            ALTER TABLE CampaignSteps ADD ClickCount INT NOT NULL DEFAULT 0;
+                    END
+
+                    IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[CampaignStepExecutionLogs]') AND type in (N'U'))
+                    BEGIN
+                        CREATE TABLE [dbo].[CampaignStepExecutionLogs] (
+                            [Id] INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
+                            [CampaignId] INT NOT NULL,
+                            [StepId] INT NOT NULL,
+                            [RecipientId] INT NOT NULL,
+                            [ContactId] INT NULL,
+                            [Email] NVARCHAR(255) NOT NULL,
+                            [ExecutedAt] DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
+                            [Status] NVARCHAR(50) NOT NULL,
+                            [ErrorMessage] NVARCHAR(MAX) NULL
+                        );
+                    END
+
                     IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[Users]') AND type in (N'U'))
                     BEGIN
                         CREATE TABLE [dbo].[Users] (

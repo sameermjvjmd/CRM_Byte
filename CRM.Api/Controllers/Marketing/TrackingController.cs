@@ -27,7 +27,7 @@ namespace CRM.Api.Controllers.Marketing
         }
 
         [HttpGet("open/{recipientId}")]
-        public async Task<IActionResult> TrackOpen(int recipientId)
+        public async Task<IActionResult> TrackOpen(int recipientId, [FromQuery] int? stepId)
         {
             try
             {
@@ -45,25 +45,33 @@ namespace CRM.Api.Controllers.Marketing
                     if (isFirstOpen)
                     {
                         recipient.FirstOpenedAt = DateTime.UtcNow;
-                        recipient.Status = "Opened";
+                        recipient.Status = isFirstOpen && recipient.Status != "Clicked" ? "Opened" : recipient.Status;
                         
-                        // Update Campaign Stats
                         if (recipient.Campaign != null)
                         {
                             recipient.Campaign.OpenCount++;
                             recipient.Campaign.UniqueOpenCount++;
                         }
                         
-                        // Trigger Lead Scoring
                         if (recipient.ContactId.HasValue)
                         {
-                            await _leadScoringService.EvaluateRulesAsync("EmailOpen", recipient.ContactId.Value, new { CampaignId = recipient.CampaignId });
+                            await _leadScoringService.EvaluateRulesAsync("EmailOpen", recipient.ContactId.Value, new { CampaignId = recipient.CampaignId, StepId = stepId });
                         }
                     }
                     else 
                     {
                         if (recipient.Campaign != null)
                             recipient.Campaign.OpenCount++;
+                    }
+
+                    // Step specific stats
+                    if (stepId.HasValue)
+                    {
+                        var step = await _context.CampaignSteps.FindAsync(stepId.Value);
+                        if (step != null)
+                        {
+                            step.OpenCount++;
+                        }
                     }
 
                     await _context.SaveChangesAsync();
@@ -78,7 +86,7 @@ namespace CRM.Api.Controllers.Marketing
         }
 
         [HttpGet("click/{recipientId}")]
-        public async Task<IActionResult> TrackClick(int recipientId, [FromQuery] string url)
+        public async Task<IActionResult> TrackClick(int recipientId, [FromQuery] string url, [FromQuery] int? stepId)
         {
             if (string.IsNullOrEmpty(url)) return BadRequest("URL is required");
 
@@ -95,27 +103,35 @@ namespace CRM.Api.Controllers.Marketing
                     recipient.ClickCount++;
                     recipient.LastClickedAt = DateTime.UtcNow;
                     
-                    // Track unique clicks
                     if (isFirstClick)
                     {
                         recipient.FirstClickedAt = DateTime.UtcNow;
-                        recipient.Status = "Clicked"; // Upgrade status from Opened to Clicked if applicable
+                        recipient.Status = "Clicked";
                         
                         if (recipient.Campaign != null)
                         {
                             recipient.Campaign.UniqueClickCount++;
                         }
 
-                        // Trigger Lead Scoring
                         if (recipient.ContactId.HasValue)
                         {
-                            await _leadScoringService.EvaluateRulesAsync("EmailClick", recipient.ContactId.Value, new { CampaignId = recipient.CampaignId, Url = url });
+                            await _leadScoringService.EvaluateRulesAsync("EmailClick", recipient.ContactId.Value, new { CampaignId = recipient.CampaignId, StepId = stepId, Url = url });
                         }
                     }
 
                     if (recipient.Campaign != null)
                     {
                         recipient.Campaign.ClickCount++;
+                    }
+
+                    // Step specific stats
+                    if (stepId.HasValue)
+                    {
+                        var step = await _context.CampaignSteps.FindAsync(stepId.Value);
+                        if (step != null)
+                        {
+                            step.ClickCount++;
+                        }
                     }
 
                     await _context.SaveChangesAsync();

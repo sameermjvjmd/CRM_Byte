@@ -209,81 +209,92 @@ namespace CRM.Api.Services.Marketing
         {
             if (recipient.CurrentStep == null) return;
 
-            _logger.LogInformation("Executing Drip Step {StepName} for {Email}", recipient.CurrentStep.Name, recipient.Email);
+            int currentStepId = recipient.CurrentStep.Id;
+            _logger.LogInformation("Executing Drip Step {StepName} (ID: {StepId}) for {Email}", 
+                recipient.CurrentStep.Name, currentStepId, recipient.Email);
 
             try
             {
                 string baseUrl = _configuration["App:BaseUrl"] ?? "http://localhost:5000";
                 
-                // Send Email
+                // 1. Prepare Content
                 string subject = recipient.CurrentStep.Subject ?? "Information";
                 string body = recipient.CurrentStep.HtmlContent ?? recipient.CurrentStep.PlainTextContent ?? "Content";
 
-                // Simple template replacement
+                // 2. Enhanced Placeholder Substitution
                 if (recipient.ContactId.HasValue)
                 {
                     var contact = await _context.Contacts.FindAsync(recipient.ContactId.Value);
                     if (contact != null)
                     {
-                        body = body.Replace("{FirstName}", contact.FirstName ?? "")
-                                   .Replace("{LastName}", contact.LastName ?? "");
+                        body = SubstitutePlaceholders(body, contact);
+                        subject = SubstitutePlaceholders(subject, contact);
                     }
                 }
                 
-                // --- TRACKING INJECTION ---
+                // 3. --- TRACKING INJECTION ---
                 
-                // 1. Link Tracking (Simple href replacement)
-                // Use a simplified regex to find http/https links in href attributes
-                // NOTE: This is a basic implementation; robust HTML parsing is recommended for production
+                // Link Tracking (Including StepId)
                 body = System.Text.RegularExpressions.Regex.Replace(body, 
                     "href=\"(http[s]?://[^\"]+)\"", 
                     m => 
                     {
                         var originalUrl = m.Groups[1].Value;
-                        // Avoid tracking already tracking links or unsubscribe links if they need to be excluded
                         if (originalUrl.Contains("/api/tracking")) return m.Value;
                         
                         var encodedUrl = System.Web.HttpUtility.UrlEncode(originalUrl);
-                        var trackingUrl = $"{baseUrl}/api/tracking/click/{recipient.Id}?url={encodedUrl}";
+                        // Added stepId to tracking URL
+                        var trackingUrl = $"{baseUrl}/api/tracking/click/{recipient.Id}?url={encodedUrl}&stepId={currentStepId}";
                         return $"href=\"{trackingUrl}\"";
                     }, 
                     System.Text.RegularExpressions.RegexOptions.IgnoreCase);
 
-                // 2. Open Tracking Pixel
-                var pixelUrl = $"{baseUrl}/api/tracking/open/{recipient.Id}";
+                // Open Tracking Pixel (Including StepId)
+                var pixelUrl = $"{baseUrl}/api/tracking/open/{recipient.Id}?stepId={currentStepId}";
                 var trackingPixel = $"<img src=\"{pixelUrl}\" width=\"1\" height=\"1\" style=\"display:none;\" alt=\"\" />";
                 
-                // Append pixel to the end of the body
                 if (body.Contains("</body>"))
-                {
                     body = body.Replace("</body>", trackingPixel + "</body>");
-                }
                 else
-                {
                     body += trackingPixel;
-                }
                 
-                // ---------------------------
-
+                // 4. --- SMTP SENDING ---
+                bool sendSuccess = true;
+                string? errorMessage = null;
                 try 
                 {
                     await _emailService.SendEmailAsync(recipient.Email, subject, body, true);
                 }
                 catch (Exception emailEx)
                 {
-                    _logger.LogWarning("Email sending failed for {Email} but proceeding with drip flow: {Msg}", recipient.Email, emailEx.Message);
+                    _logger.LogWarning("Email sending failed for {Email}: {Msg}", recipient.Email, emailEx.Message);
+                    sendSuccess = false;
+                    errorMessage = emailEx.Message;
                 }
 
-                // Log execution (Create a separate log table or just update last sent)
+                // 5. --- LOGGING & STATS ---
+                
+                // Update Recipient
                 recipient.SentAt = DateTime.UtcNow; 
                 
-                // Update Campaign Stats
-                if (recipient.Campaign != null)
-                {
-                    recipient.Campaign.SentCount++;
-                }
+                // Update Campaign & Step Stats
+                if (recipient.Campaign != null) recipient.Campaign.SentCount++;
+                if (recipient.CurrentStep != null) recipient.CurrentStep.SentCount++;
 
-                // Move to next step
+                // Log entry
+                _context.CampaignStepExecutionLogs.Add(new CampaignStepExecutionLog
+                {
+                    CampaignId = recipient.CampaignId,
+                    StepId = currentStepId,
+                    RecipientId = recipient.Id,
+                    ContactId = recipient.ContactId,
+                    Email = recipient.Email,
+                    ExecutedAt = DateTime.UtcNow,
+                    Status = sendSuccess ? "Success" : "Failed",
+                    ErrorMessage = errorMessage
+                });
+
+                // 6. --- SCHEDULING NEXT STEP ---
                 var nextStep = await _context.CampaignSteps
                     .Where(s => s.CampaignId == recipient.CampaignId && s.OrderIndex > recipient.CurrentStep.OrderIndex)
                     .OrderBy(s => s.OrderIndex)
@@ -292,12 +303,10 @@ namespace CRM.Api.Services.Marketing
                 if (nextStep != null)
                 {
                     recipient.CurrentStepId = nextStep.Id;
-                    recipient.CurrentStep = nextStep; // EF tracking
                     recipient.NextStepScheduledAt = DateTime.UtcNow.AddMinutes(nextStep.DelayMinutes);
                 }
                 else
                 {
-                    // End of drip
                     recipient.Status = "Completed";
                     recipient.NextStepScheduledAt = null;
                     recipient.CurrentStepId = null;
@@ -306,8 +315,38 @@ namespace CRM.Api.Services.Marketing
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Failed to execute drip step for {Email}", recipient.Email);
-                // Retry logic could go here
             }
+        }
+
+        private string SubstitutePlaceholders(string content, Models.Contact contact)
+        {
+            if (string.IsNullOrEmpty(content)) return content;
+
+            var result = content;
+            var type = contact.GetType();
+            
+            // Basic hardcoded ones for speed
+            result = result.Replace("{FirstName}", contact.FirstName ?? "")
+                           .Replace("{LastName}", contact.LastName ?? "")
+                           .Replace("{Email}", contact.Email ?? "")
+                           .Replace("{FullName}", contact.FullName ?? "");
+
+            // Reflection for others (e.g. {JobTitle}, {Company}, etc.)
+            // We only do this if there are remaining curly braces to save perf
+            if (result.Contains("{") && result.Contains("}"))
+            {
+                foreach (var prop in type.GetProperties())
+                {
+                    var placeholder = "{" + prop.Name + "}";
+                    if (result.Contains(placeholder))
+                    {
+                        var val = prop.GetValue(contact)?.ToString() ?? "";
+                        result = result.Replace(placeholder, val);
+                    }
+                }
+            }
+
+            return result;
         }
     }
 }

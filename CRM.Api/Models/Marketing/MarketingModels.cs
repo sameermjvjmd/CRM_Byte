@@ -114,6 +114,29 @@ namespace CRM.Api.Models.Marketing
         
         public string? HtmlContent { get; set; }
         public string? PlainTextContent { get; set; }
+
+        // Stats
+        public int SentCount { get; set; } = 0;
+        public int DeliveredCount { get; set; } = 0;
+        public int OpenCount { get; set; } = 0;
+        public int ClickCount { get; set; } = 0;
+    }
+
+    // =============================================
+    // Drip Campaign Execution Log
+    // =============================================
+    public class CampaignStepExecutionLog
+    {
+        public int Id { get; set; }
+        public int CampaignId { get; set; }
+        public int StepId { get; set; }
+        public int RecipientId { get; set; }
+        public int? ContactId { get; set; }
+        
+        public string Email { get; set; } = string.Empty;
+        public DateTime ExecutedAt { get; set; } = DateTime.UtcNow;
+        public string Status { get; set; } = "Success"; // Success, Failed
+        public string? ErrorMessage { get; set; }
     }
 
     // =============================================

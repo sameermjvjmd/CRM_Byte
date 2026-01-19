@@ -30,6 +30,7 @@ namespace CRM.Api.Data
         public DbSet<MarketingListMember> MarketingListMembers { get; set; }
         public DbSet<CampaignStep> CampaignSteps { get; set; }
         public DbSet<CampaignRecipient> CampaignRecipients { get; set; }
+        public DbSet<CampaignStepExecutionLog> CampaignStepExecutionLogs { get; set; }
         public DbSet<SuppressionEntry> SuppressionEntries { get; set; }
         public DbSet<LeadScoringRule> LeadScoringRules { get; set; }
         

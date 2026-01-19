@@ -12,6 +12,9 @@ interface CampaignStep {
     subject?: string;
     htmlContent?: string;
     templateId?: number;
+    sentCount: number;
+    openCount: number;
+    clickCount: number;
 }
 
 interface Props {
@@ -194,9 +197,25 @@ const CampaignStepsEditor: React.FC<Props> = ({ campaignId, campaignName, onClos
                                                 <button onClick={() => handleDelete(step.id)} className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg"><Trash2 size={16} /></button>
                                             </div>
                                         </div>
-                                        <div className="bg-slate-50 rounded-lg p-3 text-sm text-slate-600 border border-slate-100 italic">
-                                            <span className="font-bold text-slate-400 mr-2 uppercase text-[10px]">Subject:</span>
-                                            {step.subject || 'No subject set'}
+                                        <div className="bg-slate-50 rounded-lg p-3 text-sm text-slate-600 border border-slate-100 italic flex justify-between items-center">
+                                            <div>
+                                                <span className="font-bold text-slate-400 mr-2 uppercase text-[10px]">Subject:</span>
+                                                {step.subject || 'No subject set'}
+                                            </div>
+                                            <div className="flex gap-4 ml-4 shrink-0 transition-all">
+                                                <div className="text-center group/stat">
+                                                    <div className="text-[10px] font-bold text-slate-400 uppercase leading-none mb-1">Sent</div>
+                                                    <div className="font-mono text-indigo-600 font-bold">{step.sentCount || 0}</div>
+                                                </div>
+                                                <div className="text-center">
+                                                    <div className="text-[10px] font-bold text-slate-400 uppercase leading-none mb-1 group-hover/stat:text-indigo-400 transition-colors">Opens</div>
+                                                    <div className="font-mono text-slate-600 font-bold">{step.openCount || 0}</div>
+                                                </div>
+                                                <div className="text-center">
+                                                    <div className="text-[10px] font-bold text-slate-400 uppercase leading-none mb-1">Clicks</div>
+                                                    <div className="font-mono text-slate-600 font-bold">{step.clickCount || 0}</div>
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -229,7 +248,21 @@ const CampaignStepsEditor: React.FC<Props> = ({ campaignId, campaignName, onClos
                                         </div>
 
                                         <div>
-                                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Email Content (HTML)</label>
+                                            <div className="flex justify-between items-center mb-1">
+                                                <label className="block text-xs font-bold text-slate-500 uppercase">Email Content (HTML)</label>
+                                                <div className="flex gap-2">
+                                                    {['FirstName', 'LastName', 'Email', 'FullName'].map(p => (
+                                                        <button
+                                                            key={p}
+                                                            type="button"
+                                                            onClick={() => setFormData(prev => ({ ...prev, htmlContent: prev.htmlContent + `{${p}}` }))}
+                                                            className="text-[10px] bg-indigo-50 text-indigo-600 px-1.5 py-0.5 rounded border border-indigo-100 hover:bg-indigo-100 transition-colors"
+                                                        >
+                                                            +{p}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            </div>
                                             <textarea rows={4} value={formData.htmlContent} onChange={e => setFormData({ ...formData, htmlContent: e.target.value })} className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 font-mono text-xs" placeholder="<p>Hi {FirstName}, welcome!</p>" />
                                         </div>
 
