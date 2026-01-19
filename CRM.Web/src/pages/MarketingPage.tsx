@@ -5,9 +5,10 @@ import MarketingLists from '../components/marketing/MarketingLists';
 import CampaignsList from '../components/marketing/CampaignsList';
 import VisualEmailBuilder from '../components/marketing/VisualEmailBuilder';
 import LandingPagesList from '../components/marketing/LandingPagesList';
+import LeadScoringRules from '../components/marketing/LeadScoringRules';
 
 const MarketingPage = () => {
-    const [activeView, setActiveView] = useState<'Dashboard' | 'Campaigns' | 'Lists' | 'Templates' | 'LandingPages'>('Dashboard');
+    const [activeView, setActiveView] = useState<'Dashboard' | 'Campaigns' | 'Lists' | 'Templates' | 'LandingPages' | 'Scoring'>('Dashboard');
 
     return (
         <div className="p-8 max-w-[1600px] mx-auto">
@@ -51,6 +52,12 @@ const MarketingPage = () => {
                     >
                         <Globe size={16} /> Landing Pages
                     </button>
+                    <button
+                        onClick={() => setActiveView('Scoring')}
+                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${activeView === 'Scoring' ? 'bg-white shadow-sm text-indigo-600 ring-1 ring-black/5' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'}`}
+                    >
+                        <PenTool size={16} /> Lead Scoring
+                    </button>
                 </div>
             </div>
 
@@ -74,6 +81,7 @@ const MarketingPage = () => {
                 )}
 
                 {activeView === 'LandingPages' && <LandingPagesList />}
+                {activeView === 'Scoring' && <LeadScoringRules />}
             </div>
         </div>
     );

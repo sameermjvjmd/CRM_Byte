@@ -37,12 +37,23 @@ const LandingPageBuilder: React.FC = () => {
     const [blocks, setBlocks] = useState<Block[]>([]);
     const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null);
     const [marketingLists, setMarketingLists] = useState<any[]>([]);
+    const [users, setUsers] = useState<any[]>([]);
     const [showEmbedModal, setShowEmbedModal] = useState(false);
 
     useEffect(() => {
         fetchPage();
         fetchLists();
+        fetchUsers();
     }, [id]);
+
+    const fetchUsers = async () => {
+        try {
+            const res = await api.get('/users');
+            setUsers(res.data);
+        } catch (e) {
+            console.error('Failed to fetch users', e);
+        }
+    };
 
     const fetchPage = async () => {
         try {
@@ -86,7 +97,8 @@ const LandingPageBuilder: React.FC = () => {
                     SuccessMessage: formBlock.content.successMessage,
                     RedirectUrl: formBlock.content.redirectUrl,
                     MarketingListId: formBlock.content.marketingListId,
-                    CreateContact: true
+                    CreateContact: true,
+                    AssignToUserId: formBlock.content.assignToUserId
                 };
             }
 
@@ -124,6 +136,7 @@ const LandingPageBuilder: React.FC = () => {
                 submitText: 'Subscribe Now',
                 successMessage: 'Thanks for signing up!',
                 marketingListId: null,
+                assignToUserId: null,
                 redirectUrl: ''
             };
             case 'spacer': return { height: 40 };
@@ -381,7 +394,22 @@ const LandingPageBuilder: React.FC = () => {
                                             {marketingLists.map(list => (
                                                 <option key={list.id} value={list.id}>{list.name}</option>
                                             ))}
+
                                         </select>
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-bold text-slate-700 mb-1">Assign Leads To</label>
+                                        <select
+                                            value={selectedBlock.content.assignToUserId || ''}
+                                            onChange={(e) => updateBlock(selectedBlock.id, { assignToUserId: e.target.value ? parseInt(e.target.value) : null })}
+                                            className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm"
+                                        >
+                                            <option value="">-- Auto-Assign (Round Robin) --</option>
+                                            {users.map(user => (
+                                                <option key={user.id} value={user.id}>{user.firstName} {user.lastName}</option>
+                                            ))}
+                                        </select>
+                                        <p className="text-[10px] text-slate-400 mt-1">New contacts will be owned by this user.</p>
                                     </div>
                                     <div className="pt-4 border-t border-slate-200">
                                         <label className="block text-xs font-bold text-slate-700 mb-2">Form Fields</label>

@@ -84,6 +84,36 @@ namespace CRM.Api.Models.Marketing
         
         // Navigation
         public ICollection<CampaignRecipient>? Recipients { get; set; }
+        public ICollection<CampaignStep>? Steps { get; set; }
+    }
+
+    // =============================================
+    // Drip Campaign Step
+    // =============================================
+    public class CampaignStep
+    {
+        public int Id { get; set; }
+
+        public int CampaignId { get; set; }
+        public MarketingCampaign? Campaign { get; set; }
+
+        [Required]
+        [StringLength(100)]
+        public string Name { get; set; } = string.Empty;
+
+        public int OrderIndex { get; set; } = 1;
+
+        // Timing
+        public int DelayMinutes { get; set; } = 0; // Delay from previous step (or start for step 1)
+
+        // Email Content
+        public int? TemplateId { get; set; }
+        
+        [StringLength(500)]
+        public string? Subject { get; set; }
+        
+        public string? HtmlContent { get; set; }
+        public string? PlainTextContent { get; set; }
     }
 
     // =============================================
@@ -241,6 +271,11 @@ namespace CRM.Api.Models.Marketing
         
         [StringLength(100)]
         public string? Location { get; set; }
+
+        // Drip Campaign Tracking
+        public int? CurrentStepId { get; set; }
+        public CampaignStep? CurrentStep { get; set; }
+        public DateTime? NextStepScheduledAt { get; set; }
     }
 
     // =============================================
@@ -293,6 +328,7 @@ namespace CRM.Api.Models.Marketing
         public string? Conditions { get; set; }
         
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        public DateTime? UpdatedAt { get; set; }
     }
 
     // =============================================

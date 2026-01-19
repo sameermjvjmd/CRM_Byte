@@ -1,3 +1,4 @@
+using System;
 using Microsoft.EntityFrameworkCore;
 using CRM.Api.Data;
 using CRM.Api.Models;
@@ -81,7 +82,7 @@ namespace CRM.Api.Services
             }
         }
 
-        private async Task ExecuteWorkflow(WorkflowRule workflow, int entityId, object entityData)
+        public async Task ExecuteWorkflow(WorkflowRule workflow, int entityId, object entityData)
         {
             var log = new WorkflowExecutionLog
             {
@@ -93,21 +94,68 @@ namespace CRM.Api.Services
                 InputData = JsonSerializer.Serialize(entityData)
             };
 
+            // Check for Delay
+            if (workflow.DelayMinutes > 0)
+            {
+                log.Status = "Pending";
+                log.ScheduledExecutionTime = DateTime.UtcNow.AddMinutes(workflow.DelayMinutes);
+                _context.WorkflowExecutionLogs.Add(log);
+                await _context.SaveChangesAsync();
+                
+                _logger.LogInformation("Workflow '{Name}' scheduled for execution at {Time}", workflow.Name, log.ScheduledExecutionTime);
+                return;
+            }
+
             _context.WorkflowExecutionLogs.Add(log);
             await _context.SaveChangesAsync();
 
+            await RunWorkflowAction(workflow, log, entityId, entityData);
+        }
+
+        public async Task ExecutePendingLogAsync(int logId)
+        {
+            var log = await _context.WorkflowExecutionLogs
+                .Include(l => l.WorkflowRule)
+                .FirstOrDefaultAsync(l => l.Id == logId);
+
+            if (log == null || log.Status != "Pending") return;
+
+            log.Status = "Running";
+            log.StartedAt = DateTime.UtcNow; // Actual run start
+            await _context.SaveChangesAsync();
+
+            try 
+            {
+                // Deserialize entity data if needed, or pass null if actions re-fetch from DB
+                // Most actions in RunWorkflowAction rely on fetching the entity from DB using EntityId
+                // Exception: Triggers that pass transient data. For now we assume DB fetch is sufficient for actions.
+                // We'll pass a basic dictionary or null as entityData since real object type is lost
+                object? entityData = null;
+                if (!string.IsNullOrEmpty(log.InputData))
+                {
+                    try { entityData = JsonSerializer.Deserialize<Dictionary<string, object>>(log.InputData); } catch {}
+                }
+
+                if (log.WorkflowRule != null)
+                {
+                    await RunWorkflowAction(log.WorkflowRule, log, log.EntityId ?? 0, entityData ?? new object());
+                }
+            }
+            catch (Exception ex)
+            {
+                log.Status = "Failed";
+                log.CompletedAt = DateTime.UtcNow;
+                log.ErrorMessage = ex.Message;
+                await _context.SaveChangesAsync();
+            }
+        }
+
+        private async Task RunWorkflowAction(WorkflowRule workflow, WorkflowExecutionLog log, int entityId, object entityData)
+        {
             try
             {
                 _logger.LogInformation("Executing workflow '{Name}' (ID: {Id}) - Action: {Action}", 
                     workflow.Name, workflow.Id, workflow.ActionType);
-
-                // Check for Delay
-                if (workflow.DelayMinutes > 0)
-                {
-                    // In a real production system, we would queue this job (e.g., via Hangfire or BackgroundService)
-                    // For this MVP, we'll log it as a limitation or use a simple delay if short (not recommended for long delays)
-                    _logger.LogWarning("Workflow delay of {Minutes} mins requested but delayed execution is not fully implemented yet. Executing immediately.", workflow.DelayMinutes);
-                }
 
                 // Execute the action
                 var result = await ExecuteAction(workflow, entityId, entityData);

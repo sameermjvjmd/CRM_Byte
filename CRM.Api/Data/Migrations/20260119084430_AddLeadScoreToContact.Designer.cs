@@ -4,16 +4,19 @@ using CRM.Api.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
 
-namespace CRM.Api.Migrations
+namespace CRM.Api.Data.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260119084430_AddLeadScoreToContact")]
+    partial class AddLeadScoreToContact
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -2080,9 +2083,6 @@ namespace CRM.Api.Migrations
                     b.Property<int?>("ContactId")
                         .HasColumnType("int");
 
-                    b.Property<int?>("CurrentStepId")
-                        .HasColumnType("int");
-
                     b.Property<DateTime?>("DeliveredAt")
                         .HasColumnType("datetime2");
 
@@ -2114,9 +2114,6 @@ namespace CRM.Api.Migrations
                     b.Property<int?>("MarketingListMemberId")
                         .HasColumnType("int");
 
-                    b.Property<DateTime?>("NextStepScheduledAt")
-                        .HasColumnType("datetime2");
-
                     b.Property<int>("OpenCount")
                         .HasColumnType("int");
 
@@ -2138,51 +2135,7 @@ namespace CRM.Api.Migrations
 
                     b.HasIndex("CampaignId");
 
-                    b.HasIndex("CurrentStepId");
-
                     b.ToTable("CampaignRecipients");
-                });
-
-            modelBuilder.Entity("CRM.Api.Models.Marketing.CampaignStep", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<int>("CampaignId")
-                        .HasColumnType("int");
-
-                    b.Property<int>("DelayMinutes")
-                        .HasColumnType("int");
-
-                    b.Property<string>("HtmlContent")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
-
-                    b.Property<int>("OrderIndex")
-                        .HasColumnType("int");
-
-                    b.Property<string>("PlainTextContent")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("Subject")
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
-
-                    b.Property<int?>("TemplateId")
-                        .HasColumnType("int");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CampaignId");
-
-                    b.ToTable("CampaignSteps");
                 });
 
             modelBuilder.Entity("CRM.Api.Models.Marketing.LandingPage", b =>
@@ -3607,9 +3560,6 @@ namespace CRM.Api.Migrations
                     b.Property<int>("RetryAttempt")
                         .HasColumnType("int");
 
-                    b.Property<DateTime?>("ScheduledExecutionTime")
-                        .HasColumnType("datetime2");
-
                     b.Property<DateTime>("StartedAt")
                         .HasColumnType("datetime2");
 
@@ -3996,23 +3946,6 @@ namespace CRM.Api.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("CRM.Api.Models.Marketing.CampaignStep", "CurrentStep")
-                        .WithMany()
-                        .HasForeignKey("CurrentStepId");
-
-                    b.Navigation("Campaign");
-
-                    b.Navigation("CurrentStep");
-                });
-
-            modelBuilder.Entity("CRM.Api.Models.Marketing.CampaignStep", b =>
-                {
-                    b.HasOne("CRM.Api.Models.Marketing.MarketingCampaign", "Campaign")
-                        .WithMany("Steps")
-                        .HasForeignKey("CampaignId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
                     b.Navigation("Campaign");
                 });
 
@@ -4267,8 +4200,6 @@ namespace CRM.Api.Migrations
             modelBuilder.Entity("CRM.Api.Models.Marketing.MarketingCampaign", b =>
                 {
                     b.Navigation("Recipients");
-
-                    b.Navigation("Steps");
                 });
 
             modelBuilder.Entity("CRM.Api.Models.Marketing.MarketingList", b =>

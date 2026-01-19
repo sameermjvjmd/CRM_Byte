@@ -15,10 +15,17 @@ namespace CRM.Api.Controllers
     public class LandingPagesController : ControllerBase
     {
         private readonly ApplicationDbContext _context;
+        private readonly ILogger<LandingPagesController> _logger;
+        private readonly CRM.Api.Services.Marketing.ILeadScoringService _leadScoringService;
 
-        public LandingPagesController(ApplicationDbContext context)
+        public LandingPagesController(
+            ApplicationDbContext context, 
+            ILogger<LandingPagesController> logger,
+            CRM.Api.Services.Marketing.ILeadScoringService leadScoringService)
         {
             _context = context;
+            _logger = logger;
+            _leadScoringService = leadScoringService;
         }
 
         private int GetUserId()
@@ -112,6 +119,7 @@ namespace CRM.Api.Controllers
                 page.WebForm.RedirectUrl = dto.WebForm.RedirectUrl;
                 page.WebForm.MarketingListId = dto.WebForm.MarketingListId;
                 page.WebForm.CreateContact = dto.WebForm.CreateContact;
+                page.WebForm.AssignToUserId = dto.WebForm.AssignToUserId;
             }
 
             await _context.SaveChangesAsync();
@@ -155,86 +163,101 @@ namespace CRM.Api.Controllers
         [HttpPost("public/{id}/submit")]
         public async Task<IActionResult> SubmitForm(int id, [FromBody] PageSubmissionDto submission)
         {
-            var page = await _context.LandingPages
-                .Include(p => p.WebForm)
-                .FirstOrDefaultAsync(p => p.Id == id);
-
-            if (page == null || page.WebForm == null) return NotFound();
-
-            string email = string.Empty;
-            string firstName = string.Empty;
-            string lastName = string.Empty;
-
-            // Extract core fields case-insensitively
-            foreach(var kvp in submission.Data)
+            try
             {
-                if (kvp.Key.Equals("email", StringComparison.OrdinalIgnoreCase)) email = kvp.Value;
-                if (kvp.Key.Equals("firstName", StringComparison.OrdinalIgnoreCase)) firstName = kvp.Value;
-                if (kvp.Key.Equals("name", StringComparison.OrdinalIgnoreCase)) firstName = kvp.Value;
-                if (kvp.Key.Equals("lastName", StringComparison.OrdinalIgnoreCase)) lastName = kvp.Value;
-            }
+                var page = await _context.LandingPages
+                    .Include(p => p.WebForm)
+                    .FirstOrDefaultAsync(p => p.Id == id);
 
-            Contact? matchedContact = null;
+                if (page == null || page.WebForm == null) return NotFound();
 
-            // Handle Contact Creation/Linking
-            if (!string.IsNullOrWhiteSpace(email))
-            {
-                matchedContact = await _context.Contacts.FirstOrDefaultAsync(c => c.Email == email);
+                string email = string.Empty;
+                string firstName = string.Empty;
+                string lastName = string.Empty;
 
-                if (page.WebForm.CreateContact && matchedContact == null)
+                // Extract core fields case-insensitively
+                foreach(var kvp in submission.Data)
                 {
-                    matchedContact = new Contact
-                    {
-                        FirstName = !string.IsNullOrWhiteSpace(firstName) ? firstName : "Web",
-                        LastName = !string.IsNullOrWhiteSpace(lastName) ? lastName : "Lead",
-                        Email = email,
-                        Status = "Lead",
-                        LeadSource = "Waiting List",
-                        CreatedAt = DateTime.UtcNow
-                    };
-                    _context.Contacts.Add(matchedContact);
+                    if (kvp.Key.Equals("email", StringComparison.OrdinalIgnoreCase)) email = kvp.Value;
+                    if (kvp.Key.Equals("firstName", StringComparison.OrdinalIgnoreCase)) firstName = kvp.Value;
+                    if (kvp.Key.Equals("name", StringComparison.OrdinalIgnoreCase)) firstName = kvp.Value;
+                    if (kvp.Key.Equals("lastName", StringComparison.OrdinalIgnoreCase)) lastName = kvp.Value;
                 }
-            }
 
-            // Handle Marketing List
-            if (page.WebForm.MarketingListId.HasValue && !string.IsNullOrWhiteSpace(email))
-            {
-                var listMember = await _context.MarketingListMembers
-                    .FirstOrDefaultAsync(m => m.MarketingListId == page.WebForm.MarketingListId && m.Email == email);
+                Contact? matchedContact = null;
 
-                if (listMember == null)
+                // Handle Contact Creation/Linking
+                if (!string.IsNullOrWhiteSpace(email))
                 {
-                    _context.MarketingListMembers.Add(new MarketingListMember
+                    matchedContact = await _context.Contacts.FirstOrDefaultAsync(c => c.Email == email);
+
+                    if (page.WebForm.CreateContact && matchedContact == null)
                     {
-                        MarketingListId = page.WebForm.MarketingListId.Value,
-                        Email = email,
-                        FirstName = firstName,
-                        LastName = lastName,
-                        Status = "Subscribed",
-                        IsConfirmed = true,
-                        Source = "Landing Page",
-                        SubscribedAt = DateTime.UtcNow,
-                        ContactId = matchedContact?.Id
-                    });
+                        matchedContact = new Contact
+                        {
+                            FirstName = !string.IsNullOrWhiteSpace(firstName) ? firstName : "Web",
+                            LastName = !string.IsNullOrWhiteSpace(lastName) ? lastName : "Lead",
+                            Email = email,
+                            Status = "Lead",
+                            LeadSource = "Waiting List",
+                            CreatedAt = DateTime.UtcNow,
+                            OwnerId = page.WebForm.AssignToUserId
+                        };
+                        _context.Contacts.Add(matchedContact);
+                        await _context.SaveChangesAsync(); // Force ID generation
+                    }
                 }
+
+                // Handle Marketing List
+                if (page.WebForm.MarketingListId.HasValue && !string.IsNullOrWhiteSpace(email))
+                {
+                    var listMember = await _context.MarketingListMembers
+                        .FirstOrDefaultAsync(m => m.MarketingListId == page.WebForm.MarketingListId && m.Email == email);
+
+                    if (listMember == null)
+                    {
+                        _context.MarketingListMembers.Add(new MarketingListMember
+                        {
+                            MarketingListId = page.WebForm.MarketingListId.Value,
+                            Email = email,
+                            FirstName = firstName,
+                            LastName = lastName,
+                            Status = "Subscribed",
+                            IsConfirmed = true,
+                            Source = "Landing Page",
+                            SubscribedAt = DateTime.UtcNow,
+                            ContactId = matchedContact?.Id
+                        });
+                    }
+                }
+
+                // Record Submission
+                var subRecord = new LandingPageSubmission
+                {
+                    LandingPageId = id,
+                    ContactId = matchedContact?.Id, // Safe now
+                    SubmittedDataJson = JsonSerializer.Serialize(submission.Data),
+                    IPAddress = HttpContext.Connection.RemoteIpAddress?.ToString(),
+                    SubmittedAt = DateTime.UtcNow
+                };
+                
+                _context.LandingPageSubmissions.Add(subRecord);
+                page.SubmissionCount++;
+
+                await _context.SaveChangesAsync();
+
+                // Trigger Lead Scoring
+                if (subRecord.ContactId.HasValue)
+                {
+                    await _leadScoringService.EvaluateRulesAsync("FormSubmit", subRecord.ContactId.Value, submission);
+                }
+
+                return Ok(new { message = page.WebForm.SuccessMessage, redirectUrl = page.WebForm.RedirectUrl });
             }
-
-            // Record Submission
-            var subRecord = new LandingPageSubmission
+            catch (Exception ex)
             {
-                LandingPageId = id,
-                ContactId = matchedContact?.Id,
-                SubmittedDataJson = JsonSerializer.Serialize(submission.Data),
-                IPAddress = HttpContext.Connection.RemoteIpAddress?.ToString(),
-                SubmittedAt = DateTime.UtcNow
-            };
-            
-            _context.LandingPageSubmissions.Add(subRecord);
-            page.SubmissionCount++;
-
-            await _context.SaveChangesAsync();
-
-            return Ok(new { message = page.WebForm.SuccessMessage, redirectUrl = page.WebForm.RedirectUrl });
+                return StatusCode(500, new { error = ex.Message, stack = ex.StackTrace, inner = ex.InnerException?.Message });
+            }
         }
 
 
@@ -263,7 +286,8 @@ namespace CRM.Api.Controllers
                     SuccessMessage = p.WebForm.SuccessMessage,
                     RedirectUrl = p.WebForm.RedirectUrl,
                     MarketingListId = p.WebForm.MarketingListId,
-                    CreateContact = p.WebForm.CreateContact
+                    CreateContact = p.WebForm.CreateContact,
+                    AssignToUserId = p.WebForm.AssignToUserId
                 } : null
             };
         }

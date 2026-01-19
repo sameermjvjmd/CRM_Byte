@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Mail, Plus, Clock, Filter, Trash2, Edit, Play, Pause, BarChart2 } from 'lucide-react';
+import { Mail, Plus, Clock, Filter, Trash2, Edit, Play, Pause, BarChart2, Layers } from 'lucide-react';
 import api from '../../api/api';
 import { toast } from 'react-hot-toast';
+import CampaignStepsEditor from './CampaignStepsEditor';
 
 interface Campaign {
     id: number;
@@ -18,6 +19,7 @@ interface Campaign {
     clickRate: number;
     createdAt: string;
     marketingListName?: string;
+    steps?: any[];
 }
 
 const CampaignsList: React.FC = () => {
@@ -25,6 +27,8 @@ const CampaignsList: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [statusFilter, setStatusFilter] = useState('All');
     const [showCreateModal, setShowCreateModal] = useState(false);
+    const [showStepsModal, setShowStepsModal] = useState(false);
+    const [selectedCampaignForSteps, setSelectedCampaignForSteps] = useState<Campaign | null>(null);
 
     // Create form state
     const [newCampaign, setNewCampaign] = useState({
@@ -128,7 +132,7 @@ const CampaignsList: React.FC = () => {
                             <div key={camp.id} className="p-6 hover:bg-slate-50 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-4 group">
                                 <div className="flex gap-4 items-start">
                                     <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${camp.status === 'Sent' ? 'bg-emerald-50 text-emerald-600' :
-                                            camp.status === 'Active' ? 'bg-blue-50 text-blue-600' : 'bg-slate-100 text-slate-500'
+                                        camp.status === 'Active' ? 'bg-blue-50 text-blue-600' : 'bg-slate-100 text-slate-500'
                                         }`}>
                                         <Mail size={24} />
                                     </div>
@@ -136,9 +140,9 @@ const CampaignsList: React.FC = () => {
                                         <div className="flex items-center gap-2 flex-wrap">
                                             <h4 className="font-bold text-slate-900 text-lg hover:text-indigo-600 cursor-pointer transition-colors">{camp.name}</h4>
                                             <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase border ${camp.status === 'Sent' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' :
-                                                    camp.status === 'Active' ? 'bg-blue-50 text-blue-600 border-blue-100' :
-                                                        camp.status === 'Draft' ? 'bg-slate-100 text-slate-500 border-slate-200' :
-                                                            'bg-purple-50 text-purple-600 border-purple-100'
+                                                camp.status === 'Active' ? 'bg-blue-50 text-blue-600 border-blue-100' :
+                                                    camp.status === 'Draft' ? 'bg-slate-100 text-slate-500 border-slate-200' :
+                                                        'bg-purple-50 text-purple-600 border-purple-100'
                                                 }`}>
                                                 {camp.status}
                                             </span>
@@ -175,6 +179,15 @@ const CampaignsList: React.FC = () => {
                                         <button className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-slate-100 rounded-full transition-colors" title="Edit">
                                             <Edit size={18} />
                                         </button>
+                                        {camp.type === 'Drip' && (
+                                            <button
+                                                onClick={() => { setSelectedCampaignForSteps(camp); setShowStepsModal(true); }}
+                                                className="p-2 text-slate-400 hover:text-purple-600 hover:bg-purple-50 rounded-full transition-colors"
+                                                title="Manage Steps"
+                                            >
+                                                <Plus size={18} />
+                                            </button>
+                                        )}
                                         {camp.status === 'Draft' && (
                                             <button className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-full transition-colors" title="Start">
                                                 <Play size={18} />
@@ -236,6 +249,7 @@ const CampaignsList: React.FC = () => {
                                         className={inputClass}
                                     >
                                         <option value="Email">Email</option>
+                                        <option value="Drip">Drip Campaign</option>
                                         <option value="SMS">SMS</option>
                                         <option value="Social">Social</option>
                                     </select>
@@ -271,6 +285,14 @@ const CampaignsList: React.FC = () => {
                         </form>
                     </div>
                 </div>
+            )}
+
+            {showStepsModal && selectedCampaignForSteps && (
+                <CampaignStepsEditor
+                    campaignId={selectedCampaignForSteps.id}
+                    campaignName={selectedCampaignForSteps.name}
+                    onClose={() => { setShowStepsModal(false); setSelectedCampaignForSteps(null); }}
+                />
             )}
         </div>
     );

@@ -90,6 +90,40 @@ namespace CRM.Api.DTOs.Marketing
     }
 
     // =============================================
+    // Campaign Step DTOs
+    // =============================================
+    public class CampaignStepDto
+    {
+        public int Id { get; set; }
+        public int CampaignId { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public int OrderIndex { get; set; }
+        public int DelayMinutes { get; set; }
+        public int? TemplateId { get; set; }
+        public string? Subject { get; set; }
+        public string? HtmlContent { get; set; }
+        public string? PlainTextContent { get; set; }
+    }
+
+    public class CreateCampaignStepDto
+    {
+        [Required]
+        [StringLength(100)]
+        public string Name { get; set; } = string.Empty;
+
+        public int DelayMinutes { get; set; }
+        public int? TemplateId { get; set; }
+        public string? Subject { get; set; }
+        public string? HtmlContent { get; set; }
+        public string? PlainTextContent { get; set; }
+    }
+
+    public class UpdateCampaignStepDto : CreateCampaignStepDto
+    {
+        public int OrderIndex { get; set; }
+    }
+
+    // =============================================
     // Marketing List DTOs
     // =============================================
     public class MarketingListDto

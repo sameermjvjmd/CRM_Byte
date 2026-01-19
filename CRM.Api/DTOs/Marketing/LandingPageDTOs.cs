@@ -49,6 +49,7 @@ namespace CRM.Api.DTOs.Marketing
         public string? RedirectUrl { get; set; }
         public int? MarketingListId { get; set; }
         public bool CreateContact { get; set; }
+        public int? AssignToUserId { get; set; }
     }
 
     public class PageSubmissionDto

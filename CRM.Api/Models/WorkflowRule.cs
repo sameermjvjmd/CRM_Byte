@@ -82,6 +82,7 @@ namespace CRM.Api.Models
         public string? EntityType { get; set; }
 
         public DateTime StartedAt { get; set; } = DateTime.UtcNow;
+        public DateTime? ScheduledExecutionTime { get; set; }
         public DateTime? CompletedAt { get; set; }
 
         public string? InputData { get; set; }  // JSON of input/trigger data

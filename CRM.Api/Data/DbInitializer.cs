@@ -40,8 +40,23 @@ namespace CRM.Api.Data
                     IF NOT EXISTS(SELECT * FROM sys.columns WHERE Name = N'ReferredById' AND Object_ID = Object_ID(N'Contacts')) ALTER TABLE Contacts ADD ReferredById INT NULL;
                     IF NOT EXISTS(SELECT * FROM sys.columns WHERE Name = N'LastResult' AND Object_ID = Object_ID(N'Contacts')) ALTER TABLE Contacts ADD LastResult NVARCHAR(MAX) NULL;
                     IF NOT EXISTS(SELECT * FROM sys.columns WHERE Name = N'Website' AND Object_ID = Object_ID(N'Contacts')) ALTER TABLE Contacts ADD Website NVARCHAR(255) NULL;
+                    IF NOT EXISTS(SELECT * FROM sys.columns WHERE Name = N'LeadScore' AND Object_ID = Object_ID(N'Contacts')) ALTER TABLE Contacts ADD LeadScore INT NULL;
                     
-                    
+                    -- Marketing Enhancements
+                    IF EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[LeadScoringRules]') AND type in (N'U'))
+                    BEGIN
+                        IF NOT EXISTS(SELECT * FROM sys.columns WHERE Name = N'UpdatedAt' AND Object_ID = Object_ID(N'LeadScoringRules')) 
+                            ALTER TABLE LeadScoringRules ADD UpdatedAt DATETIME2 NULL;
+                    END
+
+                    IF EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[CampaignRecipients]') AND type in (N'U'))
+                    BEGIN
+                        IF NOT EXISTS(SELECT * FROM sys.columns WHERE Name = N'CurrentStepId' AND Object_ID = Object_ID(N'CampaignRecipients')) 
+                            ALTER TABLE CampaignRecipients ADD CurrentStepId INT NULL;
+                        IF NOT EXISTS(SELECT * FROM sys.columns WHERE Name = N'NextStepScheduledAt' AND Object_ID = Object_ID(N'CampaignRecipients')) 
+                            ALTER TABLE CampaignRecipients ADD NextStepScheduledAt DATETIME2 NULL;
+                    END
+
                     IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[Users]') AND type in (N'U'))
                     BEGIN
                         CREATE TABLE [dbo].[Users] (

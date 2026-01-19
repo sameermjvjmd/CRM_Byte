@@ -55,6 +55,9 @@ builder.Services.AddScoped<IEmailService, SmtpEmailService>();
 
 // Workflow Automation
 builder.Services.AddScoped<WorkflowExecutionService>();
+builder.Services.AddScoped<CRM.Api.Services.Marketing.ILeadScoringService, CRM.Api.Services.Marketing.LeadScoringService>();
+builder.Services.AddScoped<CRM.Api.Services.Marketing.ICampaignExecutionService, CRM.Api.Services.Marketing.CampaignExecutionService>();
+builder.Services.AddHostedService<WorkflowBackgroundService>();
 
 // Reporting Services
 builder.Services.AddScoped<CRM.Api.Services.Reporting.IReportBuilderService, CRM.Api.Services.Reporting.ReportBuilderService>();

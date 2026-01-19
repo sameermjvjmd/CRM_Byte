@@ -5,6 +5,8 @@ namespace CRM.Api.Models
 {
     public class Contact
     {
+        [Key]
+        [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
         public int Id { get; set; }
 
         [Required]
@@ -102,6 +104,8 @@ namespace CRM.Api.Models
         [StringLength(100)]
         public string? ContactSource { get; set; }
 
+        public int LeadScore { get; set; } = 0;
+
         // =============================================
         // Multiple Email Addresses (Week 1)
         // =============================================
@@ -111,6 +115,13 @@ namespace CRM.Api.Models
         // Multiple Addresses (Week 1)
         // =============================================
         public ICollection<ContactAddress> ContactAddresses { get; set; } = new List<ContactAddress>();
+
+        // =============================================
+        // Ownership
+        // =============================================
+        public int? OwnerId { get; set; } // User ID of the record owner
+        [NotMapped]
+        public string? OwnerName { get; set; } // Cache for display if needed
 
         // =============================================
         // Helper Properties

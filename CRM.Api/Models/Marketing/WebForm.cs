@@ -27,6 +27,8 @@ namespace CRM.Api.Models.Marketing
 
         public bool CreateContact { get; set; } = true;
         public bool CreateActivity { get; set; } = false;
+        
+        public int? AssignToUserId { get; set; } // User ID to assign the new lead/contact to
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     }

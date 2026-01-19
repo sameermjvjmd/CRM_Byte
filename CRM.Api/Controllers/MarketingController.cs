@@ -1,3 +1,4 @@
+using System;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
@@ -14,11 +15,16 @@ namespace CRM.Api.Controllers
     {
         private readonly ApplicationDbContext _context;
         private readonly ILogger<MarketingController> _logger;
+        private readonly CRM.Api.Services.Marketing.ICampaignExecutionService _campaignExecutionService;
 
-        public MarketingController(ApplicationDbContext context, ILogger<MarketingController> logger)
+        public MarketingController(
+            ApplicationDbContext context, 
+            ILogger<MarketingController> logger,
+            CRM.Api.Services.Marketing.ICampaignExecutionService campaignExecutionService)
         {
             _context = context;
             _logger = logger;
+            _campaignExecutionService = campaignExecutionService;
         }
 
         private int GetUserId()
@@ -148,60 +154,10 @@ namespace CRM.Api.Controllers
         [HttpPost("campaigns/{id}/send")]
         public async Task<IActionResult> SendCampaign(int id)
         {
-            var campaign = await _context.MarketingCampaigns
-                .Include(c => c.MarketingList)
-                    .ThenInclude(l => l.Members)
-                .FirstOrDefaultAsync(c => c.Id == id);
+            var success = await _campaignExecutionService.StartCampaignAsync(id);
+            if (!success) return NotFound();
 
-            if (campaign == null) return NotFound();
-
-            if (campaign.MarketingList == null)
-                return BadRequest("No marketing list assigned to this campaign");
-
-            var recipients = campaign.MarketingList.Members?
-                .Where(m => m.Status == "Subscribed" && m.IsConfirmed)
-                .ToList() ?? new List<MarketingListMember>();
-
-            if (!recipients.Any())
-                return BadRequest("No eligible recipients in the marketing list");
-
-            // Check suppression list
-            var suppressedEmails = await _context.SuppressionEntries
-                .Select(s => s.Email.ToLower())
-                .ToListAsync();
-
-            recipients = recipients
-                .Where(r => !suppressedEmails.Contains(r.Email.ToLower()))
-                .ToList();
-
-            // Create campaign recipients
-            foreach (var member in recipients)
-            {
-                var recipient = new CampaignRecipient
-                {
-                    CampaignId = id,
-                    Email = member.Email,
-                    ContactId = member.ContactId,
-                    MarketingListMemberId = member.Id,
-                    Status = "Pending"
-                };
-                _context.CampaignRecipients.Add(recipient);
-            }
-
-            campaign.RecipientCount = recipients.Count;
-            campaign.Status = "Active";
-            campaign.StartedAt = DateTime.UtcNow;
-            campaign.UpdatedAt = DateTime.UtcNow;
-
-            await _context.SaveChangesAsync();
-
-            // In a real implementation, this would trigger a background job to send emails
-            _logger.LogInformation("Campaign {Id} started with {Count} recipients", id, recipients.Count);
-
-            return Ok(new { 
-                message = "Campaign sending started", 
-                recipientCount = recipients.Count 
-            });
+            return Ok(new { message = "Campaign initiation triggered" });
         }
 
         [HttpPost("campaigns/{id}/pause")]
@@ -226,6 +182,125 @@ namespace CRM.Api.Controllers
             _context.MarketingCampaigns.Remove(campaign);
             await _context.SaveChangesAsync();
 
+            return NoContent();
+        }
+
+        // =============================================
+        // CAMPAIGN STEPS (DRIP)
+        // =============================================
+
+        [HttpGet("campaigns/{id}/steps")]
+        public async Task<ActionResult<IEnumerable<CampaignStepDto>>> GetCampaignSteps(int id)
+        {
+            var steps = await _context.CampaignSteps
+                .Where(s => s.CampaignId == id)
+                .OrderBy(s => s.OrderIndex)
+                .Select(s => new CampaignStepDto
+                {
+                    Id = s.Id,
+                    CampaignId = s.CampaignId,
+                    Name = s.Name,
+                    OrderIndex = s.OrderIndex,
+                    DelayMinutes = s.DelayMinutes,
+                    TemplateId = s.TemplateId,
+                    Subject = s.Subject,
+                    HtmlContent = s.HtmlContent,
+                    PlainTextContent = s.PlainTextContent
+                })
+                .ToListAsync();
+
+            return Ok(steps);
+        }
+
+        [HttpPost("campaigns/{id}/steps")]
+        public async Task<ActionResult<CampaignStepDto>> AddCampaignStep(int id, CreateCampaignStepDto dto)
+        {
+            var campaign = await _context.MarketingCampaigns.FindAsync(id);
+            if (campaign == null) return NotFound("Campaign not found");
+            
+            int maxOrder = (await _context.CampaignSteps
+                .Where(s => s.CampaignId == id)
+                .MaxAsync(s => (int?)s.OrderIndex)) ?? 0;
+
+            var step = new CampaignStep
+            {
+                CampaignId = id,
+                Name = dto.Name,
+                OrderIndex = maxOrder + 1,
+                DelayMinutes = dto.DelayMinutes,
+                TemplateId = dto.TemplateId,
+                Subject = dto.Subject,
+                HtmlContent = dto.HtmlContent,
+                PlainTextContent = dto.PlainTextContent
+            };
+
+            _context.CampaignSteps.Add(step);
+            await _context.SaveChangesAsync();
+
+            return Ok(new CampaignStepDto
+            {
+                Id = step.Id,
+                CampaignId = step.CampaignId,
+                Name = step.Name,
+                OrderIndex = step.OrderIndex,
+                DelayMinutes = step.DelayMinutes,
+                TemplateId = step.TemplateId,
+                Subject = step.Subject
+            });
+        }
+
+        [HttpPut("campaigns/{id}/steps/{stepId}")]
+        public async Task<IActionResult> UpdateCampaignStep(int id, int stepId, UpdateCampaignStepDto dto)
+        {
+            var step = await _context.CampaignSteps
+                .FirstOrDefaultAsync(s => s.Id == stepId && s.CampaignId == id);
+            
+            if (step == null) return NotFound();
+
+            step.Name = dto.Name;
+            step.DelayMinutes = dto.DelayMinutes;
+            step.TemplateId = dto.TemplateId;
+            step.Subject = dto.Subject;
+            step.HtmlContent = dto.HtmlContent;
+            step.PlainTextContent = dto.PlainTextContent;
+
+            await _context.SaveChangesAsync();
+            return NoContent();
+        }
+
+        [HttpDelete("campaigns/{id}/steps/{stepId}")]
+        public async Task<IActionResult> DeleteCampaignStep(int id, int stepId)
+        {
+            var step = await _context.CampaignSteps
+                .FirstOrDefaultAsync(s => s.Id == stepId && s.CampaignId == id);
+            
+            if (step == null) return NotFound();
+
+            _context.CampaignSteps.Remove(step);
+            await _context.SaveChangesAsync();
+
+            return NoContent();
+        }
+
+        [HttpPut("campaigns/{id}/steps/reorder")]
+        public async Task<IActionResult> ReorderCampaignSteps(int id, [FromBody] List<int> stepIds)
+        {
+            var steps = await _context.CampaignSteps
+                .Where(s => s.CampaignId == id)
+                .ToListAsync();
+
+            if (!steps.Any()) return NotFound();
+
+            for (int i = 0; i < stepIds.Count; i++)
+            {
+                var step = steps.FirstOrDefault(s => s.Id == stepIds[i]);
+                if (step != null)
+                {
+                    step.OrderIndex = i + 1;
+                }
+            }
+
+            await _context.SaveChangesAsync();
             return NoContent();
         }
 
@@ -637,9 +712,55 @@ namespace CRM.Api.Controllers
             {
                 Id = rule.Id,
                 Name = rule.Name,
+                Description = rule.Description,
+                Category = rule.Category,
+                TriggerType = rule.TriggerType,
                 PointsValue = rule.PointsValue,
-                IsActive = rule.IsActive
+                IsActive = rule.IsActive,
+                CreatedAt = rule.CreatedAt
             });
+        }
+
+        [HttpPut("scoring/rules/{id}")]
+        public async Task<IActionResult> UpdateScoringRule(int id, CreateLeadScoringRuleDto dto)
+        {
+            var rule = await _context.LeadScoringRules.FindAsync(id);
+            if (rule == null) return NotFound();
+
+            rule.Name = dto.Name;
+            rule.Description = dto.Description;
+            rule.Category = dto.Category;
+            rule.TriggerType = dto.TriggerType;
+            rule.PointsValue = dto.PointsValue;
+            rule.Conditions = dto.Conditions;
+            rule.UpdatedAt = DateTime.UtcNow;
+
+            await _context.SaveChangesAsync();
+            return NoContent();
+        }
+
+        [HttpDelete("scoring/rules/{id}")]
+        public async Task<IActionResult> DeleteScoringRule(int id)
+        {
+            var rule = await _context.LeadScoringRules.FindAsync(id);
+            if (rule == null) return NotFound();
+
+            _context.LeadScoringRules.Remove(rule);
+            await _context.SaveChangesAsync();
+            return NoContent();
+        }
+
+        [HttpPut("scoring/rules/{id}/toggle")]
+        public async Task<IActionResult> ToggleScoringRule(int id)
+        {
+            var rule = await _context.LeadScoringRules.FindAsync(id);
+            if (rule == null) return NotFound();
+
+            rule.IsActive = !rule.IsActive;
+            rule.UpdatedAt = DateTime.UtcNow;
+
+            await _context.SaveChangesAsync();
+            return Ok(new { isActive = rule.IsActive });
         }
 
         // =============================================

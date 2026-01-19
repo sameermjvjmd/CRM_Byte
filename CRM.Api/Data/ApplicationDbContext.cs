@@ -28,6 +28,7 @@ namespace CRM.Api.Data
         public DbSet<MarketingCampaign> MarketingCampaigns { get; set; }
         public DbSet<MarketingList> MarketingLists { get; set; }
         public DbSet<MarketingListMember> MarketingListMembers { get; set; }
+        public DbSet<CampaignStep> CampaignSteps { get; set; }
         public DbSet<CampaignRecipient> CampaignRecipients { get; set; }
         public DbSet<SuppressionEntry> SuppressionEntries { get; set; }
         public DbSet<LeadScoringRule> LeadScoringRules { get; set; }
@@ -100,6 +101,8 @@ namespace CRM.Api.Data
                 .HasMany(c => c.Groups)
                 .WithMany(g => g.Contacts)
                 .UsingEntity(j => j.ToTable("ContactGroups"));
+
+
 
             // Configure one-to-one: Contact -> PersonalInfo
             modelBuilder.Entity<ContactPersonalInfo>()

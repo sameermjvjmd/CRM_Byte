@@ -314,3 +314,6 @@ D:\Project(s)\CRM_ACT\CRM.Api\bin\Debug\net10.0\ExcelNumberFormat.dll
 D:\Project(s)\CRM_ACT\CRM.Api\bin\Debug\net10.0\RBush.dll
 D:\Project(s)\CRM_ACT\CRM.Api\bin\Debug\net10.0\SixLabors.Fonts.dll
 D:\Project(s)\CRM_ACT\CRM.Api\bin\Debug\net10.0\System.IO.Packaging.dll
+D:\Project(s)\CRM_ACT\CRM.Api\bin\Debug\net10.0\rule_payload.json
+D:\Project(s)\CRM_ACT\CRM.Api\bin\Debug\net10.0\score_payload.json
+D:\Project(s)\CRM_ACT\CRM.Api\bin\Debug\net10.0\rule.json
