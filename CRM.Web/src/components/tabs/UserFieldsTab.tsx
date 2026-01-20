@@ -1,26 +1,12 @@
 import { useState, useEffect } from 'react';
 import { Save } from 'lucide-react';
 import api from '../../api/api';
-
-interface CustomFieldDefinition {
-    id: number;
-    entityType: string;
-    fieldName: string;
-    fieldKey: string;
-    fieldType: string;
-    isRequired: boolean;
-    optionsJson?: string;
-}
-
-interface CustomFieldValue {
-    customFieldDefinitionId: number;
-    value: string;
-}
+import { CustomFieldRenderer, type CustomFieldDefinition, type CustomFieldValue } from '../common/CustomFieldRenderer';
 
 interface UserFieldsTabProps {
     entityId: number;
     entityType: string;
-    customValues: CustomFieldValue[]; // Values from the entity
+    customValues: CustomFieldValue[];
     onUpdate: (values: CustomFieldValue[]) => void;
 }
 
@@ -41,36 +27,23 @@ const UserFieldsTab = ({ entityId, entityType, customValues, onUpdate }: UserFie
             }
         };
         fetchDefinitions();
-    }, []);
+    }, [entityType]);
 
     // Sync values when props change
     useEffect(() => {
         if (customValues) setValues(customValues);
     }, [customValues]);
 
-    const handleChange = (defId: number, newVal: string) => {
-        setValues(prev => {
-            const existing = prev.find(v => v.customFieldDefinitionId === defId);
-            if (existing) {
-                return prev.map(v => v.customFieldDefinitionId === defId ? { ...v, value: newVal } : v);
-            } else {
-                return [...prev, { customFieldDefinitionId: defId, value: newVal }];
-            }
-        });
-    };
-
     const handleSave = () => {
         onUpdate(values);
     };
-
-    const getValue = (defId: number) => values.find(v => v.customFieldDefinitionId === defId)?.value || '';
 
     if (loading) return <div className="p-8 text-center text-slate-400">Loading schema...</div>;
 
     if (definitions.length === 0) return (
         <div className="p-8 text-center border-2 border-dashed border-slate-200 rounded-xl">
             <p className="text-slate-500 font-bold mb-2">No custom fields defined</p>
-            <p className="text-xs text-slate-400">Go to Tools &gt; Custom Fields to configure fields for Contacts.</p>
+            <p className="text-xs text-slate-400">Go to Tools &gt; Custom Fields to configure fields for {entityType}.</p>
         </div>
     );
 
@@ -87,97 +60,28 @@ const UserFieldsTab = ({ entityId, entityType, customValues, onUpdate }: UserFie
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {definitions.map(def => (
-                    <div key={def.id}>
-                        <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
-                            {def.fieldName} {def.isRequired && <span className="text-red-500">*</span>}
-                        </label>
-
-                        {def.fieldType === 'Text' && (
-                            <input
-                                type="text"
-                                className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all outline-none"
-                                value={getValue(def.id)}
-                                onChange={e => handleChange(def.id, e.target.value)}
-                            />
-                        )}
-
-                        {def.fieldType === 'URL' && (
-                            <input
-                                type="url"
-                                className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all outline-none"
-                                value={getValue(def.id)}
-                                onChange={e => handleChange(def.id, e.target.value)}
-                            />
-                        )}
-
-                        {def.fieldType === 'Email' && (
-                            <input
-                                type="email"
-                                className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all outline-none"
-                                value={getValue(def.id)}
-                                onChange={e => handleChange(def.id, e.target.value)}
-                            />
-                        )}
-
-                        {def.fieldType === 'Currency' && (
-                            <div className="relative">
-                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold">$</span>
-                                <input
-                                    type="number"
-                                    className="w-full pl-8 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all outline-none"
-                                    value={getValue(def.id)}
-                                    onChange={e => handleChange(def.id, e.target.value)}
-                                />
-                            </div>
-                        )}
-
-                        {def.fieldType === 'Number' && (
-                            <input
-                                type="number"
-                                className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all outline-none"
-                                value={getValue(def.id)}
-                                onChange={e => handleChange(def.id, e.target.value)}
-                            />
-                        )}
-
-                        {def.fieldType === 'Date' && (
-                            <input
-                                type="date"
-                                className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all outline-none"
-                                value={getValue(def.id)}
-                                onChange={e => handleChange(def.id, e.target.value)}
-                            />
-                        )}
-
-                        {(def.fieldType === 'Select' || def.fieldType === 'MultiSelect') && (
-                            <select
-                                className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all outline-none"
-                                value={getValue(def.id)}
-                                onChange={e => handleChange(def.id, e.target.value)}
-                                multiple={def.fieldType === 'MultiSelect'}
-                            >
-                                <option value="">Select...</option>
-                                {def.optionsJson && JSON.parse(def.optionsJson).map((opt: string) => (
-                                    <option key={opt} value={opt}>{opt}</option>
-                                ))}
-                            </select>
-                        )}
-
-                        {def.fieldType === 'Bool' && (
-                            <div className="flex items-center gap-3 mt-2">
-                                <input
-                                    type="checkbox"
-                                    id={`field-${def.id}`}
-                                    className="w-5 h-5 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500"
-                                    checked={getValue(def.id) === 'true'}
-                                    onChange={e => handleChange(def.id, e.target.checked ? 'true' : 'false')}
-                                />
-                                <label htmlFor={`field-${def.id}`} className="text-sm font-medium text-slate-700">Yes</label>
-                            </div>
-                        )}
-                    </div>
-                ))}
+                {/* 
+                    CustomFieldRenderer handles rendering inputs. 
+                    We wrap it to ensure grid layout if needed, but CustomFieldRenderer already has internal grid for view mode.
+                    For edit mode, it uses space-y-4.
+                    We might want to override its layout or accept it.
+                    Actually CustomFieldRenderer uses space-y-4. If we want grid, we might need to adjust CustomFieldRenderer or just let it specific.
+                    However, UserFieldsTab previously used a 2-column grid.
+                    CustomFieldRenderer doesn't support 2-col grid for inputs currently (it loops and divs).
+                    Wait, looking at CustomFieldRenderer.tsx (step 7908), line 80: <div className="space-y-4">
+                    It stacks fields vertically. The previous UserFieldsTab used 2 columns.
+                    If I want 2 columns, I should update CustomFieldRenderer to support it or accept vertical stack.
+                    Vertical stack is fine for now, or I can update CustomFieldRenderer later.
+                    Let's stick to CustomFieldRenderer as is for consistency.
+                 */}
+                <div className="md:col-span-2">
+                    <CustomFieldRenderer
+                        fields={definitions}
+                        values={values}
+                        onChange={setValues}
+                        mode="edit"
+                    />
+                </div>
             </div>
         </div>
     );

@@ -12,10 +12,12 @@ namespace CRM.Api.Controllers
     public class OpportunitiesController : ControllerBase
     {
         private readonly ApplicationDbContext _context;
+        private readonly Services.WorkflowExecutionService _workflowService;
 
-        public OpportunitiesController(ApplicationDbContext context)
+        public OpportunitiesController(ApplicationDbContext context, Services.WorkflowExecutionService workflowService)
         {
             _context = context;
+            _workflowService = workflowService;
         }
 
         // =============================================
@@ -227,6 +229,8 @@ namespace CRM.Api.Controllers
                 }
                 await _context.SaveChangesAsync();
             }
+            // Trigger Workflows
+            await _workflowService.TriggerOnCreate("Opportunity", opportunity.Id, opportunity);
 
             return CreatedAtAction(nameof(GetOpportunity), new { id = opportunity.Id }, opportunity);
         }
@@ -340,6 +344,9 @@ namespace CRM.Api.Controllers
             try
             {
                 await _context.SaveChangesAsync();
+                
+                // Trigger Workflows
+                await _workflowService.TriggerOnUpdate("Opportunity", id, existingOpportunity);
             }
             catch (DbUpdateConcurrencyException)
             {

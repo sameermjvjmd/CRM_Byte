@@ -334,6 +334,29 @@ namespace CRM.Api.Controllers
             return Ok(stats);
         }
 
+        // GET: api/activities/stats/contact/5
+        [HttpGet("stats/contact/{contactId}")]
+        public async Task<ActionResult<object>> GetContactActivityStats(int contactId)
+        {
+            var activities = await _context.Activities
+                .Where(a => a.ContactId == contactId)
+                .ToListAsync();
+
+            var stats = new
+            {
+                ContactId = contactId,
+                TotalActivities = activities.Count,
+                EmailCount = activities.Count(a => a.Type == ActivityTypes.Email),
+                CallAttemptCount = activities.Count(a => a.Type == ActivityTypes.CallAttempt || (a.Type == ActivityTypes.Call && a.Result == ActivityResults.Attempted)),
+                CallReachedCount = activities.Count(a => a.Type == ActivityTypes.CallReached || (a.Type == ActivityTypes.Call && a.IsCompleted && a.Result == ActivityResults.Completed)),
+                MeetingCount = activities.Count(a => a.Type == ActivityTypes.Meeting || a.Type == ActivityTypes.Appointment),
+                LetterSentCount = activities.Count(a => a.Type == ActivityTypes.Letter),
+                LastActivityDate = activities.OrderByDescending(a => a.StartTime).FirstOrDefault()?.StartTime
+            };
+
+            return Ok(stats);
+        }
+
         // GET: api/activities/types
         [HttpGet("types")]
         public ActionResult<object> GetActivityTypes()

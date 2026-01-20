@@ -3,86 +3,51 @@ import {
     BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
     ResponsiveContainer, Legend, ComposedChart, Line
 } from 'recharts';
-import { TrendingUp, DollarSign, Calendar, Target, ArrowUpRight, Loader2 } from 'lucide-react';
+import { TrendingUp, DollarSign, Calendar, Target, Loader2, Settings } from 'lucide-react';
 import api from '../api/api';
+import QuotaSettingsModal from '../components/analytics/QuotaSettingsModal';
 
-interface ForecastData {
-    month: string;
+interface MonthlyForecastItem {
+    month: number;
     monthName: string;
-    dealCount: number;
-    totalValue: number;
-    weightedValue: number;
+    quota: number;
+    closedWon: number;
+    pipelineWeighted: number;
+    pipelineTotal: number;
 }
 
-interface VelocityData {
-    averageSalesCycleDays: number;
-    fastestDealDays: number;
-    slowestDealDays: number;
-    dealsClosedLast30Days: number;
-    averageDaysPerStage: { stage: string; averageDays: number }[];
-}
-
-interface QuarterlyForecast {
-    quarter: string;
-    totalValue: number;
-    weightedValue: number;
-    dealCount: number;
+interface SalesForecastSummary {
+    fiscalYear: number;
+    totalQuota: number;
+    totalClosedWon: number;
+    totalPipelineWeighted: number;
+    achievementPercent: number;
+    monthlyData: MonthlyForecastItem[];
 }
 
 const SalesForecastPage = () => {
-    const [forecast, setForecast] = useState<ForecastData[]>([]);
-    const [velocity, setVelocity] = useState<VelocityData | null>(null);
-    const [quarterlyData, setQuarterlyData] = useState<QuarterlyForecast[]>([]);
+    const [summary, setSummary] = useState<SalesForecastSummary | null>(null);
     const [loading, setLoading] = useState(true);
-    const [viewMode, setViewMode] = useState<'monthly' | 'quarterly'>('monthly');
+    const [year, setYear] = useState(new Date().getFullYear());
+    const [isQuotaModalOpen, setIsQuotaModalOpen] = useState(false);
+    const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
         fetchForecastData();
-    }, []);
+    }, [year]);
 
     const fetchForecastData = async () => {
+        setLoading(true);
+        setError(null);
         try {
-            const [forecastRes, velocityRes] = await Promise.all([
-                api.get('/pipelineanalytics/forecast'),
-                api.get('/pipelineanalytics/velocity')
-            ]);
-
-            setForecast(forecastRes.data);
-            setVelocity(velocityRes.data);
-
-            // Calculate quarterly data from monthly
-            const quarters = groupByQuarter(forecastRes.data);
-            setQuarterlyData(quarters);
+            const response = await api.get(`/forecast/${year}`);
+            setSummary(response.data);
         } catch (error) {
             console.error('Error fetching forecast data:', error);
+            setError('Failed to load forecast data. Please try again.');
         } finally {
             setLoading(false);
         }
-    };
-
-    const groupByQuarter = (monthlyData: ForecastData[]): QuarterlyForecast[] => {
-        const quarterMap: Record<string, QuarterlyForecast> = {};
-
-        monthlyData.forEach(item => {
-            const [year, month] = item.month.split('-');
-            const q = Math.ceil(parseInt(month) / 3);
-            const quarterKey = `Q${q} ${year}`;
-
-            if (!quarterMap[quarterKey]) {
-                quarterMap[quarterKey] = {
-                    quarter: quarterKey,
-                    totalValue: 0,
-                    weightedValue: 0,
-                    dealCount: 0
-                };
-            }
-
-            quarterMap[quarterKey].totalValue += item.totalValue;
-            quarterMap[quarterKey].weightedValue += item.weightedValue;
-            quarterMap[quarterKey].dealCount += item.dealCount;
-        });
-
-        return Object.values(quarterMap);
     };
 
     const formatCurrency = (value: number) => {
@@ -94,11 +59,7 @@ const SalesForecastPage = () => {
         }).format(value);
     };
 
-    const totalForecastValue = forecast.reduce((sum, f) => sum + f.totalValue, 0);
-    const totalWeightedValue = forecast.reduce((sum, f) => sum + f.weightedValue, 0);
-    const totalDeals = forecast.reduce((sum, f) => sum + f.dealCount, 0);
-
-    if (loading) {
+    if (loading && !summary) {
         return (
             <div className="flex-1 flex items-center justify-center bg-[#f8fafc]">
                 <div className="flex items-center gap-3 text-slate-500">
@@ -109,37 +70,60 @@ const SalesForecastPage = () => {
         );
     }
 
+    if (error && !summary) {
+        return (
+            <div className="flex-1 flex items-center justify-center bg-[#f8fafc]">
+                <div className="text-center">
+                    <div className="text-red-500 mb-2">
+                        <Settings className="w-12 h-12 mx-auto opacity-50" />
+                    </div>
+                    <h3 className="text-lg font-medium text-slate-900">Something went wrong</h3>
+                    <p className="text-slate-500 mb-4">{error}</p>
+                    <button
+                        onClick={fetchForecastData}
+                        className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-medium"
+                    >
+                        Retry
+                    </button>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="p-6 bg-[#f8fafc] min-h-full">
             {/* Header */}
             <div className="flex justify-between items-center mb-6">
                 <div>
-                    <h1 className="text-2xl font-bold text-slate-900">Sales Forecast</h1>
+                    <h1 className="text-2xl font-bold text-slate-900">Sales Forecast & Quotas</h1>
                     <p className="text-sm text-slate-500 mt-1">
-                        Revenue projections based on expected close dates and probabilities
+                        Track performance against quotas and projected revenue
                     </p>
                 </div>
                 <div className="flex items-center gap-3">
-                    <div className="flex bg-slate-100 p-1 rounded-lg">
-                        <button
-                            onClick={() => setViewMode('monthly')}
-                            className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${viewMode === 'monthly'
-                                ? 'bg-white text-indigo-600 shadow-sm'
-                                : 'text-slate-600 hover:text-slate-800'
-                                }`}
-                        >
-                            Monthly
-                        </button>
-                        <button
-                            onClick={() => setViewMode('quarterly')}
-                            className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${viewMode === 'quarterly'
-                                ? 'bg-white text-indigo-600 shadow-sm'
-                                : 'text-slate-600 hover:text-slate-800'
-                                }`}
-                        >
-                            Quarterly
-                        </button>
-                    </div>
+                    <select
+                        value={year}
+                        onChange={(e) => setYear(Number(e.target.value))}
+                        className="bg-white border border-slate-300 text-slate-700 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block p-2.5 font-bold"
+                    >
+                        <option value={year - 1}>{year - 1}</option>
+                        <option value={year}>{year}</option>
+                        <option value={year + 1}>{year + 1}</option>
+                    </select>
+
+                    <button
+                        onClick={() => setIsQuotaModalOpen(true)}
+                        className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 rounded-lg font-bold text-sm transition-colors shadow-sm"
+                    >
+                        <Settings size={16} /> Manage Quotas
+                    </button>
+
+                    <button
+                        onClick={fetchForecastData}
+                        className="p-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-200"
+                    >
+                        <TrendingUp size={20} />
+                    </button>
                 </div>
             </div>
 
@@ -147,274 +131,184 @@ const SalesForecastPage = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
                 <div className="bg-white rounded-xl p-5 shadow-sm border border-slate-100">
                     <div className="flex items-center gap-3">
-                        <div className="p-3 rounded-lg bg-emerald-50">
-                            <DollarSign className="w-6 h-6 text-emerald-600" />
+                        <div className="p-3 rounded-lg bg-indigo-50">
+                            <Target className="w-6 h-6 text-indigo-600" />
                         </div>
                         <div>
-                            <p className="text-sm font-medium text-slate-500">Total Pipeline</p>
-                            <p className="text-2xl font-bold text-slate-900">{formatCurrency(totalForecastValue)}</p>
+                            <p className="text-sm font-medium text-slate-500">Total Quota (Goal)</p>
+                            <p className="text-2xl font-bold text-slate-900">{formatCurrency(summary?.totalQuota || 0)}</p>
                         </div>
-                    </div>
-                    <div className="mt-3 flex items-center text-sm">
-                        <ArrowUpRight className="w-4 h-4 text-emerald-500 mr-1" />
-                        <span className="text-emerald-600 font-medium">Next 6 months</span>
                     </div>
                 </div>
 
                 <div className="bg-white rounded-xl p-5 shadow-sm border border-slate-100">
                     <div className="flex items-center gap-3">
-                        <div className="p-3 rounded-lg bg-indigo-50">
-                            <Target className="w-6 h-6 text-indigo-600" />
+                        <div className="p-3 rounded-lg bg-emerald-50">
+                            <DollarSign className="w-6 h-6 text-emerald-600" />
                         </div>
                         <div>
-                            <p className="text-sm font-medium text-slate-500">Weighted Forecast</p>
-                            <p className="text-2xl font-bold text-slate-900">{formatCurrency(totalWeightedValue)}</p>
+                            <p className="text-sm font-medium text-slate-500">Closed Won (Actual)</p>
+                            <p className="text-2xl font-bold text-slate-900">{formatCurrency(summary?.totalClosedWon || 0)}</p>
                         </div>
                     </div>
-                    <div className="mt-3 flex items-center text-sm text-slate-500">
-                        <span>Probability-adjusted value</span>
+                    <div className="mt-3 flex items-center text-sm">
+                        <span className={`font-bold ${summary && summary.achievementPercent >= 100 ? 'text-emerald-600' : 'text-amber-600'}`}>
+                            {(summary?.achievementPercent || 0).toFixed(1)}%
+                        </span>
+                        <span className="text-slate-400 ml-1">of annual goal</span>
                     </div>
                 </div>
 
                 <div className="bg-white rounded-xl p-5 shadow-sm border border-slate-100">
                     <div className="flex items-center gap-3">
                         <div className="p-3 rounded-lg bg-purple-50">
-                            <Calendar className="w-6 h-6 text-purple-600" />
+                            <TrendingUp className="w-6 h-6 text-purple-600" />
                         </div>
                         <div>
-                            <p className="text-sm font-medium text-slate-500">Avg Sales Cycle</p>
-                            <p className="text-2xl font-bold text-slate-900">
-                                {velocity?.averageSalesCycleDays || 0} days
-                            </p>
+                            <p className="text-sm font-medium text-slate-500">Pipeline (Weighted)</p>
+                            <p className="text-2xl font-bold text-slate-900">{formatCurrency(summary?.totalPipelineWeighted || 0)}</p>
                         </div>
                     </div>
-                    <div className="mt-3 flex items-center text-sm text-slate-500">
-                        <span>From lead to close</span>
+                    <div className="mt-3 text-sm text-slate-500">
+                        Projected additional revenue
                     </div>
                 </div>
 
                 <div className="bg-white rounded-xl p-5 shadow-sm border border-slate-100">
                     <div className="flex items-center gap-3">
-                        <div className="p-3 rounded-lg bg-orange-50">
-                            <TrendingUp className="w-6 h-6 text-orange-600" />
+                        <div className="p-3 rounded-lg bg-blue-50">
+                            <Calendar className="w-6 h-6 text-blue-600" />
                         </div>
                         <div>
-                            <p className="text-sm font-medium text-slate-500">Deals This Month</p>
+                            <p className="text-sm font-medium text-slate-500">Forecast Total</p>
                             <p className="text-2xl font-bold text-slate-900">
-                                {velocity?.dealsClosedLast30Days || 0}
+                                {formatCurrency((summary?.totalClosedWon || 0) + (summary?.totalPipelineWeighted || 0))}
                             </p>
                         </div>
                     </div>
-                    <div className="mt-3 flex items-center text-sm text-slate-500">
-                        <span>Closed in last 30 days</span>
+                    <div className="mt-3 text-sm text-slate-500">
+                        Actual + Weighted Pipeline
                     </div>
                 </div>
             </div>
 
             {/* Main Chart */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-                <div className="lg:col-span-2 bg-white rounded-xl p-6 shadow-sm border border-slate-100">
+                <div className="lg:col-span-3 bg-white rounded-xl p-6 shadow-sm border border-slate-100">
                     <h2 className="text-lg font-bold text-slate-800 mb-4">
-                        {viewMode === 'monthly' ? 'Monthly Revenue Forecast' : 'Quarterly Revenue Forecast'}
+                        Performance vs Quota ({year})
                     </h2>
-                    <div className="h-80">
+                    <div className="h-96">
                         <ResponsiveContainer width="100%" height="100%">
-                            {viewMode === 'monthly' ? (
-                                <ComposedChart data={forecast}>
-                                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                                    <XAxis dataKey="monthName" tick={{ fontSize: 12, fill: '#64748b' }} />
-                                    <YAxis
-                                        tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`}
-                                        tick={{ fontSize: 12, fill: '#64748b' }}
-                                    />
-                                    <Tooltip
-                                        formatter={(value) => formatCurrency(Number(value ?? 0))}
-                                        labelStyle={{ color: '#1e293b', fontWeight: 'bold' }}
-                                        contentStyle={{
-                                            background: 'white',
-                                            border: '1px solid #e2e8f0',
-                                            borderRadius: '8px',
-                                            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
-                                        }}
-                                    />
-                                    <Legend />
-                                    <Bar
-                                        dataKey="totalValue"
-                                        name="Total Pipeline"
-                                        fill="#e0e7ff"
-                                        radius={[4, 4, 0, 0]}
-                                    />
-                                    <Bar
-                                        dataKey="weightedValue"
-                                        name="Weighted Forecast"
-                                        fill="#6366f1"
-                                        radius={[4, 4, 0, 0]}
-                                    />
-                                    <Line
-                                        type="monotone"
-                                        dataKey="dealCount"
-                                        name="Deal Count"
-                                        stroke="#f97316"
-                                        strokeWidth={2}
-                                        dot={{ fill: '#f97316' }}
-                                        yAxisId={0}
-                                    />
-                                </ComposedChart>
-                            ) : (
-                                <BarChart data={quarterlyData}>
-                                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                                    <XAxis dataKey="quarter" tick={{ fontSize: 12, fill: '#64748b' }} />
-                                    <YAxis
-                                        tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`}
-                                        tick={{ fontSize: 12, fill: '#64748b' }}
-                                    />
-                                    <Tooltip
-                                        formatter={(value) => formatCurrency(Number(value ?? 0))}
-                                        labelStyle={{ color: '#1e293b', fontWeight: 'bold' }}
-                                        contentStyle={{
-                                            background: 'white',
-                                            border: '1px solid #e2e8f0',
-                                            borderRadius: '8px'
-                                        }}
-                                    />
-                                    <Legend />
-                                    <Bar
-                                        dataKey="totalValue"
-                                        name="Total Pipeline"
-                                        fill="#e0e7ff"
-                                        radius={[4, 4, 0, 0]}
-                                    />
-                                    <Bar
-                                        dataKey="weightedValue"
-                                        name="Weighted Forecast"
-                                        fill="#6366f1"
-                                        radius={[4, 4, 0, 0]}
-                                    />
-                                </BarChart>
-                            )}
+                            <ComposedChart data={summary?.monthlyData || []}>
+                                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+                                <XAxis dataKey="monthName" tick={{ fontSize: 12, fill: '#64748b' }} axisLine={false} tickLine={false} />
+                                <YAxis
+                                    tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`}
+                                    tick={{ fontSize: 12, fill: '#64748b' }}
+                                    axisLine={false}
+                                    tickLine={false}
+                                />
+                                <Tooltip
+                                    formatter={(value: any, name: any) => [formatCurrency(Number(value)), name]}
+                                    labelStyle={{ color: '#1e293b', fontWeight: 'bold' }}
+                                    contentStyle={{
+                                        background: 'white',
+                                        border: '1px solid #e2e8f0',
+                                        borderRadius: '8px',
+                                        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+                                    }}
+                                />
+                                <Legend wrapperStyle={{ paddingTop: '20px' }} />
+
+                                <Bar
+                                    dataKey="closedWon"
+                                    name="Closed Won"
+                                    stackId="a"
+                                    fill="#10b981" // emerald-500
+                                    radius={[0, 0, 0, 0]}
+                                    maxBarSize={50}
+                                />
+                                <Bar
+                                    dataKey="pipelineWeighted"
+                                    name="Pipeline (Weighted)"
+                                    stackId="a"
+                                    fill="#a78bfa" // violet-400
+                                    radius={[4, 4, 0, 0]}
+                                    maxBarSize={50}
+                                />
+
+                                <Line
+                                    type="monotone"
+                                    dataKey="quota"
+                                    name="Quota Goal"
+                                    stroke="#ec4899" // pink-500
+                                    strokeWidth={3}
+                                    dot={{ r: 4, fill: '#ec4899', strokeWidth: 2, stroke: '#fff' }}
+                                />
+                            </ComposedChart>
                         </ResponsiveContainer>
-                    </div>
-                </div>
-
-                {/* Stage Velocity */}
-                <div className="bg-white rounded-xl p-6 shadow-sm border border-slate-100">
-                    <h2 className="text-lg font-bold text-slate-800 mb-4">Sales Velocity</h2>
-                    <div className="space-y-4">
-                        {velocity?.averageDaysPerStage.map((stage) => (
-                            <div key={stage.stage} className="group">
-                                <div className="flex justify-between items-center mb-1">
-                                    <span className="text-sm font-medium text-slate-700">{stage.stage}</span>
-                                    <span className="text-sm font-bold text-slate-900">{stage.averageDays} days</span>
-                                </div>
-                                <div className="w-full bg-slate-100 rounded-full h-2">
-                                    <div
-                                        className="bg-gradient-to-r from-indigo-500 to-purple-500 h-2 rounded-full transition-all duration-500"
-                                        style={{
-                                            width: `${Math.min((stage.averageDays / (velocity?.averageSalesCycleDays || 30)) * 100, 100)}%`
-                                        }}
-                                    />
-                                </div>
-                            </div>
-                        ))}
-
-                        <div className="pt-4 mt-4 border-t border-slate-100">
-                            <div className="flex justify-between items-center mb-2">
-                                <span className="text-sm text-slate-500">Fastest Deal</span>
-                                <span className="text-sm font-bold text-emerald-600">
-                                    {velocity?.fastestDealDays || 0} days
-                                </span>
-                            </div>
-                            <div className="flex justify-between items-center">
-                                <span className="text-sm text-slate-500">Slowest Deal</span>
-                                <span className="text-sm font-bold text-red-500">
-                                    {velocity?.slowestDealDays || 0} days
-                                </span>
-                            </div>
-                        </div>
                     </div>
                 </div>
             </div>
 
-            {/* Forecast Table */}
+            {/* Detailed Table */}
             <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
                 <div className="px-6 py-4 border-b border-slate-100">
-                    <h2 className="text-lg font-bold text-slate-800">
-                        {viewMode === 'monthly' ? 'Monthly Breakdown' : 'Quarterly Breakdown'}
-                    </h2>
+                    <h2 className="text-lg font-bold text-slate-800">Monthly Details</h2>
                 </div>
                 <div className="overflow-x-auto">
                     <table className="w-full">
                         <thead className="bg-slate-50">
                             <tr>
-                                <th className="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">
-                                    {viewMode === 'monthly' ? 'Month' : 'Quarter'}
-                                </th>
-                                <th className="px-6 py-3 text-right text-xs font-bold text-slate-500 uppercase tracking-wider">
-                                    Deals
-                                </th>
-                                <th className="px-6 py-3 text-right text-xs font-bold text-slate-500 uppercase tracking-wider">
-                                    Total Pipeline
-                                </th>
-                                <th className="px-6 py-3 text-right text-xs font-bold text-slate-500 uppercase tracking-wider">
-                                    Weighted Forecast
-                                </th>
-                                <th className="px-6 py-3 text-right text-xs font-bold text-slate-500 uppercase tracking-wider">
-                                    Confidence
-                                </th>
+                                <th className="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Month</th>
+                                <th className="px-6 py-3 text-right text-xs font-bold text-slate-500 uppercase tracking-wider">Quota</th>
+                                <th className="px-6 py-3 text-right text-xs font-bold text-slate-500 uppercase tracking-wider">Closed Won</th>
+                                <th className="px-6 py-3 text-right text-xs font-bold text-slate-500 uppercase tracking-wider">Pipeline (Weighted)</th>
+                                <th className="px-6 py-3 text-right text-xs font-bold text-slate-500 uppercase tracking-wider">Pipeline (Total)</th>
+                                <th className="px-6 py-3 text-right text-xs font-bold text-slate-500 uppercase tracking-wider">Achievement</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
-                            {(viewMode === 'monthly' ? forecast : quarterlyData).map((item, index) => {
-                                const confidence = item.totalValue > 0 ? (item.weightedValue / item.totalValue) * 100 : 0;
-
+                            {summary?.monthlyData.map((item, index) => {
+                                const achievement = item.quota > 0 ? (item.closedWon / item.quota) * 100 : 0;
                                 return (
                                     <tr key={index} className="hover:bg-slate-50 transition-colors">
-                                        <td className="px-6 py-4 text-sm font-medium text-slate-900">
-                                            {'monthName' in item ? item.monthName : item.quarter}
-                                        </td>
-                                        <td className="px-6 py-4 text-sm text-right text-slate-700">
-                                            {item.dealCount}
-                                        </td>
-                                        <td className="px-6 py-4 text-sm text-right font-medium text-slate-900">
-                                            {formatCurrency(item.totalValue)}
-                                        </td>
-                                        <td className="px-6 py-4 text-sm text-right font-bold text-indigo-600">
-                                            {formatCurrency(item.weightedValue)}
-                                        </td>
+                                        <td className="px-6 py-4 text-sm font-medium text-slate-900">{item.monthName}</td>
+                                        <td className="px-6 py-4 text-sm text-right text-slate-600">{formatCurrency(item.quota)}</td>
+                                        <td className="px-6 py-4 text-sm text-right font-bold text-emerald-600">{formatCurrency(item.closedWon)}</td>
+                                        <td className="px-6 py-4 text-sm text-right text-purple-600">{formatCurrency(item.pipelineWeighted)}</td>
+                                        <td className="px-6 py-4 text-sm text-right text-slate-400">{formatCurrency(item.pipelineTotal)}</td>
                                         <td className="px-6 py-4 text-right">
                                             <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold
-                                                ${confidence >= 70 ? 'bg-emerald-100 text-emerald-700' :
-                                                    confidence >= 40 ? 'bg-amber-100 text-amber-700' :
-                                                        'bg-slate-100 text-slate-600'}`}>
-                                                {confidence.toFixed(0)}%
+                                                ${achievement >= 100 ? 'bg-emerald-100 text-emerald-700' :
+                                                    achievement >= 70 ? 'bg-blue-100 text-blue-700' :
+                                                        achievement >= 40 ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700'}`}>
+                                                {achievement.toFixed(0)}%
                                             </span>
                                         </td>
                                     </tr>
                                 );
                             })}
-                        </tbody>
-                        <tfoot className="bg-slate-50">
-                            <tr>
-                                <td className="px-6 py-4 text-sm font-bold text-slate-900">Total</td>
-                                <td className="px-6 py-4 text-sm text-right font-bold text-slate-900">
-                                    {totalDeals}
-                                </td>
-                                <td className="px-6 py-4 text-sm text-right font-bold text-slate-900">
-                                    {formatCurrency(totalForecastValue)}
-                                </td>
-                                <td className="px-6 py-4 text-sm text-right font-bold text-indigo-600">
-                                    {formatCurrency(totalWeightedValue)}
-                                </td>
-                                <td className="px-6 py-4 text-right">
-                                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-indigo-100 text-indigo-700">
-                                        {totalForecastValue > 0 ? ((totalWeightedValue / totalForecastValue) * 100).toFixed(0) : 0}%
-                                    </span>
-                                </td>
+                            {/* Totals Row */}
+                            <tr className="bg-slate-50 font-bold">
+                                <td className="px-6 py-4 text-sm text-slate-900">Total</td>
+                                <td className="px-6 py-4 text-sm text-right text-slate-900">{formatCurrency(summary?.totalQuota || 0)}</td>
+                                <td className="px-6 py-4 text-sm text-right text-emerald-600">{formatCurrency(summary?.totalClosedWon || 0)}</td>
+                                <td className="px-6 py-4 text-sm text-right text-purple-600">{formatCurrency(summary?.totalPipelineWeighted || 0)}</td>
+                                <td className="px-6 py-4 text-sm text-right text-slate-500">-</td>
+                                <td className="px-6 py-4 text-right text-slate-900">{(summary?.achievementPercent || 0).toFixed(0)}%</td>
                             </tr>
-                        </tfoot>
+                        </tbody>
                     </table>
                 </div>
             </div>
+
+            <QuotaSettingsModal
+                isOpen={isQuotaModalOpen}
+                onClose={() => setIsQuotaModalOpen(false)}
+                onSave={fetchForecastData}
+            />
         </div>
     );
 };

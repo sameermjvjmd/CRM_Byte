@@ -1,5 +1,5 @@
 
-import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, useLocation, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider } from './context/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -52,6 +52,7 @@ import QuoteDetailPage from './pages/QuoteDetailPage';
 import WorkflowsPage from './pages/WorkflowsPage';
 import CustomFieldsPage from './pages/CustomFieldsPage';
 import LandingPageBuilder from './components/marketing/LandingPageBuilder';
+import QuoteTemplatesPage from './pages/admin/QuoteTemplatesPage';
 import PublicLandingPage from './pages/PublicLandingPage';
 
 const AppContent = () => {
@@ -100,6 +101,7 @@ const AppContent = () => {
                             <Route path="/opportunities/:id" element={<ProtectedRoute><OpportunityDetailPage /></ProtectedRoute>} />
                             <Route path="/opportunities/analytics" element={<ProtectedRoute><PipelineAnalyticsPage /></ProtectedRoute>} />
                             <Route path="/opportunities/forecast" element={<ProtectedRoute><SalesForecastPage /></ProtectedRoute>} />
+                            <Route path="/insights/forecast" element={<Navigate to="/opportunities/forecast" replace />} />
 
                             {/* Activities */}
                             <Route path="/schedule" element={<ProtectedRoute><ActivitiesPage /></ProtectedRoute>} />
@@ -144,9 +146,14 @@ const AppContent = () => {
                                     <WorkflowsPage />
                                 </ProtectedRoute>
                             } />
-                            <Route path="/custom-fields" element={
+                            <Route path="/admin/custom-fields" element={
                                 <ProtectedRoute>
                                     <CustomFieldsPage />
+                                </ProtectedRoute>
+                            } />
+                            <Route path="/admin/quote-templates" element={
+                                <ProtectedRoute>
+                                    <QuoteTemplatesPage />
                                 </ProtectedRoute>
                             } />
 

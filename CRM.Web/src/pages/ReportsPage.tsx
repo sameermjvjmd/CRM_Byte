@@ -6,6 +6,10 @@ import {
     Calendar, FileText, Download, Plus, Filter,
     Play, MoreHorizontal
 } from 'lucide-react';
+import {
+    BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
+    PieChart as RePieChart, Pie, Cell
+} from 'recharts';
 import type { DashboardSummary, SavedReport } from '../types/reporting';
 import { formatCurrency } from '../utils/formatters';
 import ReportBuilderModal from '../components/reports/ReportBuilderModal';
@@ -18,11 +22,37 @@ const ReportsPage = () => {
     const [loading, setLoading] = useState(true);
     const [isBuilderOpen, setIsBuilderOpen] = useState(false);
     const [selectedReport, setSelectedReport] = useState<SavedReport | null>(null);
+    const [pipelineData, setPipelineData] = useState<any[]>([]);
+    const [activityTypeData, setActivityTypeData] = useState<any[]>([]);
 
     useEffect(() => {
         fetchDashboardData();
         fetchSavedReports();
+        fetchChartData();
     }, []);
+
+    const fetchChartData = async () => {
+        try {
+            const pipelineRes = await reportsApi.getPipelineSummary();
+            if (pipelineRes.byStage) {
+                setPipelineData(pipelineRes.byStage.map((s: any) => ({
+                    name: s.stage,
+                    value: s.value,
+                    count: s.count
+                })));
+            }
+
+            const activityRes = await reportsApi.getActivitySummary();
+            if (activityRes.byType) {
+                setActivityTypeData(activityRes.byType.map((t: any) => ({
+                    name: t.type,
+                    value: t.count
+                })));
+            }
+        } catch (error) {
+            console.error('Error fetching chart data:', error);
+        }
+    };
 
     const fetchDashboardData = async () => {
         try {
@@ -164,30 +194,90 @@ const ReportsPage = () => {
 
                 {/* Charts Row */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                    <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
-                        <h3 className="font-bold text-slate-800 mb-6 flex items-center gap-2">
-                            <BarChart3 size={20} className="text-indigo-600" />
-                            Pipeline by Stage
+                    <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm min-h-[400px]">
+                        <h3 className="font-black text-slate-900 mb-6 flex items-center gap-2 uppercase tracking-wide text-xs">
+                            <BarChart3 size={16} className="text-indigo-600" />
+                            Pipeline Value by Stage
                         </h3>
-                        {/* Placeholder for real chart - we'll need to fetch this specific data */}
-                        <div className="h-64 flex items-center justify-center bg-slate-50 rounded-lg text-slate-400">
-                            Loading Chart...
-                        </div>
+                        {pipelineData.length > 0 ? (
+                            <div className="h-80 w-full mt-4">
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <BarChart data={pipelineData} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
+                                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                                        <XAxis
+                                            dataKey="name"
+                                            axisLine={false}
+                                            tickLine={false}
+                                            tick={{ fontSize: 10, fontWeight: 700, fill: '#64748b' }}
+                                            dy={10}
+                                        />
+                                        <YAxis
+                                            axisLine={false}
+                                            tickLine={false}
+                                            tick={{ fontSize: 10, fontWeight: 700, fill: '#64748b' }}
+                                            tickFormatter={(val) => `$${val / 1000}k`}
+                                        />
+                                        <Tooltip
+                                            contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
+                                            formatter={(value: any) => [formatCurrency(value), 'Value']}
+                                        />
+                                        <Bar dataKey="value" radius={[6, 6, 0, 0]}>
+                                            {pipelineData.map((entry, index) => (
+                                                <Cell key={`cell-${index}`} fill={['#6366f1', '#8b5cf6', '#ec4899', '#f43f5e', '#10b981'][index % 5]} />
+                                            ))}
+                                        </Bar>
+                                    </BarChart>
+                                </ResponsiveContainer>
+                            </div>
+                        ) : (
+                            <div className="h-64 flex flex-col items-center justify-center bg-slate-50/50 rounded-lg text-slate-400 border border-dashed border-slate-200">
+                                <TrendingUp size={32} className="mb-2 opacity-20" />
+                                <p className="text-xs font-bold uppercase tracking-widest">Pipeline Empty</p>
+                            </div>
+                        )}
                     </div>
-                    <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
-                        <h3 className="font-bold text-slate-800 mb-6 flex items-center gap-2">
-                            <PieChart size={20} className="text-purple-600" />
-                            Activities by Type
+
+                    <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm min-h-[400px]">
+                        <h3 className="font-black text-slate-900 mb-6 flex items-center gap-2 uppercase tracking-wide text-xs">
+                            <PieChart size={16} className="text-purple-600" />
+                            Engagement by Activity Type
                         </h3>
-                        {/* Placeholder for real chart */}
-                        <div className="h-64 flex items-center justify-center bg-slate-50 rounded-lg text-slate-400">
-                            Loading Chart...
-                        </div>
+                        {activityTypeData.length > 0 ? (
+                            <div className="h-80 w-full mt-4">
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <RePieChart>
+                                        <Pie
+                                            data={activityTypeData}
+                                            cx="50%"
+                                            cy="50%"
+                                            innerRadius={60}
+                                            outerRadius={100}
+                                            paddingAngle={5}
+                                            dataKey="value"
+                                        >
+                                            {activityTypeData.map((entry, index) => (
+                                                <Cell key={`cell-${index}`} fill={['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'][index % 5]} />
+                                            ))}
+                                        </Pie>
+                                        <Tooltip
+                                            contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
+                                        />
+                                        <Legend verticalAlign="bottom" height={36} iconType="circle" />
+                                    </RePieChart>
+                                </ResponsiveContainer>
+                            </div>
+                        ) : (
+                            <div className="h-64 flex flex-col items-center justify-center bg-slate-50/50 rounded-lg text-slate-400 border border-dashed border-slate-200">
+                                <Calendar size={32} className="mb-2 opacity-20" />
+                                <p className="text-xs font-bold uppercase tracking-widest">No Recent Activity</p>
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>
         );
     };
+
 
     const renderStandardReports = () => {
         const standardReports = [

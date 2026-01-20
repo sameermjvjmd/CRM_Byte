@@ -32,6 +32,7 @@ namespace CRM.Api.Controllers
                     Subject = t.Subject,
                     Body = t.Body,
                     Category = t.Category,
+                    DesignJson = t.DesignJson,
                     IsActive = t.IsActive,
                     CreatedBy = t.CreatedBy,
                     CreatedAt = t.CreatedAt,
@@ -59,6 +60,7 @@ namespace CRM.Api.Controllers
                 Subject = template.Subject,
                 Body = template.Body,
                 Category = template.Category,
+                DesignJson = template.DesignJson,
                 IsActive = template.IsActive,
                 CreatedBy = template.CreatedBy,
                 CreatedAt = template.CreatedAt,
@@ -81,6 +83,7 @@ namespace CRM.Api.Controllers
                 Subject = createDto.Subject,
                 Body = createDto.Body,
                 Category = createDto.Category,
+                DesignJson = createDto.DesignJson,
                 IsActive = true,
                 CreatedBy = userId,
                 CreatedAt = DateTime.UtcNow
@@ -96,6 +99,7 @@ namespace CRM.Api.Controllers
                 Subject = template.Subject,
                 Body = template.Body,
                 Category = template.Category,
+                DesignJson = template.DesignJson,
                 IsActive = template.IsActive,
                 CreatedBy = template.CreatedBy,
                 CreatedAt = template.CreatedAt
@@ -115,6 +119,7 @@ namespace CRM.Api.Controllers
             template.Subject = updateDto.Subject;
             template.Body = updateDto.Body;
             template.Category = updateDto.Category;
+            template.DesignJson = updateDto.DesignJson;
             template.IsActive = updateDto.IsActive;
             template.UpdatedAt = DateTime.UtcNow;
 

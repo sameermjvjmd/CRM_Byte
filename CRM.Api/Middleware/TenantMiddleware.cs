@@ -18,6 +18,7 @@ namespace CRM.Api.Middleware
             "/api/tenants/check-subdomain",
             "/openapi",
             "/swagger",
+            "/scalar",
             "/health"
         };
 

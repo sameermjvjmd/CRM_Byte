@@ -92,10 +92,24 @@ const ContactsPage = () => {
 
     // Feature Handlers
     const handleBulkDelete = async () => {
-        if (window.confirm(`Are you sure you want to delete ${selectedIds.size} contacts?`)) {
-            // API call would go here
-            alert(`Deleted ${selectedIds.size} contacts`);
-            setSelectedIds(new Set());
+        const count = selectedIds.size;
+        if (window.confirm(`Are you sure you want to delete ${count} contact(s)?`)) {
+            try {
+                setLoading(true);
+                // Since there is no bulk delete endpoint, we loop through the selected IDs
+                const deletePromises = Array.from(selectedIds).map(id => api.delete(`/contacts/${id}`));
+                await Promise.all(deletePromises);
+
+                setSelectedIds(new Set());
+                await fetchContacts();
+                alert(`Successfully deleted ${count} contact(s)`);
+            } catch (error) {
+                console.error('Bulk delete failed:', error);
+                alert('Failed to delete some contacts. Please try again.');
+                fetchContacts(); // Refresh list to see what's left
+            } finally {
+                setLoading(false);
+            }
         }
     };
 

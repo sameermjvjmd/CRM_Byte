@@ -18,6 +18,9 @@ namespace CRM.Api.DTOs.Marketing
         public DateTime? CompletedAt { get; set; }
         public int? MarketingListId { get; set; }
         public string? MarketingListName { get; set; }
+        public int? TemplateId { get; set; }
+        public string? HtmlContent { get; set; }
+        public string? PlainTextContent { get; set; }
         
         // Stats
         public int RecipientCount { get; set; }
@@ -234,6 +237,22 @@ namespace CRM.Api.DTOs.Marketing
         
         // A/B Test results
         public ABTestResultDto? ABTestResults { get; set; }
+
+        // Step Analytics (for Drip Campaigns)
+        public List<CampaignStepAnalyticsDto>? StepAnalytics { get; set; }
+    }
+
+    public class CampaignStepAnalyticsDto
+    {
+        public int StepId { get; set; }
+        public string StepName { get; set; } = string.Empty;
+        public int OrderIndex { get; set; }
+        public string Subject { get; set; } = string.Empty;
+        public int Sent { get; set; }
+        public int Opened { get; set; }
+        public int Clicked { get; set; }
+        public double OpenRate { get; set; }
+        public double ClickRate { get; set; }
     }
 
     public class TimelineDataPoint

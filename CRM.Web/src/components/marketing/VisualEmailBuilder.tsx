@@ -8,12 +8,44 @@ interface Block {
     styles?: Record<string, string>;
 }
 
-const VisualEmailBuilder: React.FC = () => {
-    const [blocks, setBlocks] = useState<Block[]>([
-        { id: '1', type: 'text', content: '<h1>Welcome to our Newsletter</h1><p>Start editing your email content here.</p>' },
-        { id: '2', type: 'button', content: 'Call to Action' }
-    ]);
+interface VisualEmailBuilderProps {
+    initialData?: string; // JSON string of blocks
+    onSave?: (html: string, json: string) => void;
+}
+
+const VisualEmailBuilder: React.FC<VisualEmailBuilderProps> = ({ initialData, onSave }) => {
+    const [blocks, setBlocks] = useState<Block[]>(() => {
+        if (initialData) {
+            try {
+                return JSON.parse(initialData);
+            } catch (e) {
+                console.error('Failed to parse initial design JSON', e);
+            }
+        }
+        return [
+            { id: '1', type: 'text', content: '<h1>Welcome to our Newsletter</h1><p>Start editing your email content here.</p>' },
+            { id: '2', type: 'button', content: 'Call to Action' }
+        ];
+    });
     const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null);
+
+    const generateHtml = () => {
+        return blocks.map(block => {
+            if (block.type === 'text') return block.content;
+            if (block.type === 'image') return `<img src="${block.content}" style="max-width: 100%; height: auto;" />`;
+            if (block.type === 'button') return `<div style="text-align: center; margin: 20px 0;"><a href="#" style="background-color: #4F46E5; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">${block.content}</a></div>`;
+            if (block.type === 'divider') return `<hr style="border: 0; border-top: 1px solid #E2E8F0; margin: 20px 0;" />`;
+            return '';
+        }).join('\n');
+    };
+
+    const handleSave = () => {
+        if (onSave) {
+            const html = generateHtml();
+            const json = JSON.stringify(blocks);
+            onSave(html, json);
+        }
+    };
 
     const addBlock = (type: Block['type']) => {
         const newBlock: Block = {
@@ -73,7 +105,7 @@ const VisualEmailBuilder: React.FC = () => {
                 </div>
 
                 <div className="mt-auto border-t border-slate-200 pt-4 space-y-2">
-                    <button className="w-full flex items-center justify-center gap-2 p-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-all font-medium text-sm shadow-md shadow-indigo-200">
+                    <button onClick={handleSave} className="w-full flex items-center justify-center gap-2 p-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-all font-medium text-sm shadow-md shadow-indigo-200">
                         <Save size={16} /> Save Template
                     </button>
                     <button className="w-full flex items-center justify-center gap-2 p-2 bg-white text-slate-700 border border-slate-200 rounded-lg hover:bg-slate-50 transition-all font-medium text-sm">
@@ -186,7 +218,7 @@ const VisualEmailBuilder: React.FC = () => {
     );
 };
 
-// Helper for 'X' icon since I forgot to import it above
+// Helper for 'X' icon
 const X = ({ size }: { size: number }) => (
     <svg
         xmlns="http://www.w3.org/2000/svg"

@@ -40,6 +40,9 @@ namespace CRM.Api.Services.Marketing
 
                 // 2. Process drip campaigns steps
                 await ProcessDripSteps();
+
+                // 3. Process standard campaign queue
+                await ProcessStandardQueue();
             }
             catch (Exception ex)
             {
@@ -346,7 +349,126 @@ namespace CRM.Api.Services.Marketing
                 }
             }
 
+
+
             return result;
+        }
+
+        private async Task ProcessStandardQueue()
+        {
+            var now = DateTime.UtcNow;
+
+            // Find recipients who are Pending for Active Standard campaigns
+            // We batch them to avoid memory spikes
+            var pendingRecipients = await _context.CampaignRecipients
+                .Include(r => r.Campaign)
+                .Where(r => r.Campaign.Status == CampaignStatuses.Active
+                         && r.Campaign.Type != CampaignTypes.Drip
+                         && r.Status == "Pending")
+                .Take(50)
+                .ToListAsync();
+
+            foreach (var recipient in pendingRecipients)
+            {
+                await ExecuteStandardSend(recipient);
+            }
+
+            if (pendingRecipients.Any())
+            {
+                await _context.SaveChangesAsync();
+            }
+        }
+
+        private async Task ExecuteStandardSend(CampaignRecipient recipient)
+        {
+            _logger.LogInformation("Executing Standard Send for {Email} (Campaign: {CampaignName})", 
+                recipient.Email, recipient.Campaign.Name);
+
+            try
+            {
+                string baseUrl = _configuration["App:BaseUrl"] ?? "http://localhost:5000";
+
+                // 1. Prepare Content (From Campaign)
+                string subject = recipient.Campaign.Subject ?? "Information";
+                string body = recipient.Campaign.HtmlContent ?? recipient.Campaign.PlainTextContent ?? "Content";
+
+                // 2. Placeholder Substitution
+                if (recipient.ContactId.HasValue)
+                {
+                    var contact = await _context.Contacts.FindAsync(recipient.ContactId.Value);
+                    if (contact != null)
+                    {
+                        body = SubstitutePlaceholders(body, contact);
+                        subject = SubstitutePlaceholders(subject, contact);
+                    }
+                }
+
+                // 3. --- TRACKING INJECTION ---
+                
+                // Link Tracking (StepId is 0 for standard)
+                body = System.Text.RegularExpressions.Regex.Replace(body, 
+                    "href=\"(http[s]?://[^\"]+)\"", 
+                    m => 
+                    {
+                        var originalUrl = m.Groups[1].Value;
+                        if (originalUrl.Contains("/api/tracking")) return m.Value;
+                        
+                        var encodedUrl = System.Web.HttpUtility.UrlEncode(originalUrl);
+                        var trackingUrl = $"{baseUrl}/api/tracking/click/{recipient.Id}?url={encodedUrl}&stepId=0";
+                        return $"href=\"{trackingUrl}\"";
+                    }, 
+                    System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+                // Open Tracking Pixel
+                var pixelUrl = $"{baseUrl}/api/tracking/open/{recipient.Id}?stepId=0";
+                var trackingPixel = $"<img src=\"{pixelUrl}\" width=\"1\" height=\"1\" style=\"display:none;\" alt=\"\" />";
+                
+                if (body.Contains("</body>"))
+                    body = body.Replace("</body>", trackingPixel + "</body>");
+                else
+                    body += trackingPixel;
+
+                // 4. --- SMTP SENDING ---
+                bool sendSuccess = true;
+                string? errorMessage = null;
+                try 
+                {
+                    await _emailService.SendEmailAsync(recipient.Email, subject, body, true);
+                }
+                catch (Exception emailEx)
+                {
+                    _logger.LogWarning("Email sending failed for {Email}: {Msg}", recipient.Email, emailEx.Message);
+                    sendSuccess = false;
+                    errorMessage = emailEx.Message;
+                }
+
+                // 5. --- LOGGING & STATS ---
+                
+                // Update Recipient
+                recipient.SentAt = DateTime.UtcNow; 
+                recipient.Status = sendSuccess ? "Sent" : "Failed";
+
+                // Update Campaign Stats
+                recipient.Campaign.SentCount++;
+
+                // Log entry
+                _context.CampaignStepExecutionLogs.Add(new CampaignStepExecutionLog
+                {
+                    CampaignId = recipient.CampaignId,
+                    StepId = 0, // 0 for standard campaign
+                    RecipientId = recipient.Id,
+                    ContactId = recipient.ContactId,
+                    Email = recipient.Email,
+                    ExecutedAt = DateTime.UtcNow,
+                    Status = sendSuccess ? "Success" : "Failed",
+                    ErrorMessage = errorMessage
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to execute standard send for {Email}", recipient.Email);
+                recipient.Status = "Failed"; 
+            }
         }
     }
 }

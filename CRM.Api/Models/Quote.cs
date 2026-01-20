@@ -34,6 +34,9 @@ namespace CRM.Api.Models
         public int? OpportunityId { get; set; }
         public Opportunity? Opportunity { get; set; }
 
+        public int? QuoteTemplateId { get; set; }
+        public QuoteTemplate? QuoteTemplate { get; set; }
+
         // Dates
         public DateTime QuoteDate { get; set; } = DateTime.UtcNow;
         public DateTime? ExpirationDate { get; set; }

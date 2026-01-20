@@ -128,7 +128,7 @@ namespace CRM.Api.Controllers
                 return StatusCode(500, new TenantResponse 
                 { 
                     Success = false, 
-                    Message = "Failed to create organization. Please try again." 
+                    Message = $"Failed: {ex.Message} {(ex.InnerException != null ? "Inner: " + ex.InnerException.Message : "")}" 
                 });
             }
         }

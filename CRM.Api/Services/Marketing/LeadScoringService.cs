@@ -41,7 +41,7 @@ namespace CRM.Api.Services.Marketing
 
                 foreach (var rule in rules)
                 {
-                    if (MatchesConditions(rule, eventData))
+                    if (MatchesConditions(rule, eventData, contact))
                     {
                         totalPointsToAdd += rule.PointsValue;
                         matchedRules.Add(rule.Name);
@@ -66,7 +66,7 @@ namespace CRM.Api.Services.Marketing
             }
         }
 
-        private bool MatchesConditions(LeadScoringRule rule, object? eventData)
+        private bool MatchesConditions(LeadScoringRule rule, object? eventData, Contact contact)
         {
             if (string.IsNullOrWhiteSpace(rule.Conditions) || rule.Conditions == "[]" || rule.Conditions == "{}")
             {
@@ -98,11 +98,8 @@ namespace CRM.Api.Services.Marketing
                         if (field.StartsWith("Contact.", StringComparison.OrdinalIgnoreCase))
                         {
                             // Match against Contact record
-                            var contactIdToken = root.TryGetProperty("contactId", out var ctProp) ? ctProp.GetInt32() : 0;
-                            // Note: To be efficient, we'd pass the Contact object in, but for now we'll fetch it if needed 
-                            // or assume it's already in the context from the caller
                             var contactField = field.Substring(8);
-                            matched = MatchContactProperty(contactField, op, val, rule.Id);
+                            matched = MatchContactProperty(contact, contactField, op, val);
                         }
                         else
                         {
@@ -125,13 +122,51 @@ namespace CRM.Api.Services.Marketing
             }
         }
 
-        private bool MatchContactProperty(string field, string op, string value, int ruleId)
+        private bool MatchContactProperty(Contact contact, string field, string op, string value)
         {
-            // We need the contact object. It's usually tracked in the DB context if EvaluateRulesAsync was called.
-            // Simplified: This refinement would ideally have the contact object passed in.
-            // For now, let's just support event data matching which is the primary use case, 
-            // but I'll optimize the MatchProperty to be even more robust.
-            return false; // Placeholder for future full Contact property support
+            try
+            {
+                var prop = typeof(Contact).GetProperty(field, System.Reflection.BindingFlags.IgnoreCase | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
+                if (prop == null) return false;
+
+                var propValue = prop.GetValue(contact);
+                string actualValue = propValue?.ToString() ?? "";
+
+                return EvaluateOperator(actualValue, op, value);
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        private bool EvaluateOperator(string actualValue, string op, string targetValue)
+        {
+            switch (op.ToLower())
+            {
+                case "equals":
+                case "==":
+                    return actualValue.Equals(targetValue, StringComparison.OrdinalIgnoreCase);
+                case "notequals":
+                case "!=":
+                    return !actualValue.Equals(targetValue, StringComparison.OrdinalIgnoreCase);
+                case "contains":
+                    return actualValue.IndexOf(targetValue, StringComparison.OrdinalIgnoreCase) >= 0;
+                case "notcontains":
+                    return actualValue.IndexOf(targetValue, StringComparison.OrdinalIgnoreCase) < 0;
+                case "startswith":
+                    return actualValue.StartsWith(targetValue, StringComparison.OrdinalIgnoreCase);
+                case "endswith":
+                    return actualValue.EndsWith(targetValue, StringComparison.OrdinalIgnoreCase);
+                case "greaterthan":
+                case ">":
+                    return double.TryParse(actualValue, out double v1) && double.TryParse(targetValue, out double v2) && v1 > v2;
+                case "lessthan":
+                case "<":
+                    return double.TryParse(actualValue, out double v3) && double.TryParse(targetValue, out double v4) && v3 < v4;
+                default:
+                    return false;
+            }
         }
 
         private bool MatchProperty(JsonElement eventData, string field, string op, string value)

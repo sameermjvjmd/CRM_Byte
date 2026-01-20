@@ -406,7 +406,7 @@ const LandingPageBuilder: React.FC = () => {
                                         >
                                             <option value="">-- Auto-Assign (Round Robin) --</option>
                                             {users.map(user => (
-                                                <option key={user.id} value={user.id}>{user.firstName} {user.lastName}</option>
+                                                <option key={user.id} value={user.id}>{user.fullName}</option>
                                             ))}
                                         </select>
                                         <p className="text-[10px] text-slate-400 mt-1">New contacts will be owned by this user.</p>

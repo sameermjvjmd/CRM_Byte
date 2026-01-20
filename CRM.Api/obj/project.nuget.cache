@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "H385CXUKDAg=",
+  "dgSpecHash": "DTMAwyPuatk=",
   "success": true,
-  "projectFilePath": "D:\\Project(s)\\CRM_ACT\\CRM.Api\\CRM.Api.csproj",
+  "projectFilePath": "d:\\Project(s)\\CRM_ACT\\CRM.Api\\CRM.Api.csproj",
   "expectedPackageFiles": [
     "C:\\Users\\SAMEER MJ\\.nuget\\packages\\azure.core\\1.47.1\\azure.core.1.47.1.nupkg.sha512",
     "C:\\Users\\SAMEER MJ\\.nuget\\packages\\azure.identity\\1.14.2\\azure.identity.1.14.2.nupkg.sha512",
@@ -52,6 +52,7 @@
     "C:\\Users\\SAMEER MJ\\.nuget\\packages\\mono.texttemplating\\3.0.0\\mono.texttemplating.3.0.0.nupkg.sha512",
     "C:\\Users\\SAMEER MJ\\.nuget\\packages\\newtonsoft.json\\13.0.3\\newtonsoft.json.13.0.3.nupkg.sha512",
     "C:\\Users\\SAMEER MJ\\.nuget\\packages\\rbush.signed\\4.0.0\\rbush.signed.4.0.0.nupkg.sha512",
+    "C:\\Users\\SAMEER MJ\\.nuget\\packages\\scalar.aspnetcore\\2.12.11\\scalar.aspnetcore.2.12.11.nupkg.sha512",
     "C:\\Users\\SAMEER MJ\\.nuget\\packages\\sixlabors.fonts\\1.0.0\\sixlabors.fonts.1.0.0.nupkg.sha512",
     "C:\\Users\\SAMEER MJ\\.nuget\\packages\\system.clientmodel\\1.5.1\\system.clientmodel.1.5.1.nupkg.sha512",
     "C:\\Users\\SAMEER MJ\\.nuget\\packages\\system.codedom\\9.0.0\\system.codedom.9.0.0.nupkg.sha512",

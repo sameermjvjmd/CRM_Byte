@@ -20,6 +20,42 @@ interface PersonalInfoTabProps {
     onUpdate: (info: PersonalInfo) => void;
 }
 
+const InfoItem = ({ icon, label, value, field, isEditing, editable = true, onChange }: any) => (
+    <div className="p-4 bg-slate-50 rounded-xl border border-slate-200">
+        <div className="flex items-center gap-2 mb-2">
+            {icon}
+            <label className="text-xs font-bold text-slate-500 uppercase">{label}</label>
+        </div>
+        {isEditing && editable ? (
+            <input
+                type="text"
+                value={value || ''}
+                onChange={(e) => onChange(field, e.target.value)}
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                placeholder={`Enter ${label.toLowerCase()}...`}
+            />
+        ) : (
+            <p className="font-bold text-slate-900">{value || <span className="text-slate-400 italic">Not provided</span>}</p>
+        )}
+    </div>
+);
+
+const TextAreaItem = ({ label, value, field, isEditing, onChange }: { label: string; value?: string; field: keyof PersonalInfo; isEditing: boolean; onChange: (field: keyof PersonalInfo, value: string) => void }) => (
+    <div className="p-4 bg-slate-50 rounded-xl border border-slate-200">
+        <label className="text-xs font-bold text-slate-500 uppercase mb-2 block">{label}</label>
+        {isEditing ? (
+            <textarea
+                value={value || ''}
+                onChange={(e) => onChange(field, e.target.value)}
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500 h-24 resize-none"
+                placeholder={`Enter ${label.toLowerCase()}...`}
+            />
+        ) : (
+            <p className="font-bold text-slate-900 whitespace-pre-wrap">{value || <span className="text-slate-400 italic">Not provided</span>}</p>
+        )}
+    </div>
+);
+
 const PersonalInfoTab = ({ contactId, personalInfo, onUpdate }: PersonalInfoTabProps) => {
     const [isEditing, setIsEditing] = useState(false);
     const [formData, setFormData] = useState<PersonalInfo>(personalInfo);
@@ -37,42 +73,6 @@ const PersonalInfoTab = ({ contactId, personalInfo, onUpdate }: PersonalInfoTabP
     const handleChange = (field: keyof PersonalInfo, value: string) => {
         setFormData(prev => ({ ...prev, [field]: value }));
     };
-
-    const InfoItem = ({ icon, label, value, editable = true }: any) => (
-        <div className="p-4 bg-slate-50 rounded-xl border border-slate-200">
-            <div className="flex items-center gap-2 mb-2">
-                {icon}
-                <label className="text-xs font-bold text-slate-500 uppercase">{label}</label>
-            </div>
-            {isEditing && editable ? (
-                <input
-                    type="text"
-                    value={value || ''}
-                    onChange={(e) => handleChange(label.toLowerCase().replace(' ', '') as keyof PersonalInfo, e.target.value)}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                    placeholder={`Enter ${label.toLowerCase()}...`}
-                />
-            ) : (
-                <p className="font-bold text-slate-900">{value || <span className="text-slate-400 italic">Not provided</span>}</p>
-            )}
-        </div>
-    );
-
-    const TextAreaItem = ({ label, value, field }: { label: string; value?: string; field: keyof PersonalInfo }) => (
-        <div className="p-4 bg-slate-50 rounded-xl border border-slate-200">
-            <label className="text-xs font-bold text-slate-500 uppercase mb-2 block">{label}</label>
-            {isEditing ? (
-                <textarea
-                    value={value || ''}
-                    onChange={(e) => handleChange(field, e.target.value)}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500 h-24 resize-none"
-                    placeholder={`Enter ${label.toLowerCase()}...`}
-                />
-            ) : (
-                <p className="font-bold text-slate-900 whitespace-pre-wrap">{value || <span className="text-slate-400 italic">Not provided</span>}</p>
-            )}
-        </div>
-    );
 
     return (
         <div className="space-y-6">
@@ -158,8 +158,22 @@ const PersonalInfoTab = ({ contactId, personalInfo, onUpdate }: PersonalInfoTabP
             <div>
                 <h4 className="text-sm font-black uppercase text-slate-400 tracking-wide mb-3">Family</h4>
                 <div className="grid grid-cols-2 gap-4">
-                    <InfoItem icon={<Users size={14} className="text-blue-600" />} label="Spouse" value={formData.spouse} />
-                    <InfoItem icon={<Users size={14} className="text-green-600" />} label="Children" value={formData.children} />
+                    <InfoItem
+                        icon={<Users size={14} className="text-blue-600" />}
+                        label="Spouse"
+                        value={formData.spouse}
+                        field="spouse"
+                        isEditing={isEditing}
+                        onChange={handleChange}
+                    />
+                    <InfoItem
+                        icon={<Users size={14} className="text-green-600" />}
+                        label="Children"
+                        value={formData.children}
+                        field="children"
+                        isEditing={isEditing}
+                        onChange={handleChange}
+                    />
                 </div>
             </div>
 
@@ -167,7 +181,14 @@ const PersonalInfoTab = ({ contactId, personalInfo, onUpdate }: PersonalInfoTabP
             <div>
                 <h4 className="text-sm font-black uppercase text-slate-400 tracking-wide mb-3">Professional</h4>
                 <div className="grid grid-cols-1 gap-4">
-                    <InfoItem icon={<Briefcase size={14} className="text-indigo-600" />} label="Education" value={formData.education} />
+                    <InfoItem
+                        icon={<Briefcase size={14} className="text-indigo-600" />}
+                        label="Education"
+                        value={formData.education}
+                        field="education"
+                        isEditing={isEditing}
+                        onChange={handleChange}
+                    />
                 </div>
             </div>
 
@@ -175,9 +196,27 @@ const PersonalInfoTab = ({ contactId, personalInfo, onUpdate }: PersonalInfoTabP
             <div>
                 <h4 className="text-sm font-black uppercase text-slate-400 tracking-wide mb-3">Personal Details</h4>
                 <div className="space-y-4">
-                    <TextAreaItem label="Hobbies & Interests" value={formData.hobbies} field="hobbies" />
-                    <TextAreaItem label="Achievements" value={formData.achievements} field="achievements" />
-                    <TextAreaItem label="Personal Notes" value={formData.personalNotes} field="personalNotes" />
+                    <TextAreaItem
+                        label="Hobbies & Interests"
+                        value={formData.hobbies}
+                        field="hobbies"
+                        isEditing={isEditing}
+                        onChange={handleChange}
+                    />
+                    <TextAreaItem
+                        label="Achievements"
+                        value={formData.achievements}
+                        field="achievements"
+                        isEditing={isEditing}
+                        onChange={handleChange}
+                    />
+                    <TextAreaItem
+                        label="Personal Notes"
+                        value={formData.personalNotes}
+                        field="personalNotes"
+                        isEditing={isEditing}
+                        onChange={handleChange}
+                    />
                 </div>
             </div>
 
@@ -185,8 +224,22 @@ const PersonalInfoTab = ({ contactId, personalInfo, onUpdate }: PersonalInfoTabP
             <div>
                 <h4 className="text-sm font-black uppercase text-slate-400 tracking-wide mb-3">Social Media</h4>
                 <div className="grid grid-cols-2 gap-4">
-                    <InfoItem icon={<span className="text-blue-600 font-bold text-xs">in</span>} label="LinkedIn" value={formData.linkedin} />
-                    <InfoItem icon={<span className="text-sky-600 font-bold text-xs">𝕏</span>} label="Twitter" value={formData.twitter} />
+                    <InfoItem
+                        icon={<span className="text-blue-600 font-bold text-xs">in</span>}
+                        label="LinkedIn"
+                        value={formData.linkedin}
+                        field="linkedin"
+                        isEditing={isEditing}
+                        onChange={handleChange}
+                    />
+                    <InfoItem
+                        icon={<span className="text-sky-600 font-bold text-xs">𝕏</span>}
+                        label="Twitter"
+                        value={formData.twitter}
+                        field="twitter"
+                        isEditing={isEditing}
+                        onChange={handleChange}
+                    />
                 </div>
             </div>
 

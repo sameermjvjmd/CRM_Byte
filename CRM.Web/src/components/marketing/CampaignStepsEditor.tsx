@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Mail, Plus, Clock, Trash2, Edit, Save, X, MoveUp, MoveDown, Layers } from 'lucide-react';
 import api from '../../api/api';
 import { toast } from 'react-hot-toast';
+import { emailApi, type EmailTemplate } from '../../api/emailApi';
 
 interface CampaignStep {
     id: number;
@@ -28,6 +29,7 @@ const CampaignStepsEditor: React.FC<Props> = ({ campaignId, campaignName, onClos
     const [loading, setLoading] = useState(true);
     const [showAddForm, setShowAddForm] = useState(false);
     const [editingStepId, setEditingStepId] = useState<number | null>(null);
+    const [templates, setTemplates] = useState<EmailTemplate[]>([]);
 
     const [formData, setFormData] = useState({
         name: '',
@@ -39,6 +41,7 @@ const CampaignStepsEditor: React.FC<Props> = ({ campaignId, campaignName, onClos
 
     useEffect(() => {
         fetchSteps();
+        fetchTemplates();
     }, [campaignId]);
 
     const fetchSteps = async () => {
@@ -50,6 +53,15 @@ const CampaignStepsEditor: React.FC<Props> = ({ campaignId, campaignName, onClos
             toast.error('Failed to load campaign steps');
         } finally {
             setLoading(false);
+        }
+    };
+
+    const fetchTemplates = async () => {
+        try {
+            const data = await emailApi.getTemplates();
+            setTemplates(data.filter(t => t.isActive));
+        } catch (error) {
+            console.error('Failed to load templates', error);
         }
     };
 
@@ -244,6 +256,22 @@ const CampaignStepsEditor: React.FC<Props> = ({ campaignId, campaignName, onClos
                                             <div>
                                                 <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Subject *</label>
                                                 <input required value={formData.subject} onChange={e => setFormData({ ...formData, subject: e.target.value })} className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500" placeholder="Email Subject" />
+                                            </div>
+                                            <div className="col-span-2">
+                                                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Use Template</label>
+                                                <select
+                                                    value={formData.templateId || ''}
+                                                    onChange={e => {
+                                                        const tid = e.target.value ? parseInt(e.target.value) : undefined;
+                                                        setFormData(prev => ({ ...prev, templateId: tid }));
+                                                    }}
+                                                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500"
+                                                >
+                                                    <option value="">-- No Template --</option>
+                                                    {templates.map(t => (
+                                                        <option key={t.id} value={t.id}>{t.name}</option>
+                                                    ))}
+                                                </select>
                                             </div>
                                         </div>
 

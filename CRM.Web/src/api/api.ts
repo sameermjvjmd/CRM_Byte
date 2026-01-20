@@ -52,6 +52,8 @@ const api = axios.create({
     },
 });
 
+console.log('API Base URL:', getApiBaseUrl());
+
 // Request interceptor - add auth token and tenant header to requests
 api.interceptors.request.use(
     (config: InternalAxiosRequestConfig) => {

@@ -68,7 +68,9 @@ namespace CRM.Api.Data
         // Product Catalog (Week 15-16)
         public DbSet<Product> Products { get; set; }
         public DbSet<Quote> Quotes { get; set; }
+        public DbSet<QuoteTemplate> QuoteTemplates { get; set; }
         public DbSet<QuoteLineItem> QuoteLineItems { get; set; }
+        public DbSet<SalesQuota> SalesQuotas { get; set; }
 
         // Workflow Automation (Week 16)
         public DbSet<WorkflowRule> WorkflowRules { get; set; }

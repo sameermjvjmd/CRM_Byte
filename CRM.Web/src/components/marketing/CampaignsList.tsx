@@ -2,7 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { Mail, Plus, Clock, Filter, Trash2, Edit, Play, Pause, BarChart2, Layers } from 'lucide-react';
 import api from '../../api/api';
 import { toast } from 'react-hot-toast';
+import { emailApi, type EmailTemplate } from '../../api/emailApi';
 import CampaignStepsEditor from './CampaignStepsEditor';
+import CampaignAnalytics from './CampaignAnalytics';
 
 interface Campaign {
     id: number;
@@ -29,22 +31,43 @@ const CampaignsList: React.FC = () => {
     const [showCreateModal, setShowCreateModal] = useState(false);
     const [showStepsModal, setShowStepsModal] = useState(false);
     const [selectedCampaignForSteps, setSelectedCampaignForSteps] = useState<Campaign | null>(null);
+    const [selectedCampaignForAnalytics, setSelectedCampaignForAnalytics] = useState<number | null>(null);
+    const [editingId, setEditingId] = useState<number | null>(null);
 
     // Create form state
-    const [newCampaign, setNewCampaign] = useState({
+    const [newCampaign, setNewCampaign] = useState<{
+        name: string;
+        description: string;
+        type: string;
+        subject: string;
+        marketingListId: string;
+        templateId?: string;
+    }>({
         name: '',
         description: '',
         type: 'Email',
         subject: '',
-        marketingListId: ''
+        marketingListId: '',
+        templateId: ''
     });
 
     const [lists, setLists] = useState<any[]>([]);
+    const [templates, setTemplates] = useState<EmailTemplate[]>([]);
 
     useEffect(() => {
         fetchCampaigns();
         fetchLists();
+        fetchTemplates();
     }, []);
+
+    const fetchTemplates = async () => {
+        try {
+            const data = await emailApi.getTemplates();
+            setTemplates(data.filter(t => t.isActive));
+        } catch (error) {
+            console.error('Failed to load templates', error);
+        }
+    };
 
     const fetchCampaigns = async () => {
         try {
@@ -67,21 +90,56 @@ const CampaignsList: React.FC = () => {
         }
     };
 
-    const handleCreateCampaign = async (e: React.FormEvent) => {
+    const handleCreateOrUpdateCampaign = async (e: React.FormEvent) => {
         e.preventDefault();
         try {
-            await api.post('/marketing/campaigns', {
+            const payload = {
                 ...newCampaign,
-                marketingListId: newCampaign.marketingListId ? parseInt(newCampaign.marketingListId) : null
-            });
-            toast.success('Campaign created successfully');
-            setShowCreateModal(false);
-            setNewCampaign({ name: '', description: '', type: 'Email', subject: '', marketingListId: '' });
+                marketingListId: newCampaign.marketingListId ? parseInt(newCampaign.marketingListId) : null,
+                templateId: newCampaign.templateId ? parseInt(newCampaign.templateId) : null
+            };
+
+            if (editingId) {
+                await api.put(`/marketing/campaigns/${editingId}`, payload);
+                toast.success('Campaign updated successfully');
+            } else {
+                await api.post('/marketing/campaigns', payload);
+                toast.success('Campaign created successfully');
+            }
+
+            closeModal();
             fetchCampaigns();
-        } catch (error) {
-            console.error('Failed to create campaign:', error);
-            toast.error('Failed to create campaign');
+        } catch (error: any) {
+            console.error('Failed to save campaign:', error);
+            toast.error(error.response?.data?.message || 'Failed to save campaign');
         }
+    };
+
+    const handleEdit = async (camp: Campaign) => {
+        try {
+            const { data } = await api.get(`/marketing/campaigns/${camp.id}`);
+            setEditingId(camp.id);
+            setNewCampaign({
+                name: data.name,
+                description: data.description || '',
+                type: data.type,
+                subject: data.subject || '',
+                marketingListId: lists.find(l => l.name === data.marketingListName)?.id?.toString() || '',
+                // Preserve content that isn't editable in this modal
+                htmlContent: data.htmlContent,
+                plainTextContent: data.plainTextContent,
+                templateId: data.templateId
+            } as any);
+            setShowCreateModal(true);
+        } catch (error) {
+            toast.error('Failed to load campaign details');
+        }
+    };
+
+    const closeModal = () => {
+        setShowCreateModal(false);
+        setEditingId(null);
+        setNewCampaign({ name: '', description: '', type: 'Email', subject: '', marketingListId: '' });
     };
 
     const handleDelete = async (id: number) => {
@@ -95,6 +153,30 @@ const CampaignsList: React.FC = () => {
         }
     };
 
+    const handleStart = async (id: number) => {
+        // if (!window.confirm('Are you sure you want to start this campaign?')) return;
+        const toastId = toast.loading('Starting campaign...');
+        try {
+            console.log(`Starting campaign ${id}...`);
+            await api.post(`/marketing/campaigns/${id}/send`);
+            toast.success('Campaign started successfully', { id: toastId });
+            fetchCampaigns();
+        } catch (error) {
+            console.error('Start campaign error:', error);
+            toast.error('Failed to start campaign', { id: toastId });
+        }
+    };
+
+    const handlePause = async (id: number) => {
+        try {
+            await api.post(`/marketing/campaigns/${id}/pause`);
+            toast.success('Campaign paused');
+            fetchCampaigns();
+        } catch (error) {
+            toast.error('Failed to pause campaign');
+        }
+    };
+
     const filteredCampaigns = campaigns.filter(c => {
         if (statusFilter === 'All') return true;
         return c.status === statusFilter;
@@ -102,8 +184,13 @@ const CampaignsList: React.FC = () => {
 
     if (loading) return <div className="p-8 text-center text-slate-500">Loading campaigns...</div>;
 
+    // Removed duplicate class defs which I can't see but assuming were there from previous context or just cleaning up
     const inputClass = "w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm transition-all";
     const labelClass = "block text-xs font-bold text-slate-700 uppercase mb-1";
+
+    if (selectedCampaignForAnalytics) {
+        return <CampaignAnalytics campaignId={selectedCampaignForAnalytics} onBack={() => setSelectedCampaignForAnalytics(null)} />;
+    }
 
     return (
         <div className="space-y-6">
@@ -166,17 +253,30 @@ const CampaignsList: React.FC = () => {
                                                 <div className="text-sm font-bold text-slate-900">{camp.uniqueOpenCount}</div>
                                                 <div className="text-[10px] text-slate-400 uppercase font-bold">Opens</div>
                                             </div>
-                                            <div className="text-center">
+                                            <div className="text-center group/rate cursor-pointer" onClick={() => setSelectedCampaignForAnalytics(camp.id)}>
                                                 <div className={`text-sm font-bold ${(camp.openRate || 0) > 20 ? 'text-emerald-600' : 'text-slate-700'}`}>
                                                     {(camp.openRate || 0).toFixed(1)}%
                                                 </div>
-                                                <div className="text-[10px] text-slate-400 uppercase font-bold">Rate</div>
+                                                <div className="text-[10px] text-slate-400 group-hover/rate:text-indigo-500 uppercase font-bold flex items-center gap-1 justify-center">
+                                                    Rate <BarChart2 size={10} />
+                                                </div>
                                             </div>
                                         </>
                                     )}
 
-                                    <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                        <button className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-slate-100 rounded-full transition-colors" title="Edit">
+                                    <div className="flex items-center gap-2 transition-opacity">
+                                        <button
+                                            onClick={() => setSelectedCampaignForAnalytics(camp.id)}
+                                            className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-slate-100 rounded-full transition-colors"
+                                            title="View Analytics"
+                                        >
+                                            <BarChart2 size={18} />
+                                        </button>
+                                        <button
+                                            onClick={() => handleEdit(camp)}
+                                            className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-slate-100 rounded-full transition-colors"
+                                            title="Edit"
+                                        >
                                             <Edit size={18} />
                                         </button>
                                         {camp.type === 'Drip' && (
@@ -189,12 +289,20 @@ const CampaignsList: React.FC = () => {
                                             </button>
                                         )}
                                         {camp.status === 'Draft' && (
-                                            <button className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-full transition-colors" title="Start">
+                                            <button
+                                                onClick={() => handleStart(camp.id)}
+                                                className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-full transition-colors"
+                                                title="Start"
+                                            >
                                                 <Play size={18} />
                                             </button>
                                         )}
                                         {camp.status === 'Active' && (
-                                            <button className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-full transition-colors" title="Pause">
+                                            <button
+                                                onClick={() => handlePause(camp.id)}
+                                                className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-full transition-colors"
+                                                title="Pause"
+                                            >
                                                 <Pause size={18} />
                                             </button>
                                         )}
@@ -213,12 +321,12 @@ const CampaignsList: React.FC = () => {
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
                     <div className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-200">
                         <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-gradient-to-r from-indigo-50 to-purple-50">
-                            <h3 className="font-bold text-lg text-slate-800">New Campaign</h3>
-                            <button onClick={() => setShowCreateModal(false)} className="text-slate-400 hover:text-slate-600 transition-colors">
+                            <h3 className="font-bold text-lg text-slate-800">{editingId ? 'Edit Campaign' : 'New Campaign'}</h3>
+                            <button onClick={closeModal} className="text-slate-400 hover:text-slate-600 transition-colors">
                                 <Plus className="rotate-45" size={20} />
                             </button>
                         </div>
-                        <form onSubmit={handleCreateCampaign} className="p-6 space-y-4">
+                        <form onSubmit={handleCreateOrUpdateCampaign} className="p-6 space-y-4">
                             <div>
                                 <label className={labelClass}>Campaign Name *</label>
                                 <input
@@ -263,11 +371,29 @@ const CampaignsList: React.FC = () => {
                                     >
                                         <option value="">Select a list...</option>
                                         {lists.map(list => (
-                                            <option key={list.id} value={list.id}>{list.name} ({list.subscribedCount})</option>
+                                            <option key={list.id} value={list.id}>{list.name} ({list.memberCount ?? 0})</option>
                                         ))}
                                     </select>
                                 </div>
                             </div>
+                            {newCampaign.type === 'Email' && (
+                                <div>
+                                    <label className={labelClass}>Email Template</label>
+                                    <select
+                                        value={newCampaign.templateId || ''}
+                                        onChange={(e) => setNewCampaign({ ...newCampaign, templateId: e.target.value })}
+                                        className={inputClass}
+                                    >
+                                        <option value="">Select a template...</option>
+                                        {templates.map(t => (
+                                            <option key={t.id} value={t.id}>{t.name}</option>
+                                        ))}
+                                    </select>
+                                    <div className="text-[10px] text-slate-400 mt-1">
+                                        Selecting a template will use its design for this campaign.
+                                    </div>
+                                </div>
+                            )}
                             <div>
                                 <label className={labelClass}>Description</label>
                                 <textarea
@@ -279,8 +405,8 @@ const CampaignsList: React.FC = () => {
                                 />
                             </div>
                             <div className="flex justify-end gap-3 pt-4">
-                                <button type="button" onClick={() => setShowCreateModal(false)} className="px-4 py-2 text-sm font-bold text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">Cancel</button>
-                                <button type="submit" className="px-6 py-2 text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-lg shadow-indigo-200 transition-all">Create</button>
+                                <button type="button" onClick={closeModal} className="px-4 py-2 text-sm font-bold text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">Cancel</button>
+                                <button type="submit" className="px-6 py-2 text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-lg shadow-indigo-200 transition-all">{editingId ? 'Save Changes' : 'Create'}</button>
                             </div>
                         </form>
                     </div>

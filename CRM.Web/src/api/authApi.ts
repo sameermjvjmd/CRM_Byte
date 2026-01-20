@@ -183,8 +183,16 @@ export const authApi = {
      * Register a new tenant (organization)
      */
     registerTenant: async (data: RegisterTenantRequest): Promise<TenantResponse> => {
-        const response = await api.post<TenantResponse>('/tenants/register', data);
-        return response.data;
+        try {
+            const response = await api.post<TenantResponse>('/tenants/register', data);
+            return response.data;
+        } catch (error: any) {
+            if (error.response) {
+                console.error('Tenant Registration API Error Response:', error.response.data);
+                return error.response.data;
+            }
+            throw error;
+        }
     }
 };
 

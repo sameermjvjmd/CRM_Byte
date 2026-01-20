@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using CRM.Api.Data;
 using CRM.Api.Services.Marketing;
+using System.Text.Json;
 
 namespace CRM.Api.Controllers.Marketing
 {
@@ -132,6 +133,21 @@ namespace CRM.Api.Controllers.Marketing
                         {
                             step.ClickCount++;
                         }
+                    }
+
+                    // Update Clicked Links Log
+                    try
+                    {
+                        var links = string.IsNullOrEmpty(recipient.ClickedLinks) 
+                            ? new List<string>() 
+                            : JsonSerializer.Deserialize<List<string>>(recipient.ClickedLinks) ?? new List<string>();
+                        
+                        links.Add(url);
+                        recipient.ClickedLinks = JsonSerializer.Serialize(links);
+                    }
+                    catch (Exception jsonEx)
+                    {
+                        _logger.LogWarning("Failed to update ClickedLinks for Recipient {Id}: {Msg}", recipient.Id, jsonEx.Message);
                     }
 
                     await _context.SaveChangesAsync();

@@ -165,12 +165,14 @@ const QuoteDetailPage = () => {
         let email = defaultEmail;
 
         if (!email) {
-            email = prompt('Enter recipient email:');
-            if (!email) return;
+            const newEmail = prompt('Enter recipient email:');
+            if (!newEmail) return;
+            email = newEmail;
         } else {
             if (!confirm(`Send quote to ${email}? Click Cancel to enter a different address.`)) {
-                email = prompt('Enter recipient email:', defaultEmail);
-                if (!email) return;
+                const newEmail = prompt('Enter recipient email:', defaultEmail || '');
+                if (!newEmail) return;
+                email = newEmail;
             }
         }
 

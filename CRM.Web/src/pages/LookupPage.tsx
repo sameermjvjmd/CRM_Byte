@@ -110,7 +110,7 @@ const LookupPage = () => {
             }
 
             const request: AdvancedSearchRequest = {
-                entityType: entityType === 'All' || entityType === 'Groups' ? 'Contacts' : entityType, // Fallback for type safety until handled
+                entityType: ((entityType as string) === 'All' || (entityType as string) === 'Groups') ? 'Contacts' : (entityType as 'Contacts' | 'Companies' | 'Opportunities'),
                 criteria,
                 matchType: 'All'
             };

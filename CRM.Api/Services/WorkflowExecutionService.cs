@@ -71,9 +71,22 @@ namespace CRM.Api.Services
                     "Found {Count} workflows for {TriggerType} on {EntityType} #{EntityId}",
                     workflows.Count, triggerType, entityType, entityId);
 
+                // If entityData is null or generic object, try to fetch the real entity
+                object? targetEntity = entityData;
+                if (targetEntity == null || targetEntity.GetType() == typeof(object))
+                {
+                   targetEntity = await FetchEntityAsync(entityType, entityId);
+                }
+
                 foreach (var workflow in workflows)
                 {
-                    await ExecuteWorkflow(workflow, entityId, entityData);
+                    // Check conditions
+                    if (!MatchesConditions(workflow, targetEntity))
+                    {
+                        continue;
+                    }
+
+                    await ExecuteWorkflow(workflow, entityId, entityData ?? targetEntity ?? new object());
                 }
             }
             catch (Exception ex)
@@ -491,6 +504,149 @@ namespace CRM.Api.Services
             catch
             {
                 return new Dictionary<string, string>();
+            }
+        }
+        private async Task<object?> FetchEntityAsync(string entityType, int entityId)
+        {
+            switch (entityType)
+            {
+                case "Contact": return await _context.Contacts.FindAsync(entityId);
+                case "Company": return await _context.Companies.FindAsync(entityId);
+                case "Opportunity": return await _context.Opportunities.FindAsync(entityId);
+                case "Quote": return await _context.Quotes.FindAsync(entityId);
+                case "Activity": return await _context.Activities.FindAsync(entityId);
+                default: return null;
+            }
+        }
+
+        private bool MatchesConditions(WorkflowRule rule, object? entity)
+        {
+            if (string.IsNullOrWhiteSpace(rule.TriggerConditions) || rule.TriggerConditions == "[]")
+            {
+                return true;
+            }
+
+            try
+            {
+                using (var doc = JsonDocument.Parse(rule.TriggerConditions))
+                {
+                    var root = doc.RootElement;
+                    var conditionsArray = root.ValueKind == JsonValueKind.Array ? root :
+                                         (root.TryGetProperty("conditions", out var p) ? p : root);
+
+                    if (conditionsArray.ValueKind != JsonValueKind.Array) return true;
+
+                    foreach (var condition in conditionsArray.EnumerateArray())
+                    {
+                        if (!condition.TryGetProperty("field", out var fieldProp)) continue;
+
+                        string field = fieldProp.GetString() ?? "";
+                        string op = condition.TryGetProperty("operator", out var opProp) ? opProp.GetString() ?? "equals" : "equals";
+                        string val = condition.TryGetProperty("value", out var valProp) ? valProp.GetString() ?? "" : "";
+
+                        // If entity is dictionary equivalent (e.g. JSON), use MatchProperty
+                        bool matched = false;
+                        if (entity is JsonElement jsonElement)
+                        {
+                            matched = MatchJsonProperty(jsonElement, field, op, val);
+                        }
+                        else if (entity != null)
+                        {
+                            matched = MatchEntityProperty(entity, field, op, val);
+                        }
+                        
+                        // Start with AND logic (all must match)
+                        // If we needed OR logic, the JSON structure would need "logic": "OR"
+                        if (!matched) return false;
+                    }
+                }
+                return true;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to evaluate conditions for workflow {WorkflowId}", rule.Id);
+                return false;
+            }
+        }
+
+        private bool MatchEntityProperty(object entity, string field, string op, string value)
+        {
+            try
+            {
+                var type = entity.GetType();
+                var prop = type.GetProperty(field, BindingFlags.IgnoreCase | BindingFlags.Public | BindingFlags.Instance);
+                
+                // Allow nested properties e.g. "Contact.FirstName" if Entity is Quote and has Contact property
+                if (prop == null && field.Contains('.'))
+                {
+                    var parts = field.Split('.');
+                    object? currentObj = entity;
+                    foreach (var part in parts)
+                    {
+                        if (currentObj == null) return false;
+                        var p = currentObj.GetType().GetProperty(part, BindingFlags.IgnoreCase | BindingFlags.Public | BindingFlags.Instance);
+                        if (p == null) return false;
+                        currentObj = p.GetValue(currentObj);
+                    }
+                    
+                    var finalVal = currentObj?.ToString() ?? "";
+                    return EvaluateOperator(finalVal, op, value);
+                }
+
+                if (prop == null) return false;
+
+                var propValue = prop.GetValue(entity);
+                string actualValue = propValue?.ToString() ?? "";
+
+                return EvaluateOperator(actualValue, op, value);
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        private bool MatchJsonProperty(JsonElement element, string field, string op, string value)
+        {
+             // Simple single-level for now, or dot notation if needed
+             if (element.ValueKind == JsonValueKind.Object)
+             {
+                 if (element.TryGetProperty(field, out var prop))
+                 {
+                     string actual = prop.ToString();
+                     if (prop.ValueKind == JsonValueKind.String) actual = prop.GetString() ?? "";
+                     return EvaluateOperator(actual, op, value);
+                 }
+             }
+             return false;
+        }
+
+        private bool EvaluateOperator(string actualValue, string op, string targetValue)
+        {
+            switch (op.ToLower())
+            {
+                case "equals":
+                case "==":
+                    return actualValue.Equals(targetValue, StringComparison.OrdinalIgnoreCase);
+                case "notequals":
+                case "!=":
+                    return !actualValue.Equals(targetValue, StringComparison.OrdinalIgnoreCase);
+                case "contains":
+                    return actualValue.IndexOf(targetValue, StringComparison.OrdinalIgnoreCase) >= 0;
+                case "notcontains":
+                    return actualValue.IndexOf(targetValue, StringComparison.OrdinalIgnoreCase) < 0;
+                case "startswith":
+                    return actualValue.StartsWith(targetValue, StringComparison.OrdinalIgnoreCase);
+                case "endswith":
+                    return actualValue.EndsWith(targetValue, StringComparison.OrdinalIgnoreCase);
+                case "greaterthan":
+                case ">":
+                    return double.TryParse(actualValue, out double v1) && double.TryParse(targetValue, out double v2) && v1 > v2;
+                case "lessthan":
+                case "<":
+                    return double.TryParse(actualValue, out double v3) && double.TryParse(targetValue, out double v4) && v3 < v4;
+                default:
+                    return false;
             }
         }
     }

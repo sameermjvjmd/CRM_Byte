@@ -78,6 +78,7 @@ namespace CRM.Api.Controllers
                 .Include(q => q.Opportunity)
                 .Include(q => q.LineItems.OrderBy(li => li.SortOrder))
                     .ThenInclude(li => li.Product)
+                .Include(q => q.QuoteTemplate)
                 .FirstOrDefaultAsync(q => q.Id == id);
 
             if (quote == null)
@@ -120,6 +121,16 @@ namespace CRM.Api.Controllers
 
             quote.CreatedAt = DateTime.UtcNow;
             quote.LastModifiedAt = DateTime.UtcNow;
+
+            // Assign default template if not specified
+            if (quote.QuoteTemplateId == null)
+            {
+                var defaultTemplate = await _context.QuoteTemplates.FirstOrDefaultAsync(t => t.IsDefault);
+                if (defaultTemplate != null)
+                {
+                    quote.QuoteTemplateId = defaultTemplate.Id;
+                }
+            }
 
             // Calculate totals
             CalculateQuoteTotals(quote);
@@ -324,6 +335,7 @@ namespace CRM.Api.Controllers
                 .Include(q => q.Contact)
                 .Include(q => q.Company)
                 .Include(q => q.LineItems.OrderBy(li => li.SortOrder))
+                .Include(q => q.QuoteTemplate)
                 .FirstOrDefaultAsync(q => q.PublicToken == token);
 
             if (quote == null)

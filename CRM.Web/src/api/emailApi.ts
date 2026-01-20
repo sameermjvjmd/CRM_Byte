@@ -6,6 +6,7 @@ export interface EmailTemplate {
     subject: string;
     body: string;
     category: string;
+    designJson?: string;
     isActive: boolean;
     createdAt: string;
     updatedAt?: string;
@@ -16,6 +17,7 @@ export interface CreateEmailTemplateDto {
     subject: string;
     body: string;
     category: string;
+    designJson?: string;
 }
 
 export interface UpdateEmailTemplateDto extends CreateEmailTemplateDto {

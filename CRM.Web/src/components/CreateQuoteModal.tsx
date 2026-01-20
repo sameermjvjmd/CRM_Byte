@@ -26,6 +26,8 @@ interface CreateQuoteModalProps {
 
 const CreateQuoteModal = ({ onClose, onSuccess, initialData }: CreateQuoteModalProps) => {
     const [products, setProducts] = useState<Product[]>([]);
+    const [contacts, setContacts] = useState<any[]>([]);
+    const [companies, setCompanies] = useState<any[]>([]);
     const [formData, setFormData] = useState({
         subject: initialData?.subject || '',
         contactId: initialData?.contactId || '',
@@ -40,15 +42,21 @@ const CreateQuoteModal = ({ onClose, onSuccess, initialData }: CreateQuoteModalP
     const [loading, setLoading] = useState(false);
 
     useEffect(() => {
-        const fetchProducts = async () => {
+        const fetchData = async () => {
             try {
-                const response = await api.get('/products?activeOnly=true');
-                setProducts(response.data);
+                const [productsRes, contactsRes, companiesRes] = await Promise.all([
+                    api.get('/products?activeOnly=true'),
+                    api.get('/contacts'),
+                    api.get('/companies')
+                ]);
+                setProducts(productsRes.data);
+                setContacts(contactsRes.data);
+                setCompanies(companiesRes.data);
             } catch (error) {
-                console.error('Error fetching products:', error);
+                console.error('Error fetching data:', error);
             }
         };
-        fetchProducts();
+        fetchData();
     }, []);
 
     const addLineItem = () => {
@@ -169,6 +177,36 @@ const CreateQuoteModal = ({ onClose, onSuccess, initialData }: CreateQuoteModalP
                                     placeholder="e.g., Website Redesign Proposal"
                                     required
                                 />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold text-slate-600 uppercase mb-1.5">
+                                    Client (Contact)
+                                </label>
+                                <select
+                                    value={formData.contactId}
+                                    onChange={(e) => setFormData({ ...formData, contactId: e.target.value })}
+                                    className="w-full px-4 py-2.5 border border-slate-200 rounded-lg font-medium focus:ring-2 focus:ring-indigo-500 transition-all"
+                                >
+                                    <option value="">-- Select Contact --</option>
+                                    {contacts.map(c => (
+                                        <option key={c.id} value={c.id}>{c.firstName} {c.lastName}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold text-slate-600 uppercase mb-1.5">
+                                    Client (Company)
+                                </label>
+                                <select
+                                    value={formData.companyId}
+                                    onChange={(e) => setFormData({ ...formData, companyId: e.target.value })}
+                                    className="w-full px-4 py-2.5 border border-slate-200 rounded-lg font-medium focus:ring-2 focus:ring-indigo-500 transition-all"
+                                >
+                                    <option value="">-- Select Company --</option>
+                                    {companies.map(c => (
+                                        <option key={c.id} value={c.id}>{c.name}</option>
+                                    ))}
+                                </select>
                             </div>
                             <div>
                                 <label className="block text-xs font-bold text-slate-600 uppercase mb-1.5">

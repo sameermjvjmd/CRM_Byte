@@ -456,7 +456,7 @@ const ContactDetailView = ({ contactId, navigation }: ContactDetailViewProps) =>
                                 className="w-full h-32 p-3 border border-slate-200 rounded text-xs font-bold text-slate-600 focus:ring-2 focus:ring-indigo-100 outline-none resize-none"
                             />
                         ) : (
-                            <p className="text-xs font-bold text-slate-500 leading-relaxed uppercase">
+                            <p className="text-xs font-bold text-slate-500 leading-relaxed">
                                 {contact.notes || "No supplemental dossier information available for this record."}
                             </p>
                         )}

@@ -9,6 +9,7 @@ namespace CRM.Api.DTOs.Email
         public string Subject { get; set; } = string.Empty;
         public string Body { get; set; } = string.Empty;
         public string Category { get; set; } = "General";
+        public string? DesignJson { get; set; }
         public bool IsActive { get; set; }
         public int CreatedBy { get; set; }
         public DateTime CreatedAt { get; set; }
@@ -30,6 +31,8 @@ namespace CRM.Api.DTOs.Email
 
         [StringLength(50)]
         public string Category { get; set; } = "General";
+
+        public string? DesignJson { get; set; }
     }
 
     public class UpdateEmailTemplateDto : CreateEmailTemplateDto

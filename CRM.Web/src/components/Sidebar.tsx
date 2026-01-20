@@ -49,7 +49,8 @@ const Sidebar = () => {
     const adminItems = [
         { path: '/tools', icon: Settings, label: 'Tools' },
         { path: '/custom-tables', icon: Table, label: 'Custom Tables' },
-        { path: '/custom-fields', icon: Layout, label: 'Custom Fields' },
+        { path: '/admin/custom-fields', icon: Layout, label: 'Custom Fields' },
+        { path: '/admin/quote-templates', icon: FileText, label: 'Quote Templates' },
         { path: '/accounting', icon: Calculator, label: 'Accounting' },
     ];
 

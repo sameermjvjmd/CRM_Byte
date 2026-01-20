@@ -20,6 +20,8 @@ namespace CRM.Api.Models.Email
         [StringLength(50)]
         public string Category { get; set; } = "General";
         
+        public string? DesignJson { get; set; } // Stores the JSON state of the visual builder
+        
         public bool IsActive { get; set; } = true;
         public int CreatedBy { get; set; }
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;

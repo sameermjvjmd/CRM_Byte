@@ -43,6 +43,7 @@ namespace CRM.Api.Services
                 var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
                 var workflowService = scope.ServiceProvider.GetRequiredService<WorkflowExecutionService>();
                 var campaignService = scope.ServiceProvider.GetRequiredService<CRM.Api.Services.Marketing.ICampaignExecutionService>();
+                var listService = scope.ServiceProvider.GetRequiredService<CRM.Api.Services.Marketing.IDynamicListService>();
 
                 // 1. Process Delayed Workflows
                 var now = DateTime.UtcNow;
@@ -71,6 +72,9 @@ namespace CRM.Api.Services
                 // 2. Process Drip Campaigns
                 _logger.LogDebug("Calling ProcessActiveCampaignsAsync...");
                 await campaignService.ProcessActiveCampaignsAsync();
+
+                // 3. Process Dynamic Lists
+                await listService.ProcessDynamicListsAsync();
             }
         }
     }

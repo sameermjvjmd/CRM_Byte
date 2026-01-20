@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using CRM.Api.Data;
 using CRM.Api.Models.Marketing;
 using CRM.Api.DTOs.Marketing;
+using System.Text.Json;
 using System.Security.Claims;
 
 namespace CRM.Api.Controllers
@@ -304,37 +305,7 @@ namespace CRM.Api.Controllers
             return NoContent();
         }
 
-        [HttpGet("campaigns/{id}/analytics")]
-        public async Task<ActionResult<CampaignAnalyticsDto>> GetCampaignAnalytics(int id)
-        {
-            var campaign = await _context.MarketingCampaigns.FindAsync(id);
-            if (campaign == null) return NotFound();
 
-            var recipients = await _context.CampaignRecipients
-                .Where(r => r.CampaignId == id)
-                .ToListAsync();
-
-            var analytics = new CampaignAnalyticsDto
-            {
-                CampaignId = id,
-                CampaignName = campaign.Name,
-                TotalRecipients = campaign.RecipientCount,
-                Sent = recipients.Count(r => r.SentAt.HasValue),
-                Delivered = recipients.Count(r => r.DeliveredAt.HasValue),
-                Opened = recipients.Count(r => r.OpenCount > 0),
-                Clicked = recipients.Count(r => r.ClickCount > 0),
-                Bounced = recipients.Count(r => r.Status == "Bounced"),
-                Unsubscribed = recipients.Count(r => r.Status == "Unsubscribed"),
-                DeliveryRate = campaign.SentCount > 0 ? (double)campaign.DeliveredCount / campaign.SentCount * 100 : 0,
-                OpenRate = campaign.SentCount > 0 ? (double)campaign.UniqueOpenCount / campaign.SentCount * 100 : 0,
-                ClickRate = campaign.SentCount > 0 ? (double)campaign.UniqueClickCount / campaign.SentCount * 100 : 0,
-                ClickToOpenRate = campaign.UniqueOpenCount > 0 ? (double)campaign.UniqueClickCount / campaign.UniqueOpenCount * 100 : 0,
-                BounceRate = campaign.SentCount > 0 ? (double)campaign.BounceCount / campaign.SentCount * 100 : 0,
-                UnsubscribeRate = campaign.SentCount > 0 ? (double)campaign.UnsubscribeCount / campaign.SentCount * 100 : 0
-            };
-
-            return Ok(analytics);
-        }
 
         // =============================================
         // MARKETING LISTS
@@ -803,6 +774,87 @@ namespace CRM.Api.Controllers
             return Ok(dashboard);
         }
 
+        [HttpGet("campaigns/{id}/analytics")]
+        public async Task<ActionResult<CampaignAnalyticsDto>> GetCampaignAnalytics(int id)
+        {
+            var campaign = await _context.MarketingCampaigns
+                .Include(c => c.Recipients)
+                .FirstOrDefaultAsync(c => c.Id == id);
+
+            if (campaign == null) return NotFound();
+
+            var recipients = await _context.CampaignRecipients.Where(r => r.CampaignId == id).ToListAsync();
+            
+            var analytics = new CampaignAnalyticsDto
+            {
+                CampaignId = campaign.Id,
+                CampaignName = campaign.Name,
+                TotalRecipients = campaign.RecipientCount,
+                Sent = campaign.SentCount,
+                Delivered = campaign.DeliveredCount > 0 ? campaign.DeliveredCount : campaign.SentCount, // Fallback if not tracked
+                Opened = campaign.UniqueOpenCount,
+                Clicked = campaign.UniqueClickCount,
+                Bounced = campaign.BounceCount,
+                Unsubscribed = campaign.UnsubscribeCount,
+                
+                OpenRate = campaign.SentCount > 0 ? (double)campaign.UniqueOpenCount / campaign.SentCount * 100 : 0,
+                ClickRate = campaign.SentCount > 0 ? (double)campaign.UniqueClickCount / campaign.SentCount * 100 : 0,
+                ClickToOpenRate = campaign.UniqueOpenCount > 0 ? (double)campaign.UniqueClickCount / campaign.UniqueOpenCount * 100 : 0,
+                BounceRate = campaign.SentCount > 0 ? (double)campaign.BounceCount / campaign.SentCount * 100 : 0,
+                UnsubscribeRate = campaign.SentCount > 0 ? (double)campaign.UnsubscribeCount / campaign.SentCount * 100 : 0,
+                DeliveryRate = campaign.SentCount > 0 ? (double)(campaign.SentCount - campaign.BounceCount) / campaign.SentCount * 100 : 100,
+
+                // Timeline Data
+                OpensOverTime = recipients
+                    .Where(r => r.FirstOpenedAt != null)
+                    .GroupBy(r => r.FirstOpenedAt!.Value.Date)
+                    .Select(g => new TimelineDataPoint { Timestamp = g.Key, Count = g.Count() })
+                    .OrderBy(p => p.Timestamp)
+                    .ToList(),
+
+                ClicksOverTime = recipients
+                    .Where(r => r.FirstClickedAt != null)
+                    .GroupBy(r => r.FirstClickedAt!.Value.Date)
+                    .Select(g => new TimelineDataPoint { Timestamp = g.Key, Count = g.Count() })
+                    .OrderBy(p => p.Timestamp)
+                    .ToList(),
+
+                // Link Analytics
+                TopLinks = recipients
+                    .Where(r => !string.IsNullOrEmpty(r.ClickedLinks))
+                    .SelectMany(r => JsonSerializer.Deserialize<List<string>>(r.ClickedLinks!) ?? new List<string>())
+                    .GroupBy(url => url)
+                    .Select(g => new LinkStats { Url = g.Key, ClickCount = g.Count(), UniqueClicks = g.Distinct().Count() })
+                    .OrderByDescending(l => l.ClickCount)
+                    .Take(10)
+                    .ToList()
+            };
+
+            // If Drip Campaign, fetch step stats
+            if (campaign.Type == "Drip")
+            {
+                var steps = await _context.CampaignSteps
+                    .Where(s => s.CampaignId == id)
+                    .OrderBy(s => s.OrderIndex)
+                    .ToListAsync();
+
+                analytics.StepAnalytics = steps.Select(s => new CampaignStepAnalyticsDto
+                {
+                    StepId = s.Id,
+                    StepName = s.Name,
+                    OrderIndex = s.OrderIndex,
+                    Subject = s.Subject,
+                    Sent = s.SentCount,
+                    Opened = s.OpenCount,
+                    Clicked = s.ClickCount,
+                    OpenRate = s.SentCount > 0 ? (double)s.OpenCount / s.SentCount * 100 : 0,
+                    ClickRate = s.SentCount > 0 ? (double)s.ClickCount / s.SentCount * 100 : 0
+                }).ToList();
+            }
+
+            return Ok(analytics);
+        }
+
         [HttpGet("stats")]
         public async Task<ActionResult<object>> GetMarketingStats()
         {
@@ -845,6 +897,9 @@ namespace CRM.Api.Controllers
                 CompletedAt = c.CompletedAt,
                 MarketingListId = c.MarketingListId,
                 MarketingListName = c.MarketingList?.Name,
+                TemplateId = c.TemplateId,
+                HtmlContent = c.HtmlContent,
+                PlainTextContent = c.PlainTextContent,
                 RecipientCount = c.RecipientCount,
                 SentCount = c.SentCount,
                 OpenCount = c.OpenCount,

@@ -2,17 +2,20 @@
 import { X, Mail, Building2, Users, Bell, Clock, Search, Repeat, UserCircle, Plus, Calendar as CalendarIcon } from 'lucide-react';
 import api from '../api/api';
 import { advancedSearchApi, type SavedSearch } from '../api/advancedSearchApi';
+import { CustomFieldRenderer, type CustomFieldValue, type CustomFieldDefinition } from './common/CustomFieldRenderer';
 
 interface CreateModalProps {
     isOpen: boolean;
     onClose: () => void;
     onSuccess: () => void;
+    title?: string;
     initialType?: 'Contact' | 'Company' | 'Opportunity' | 'Activity' | 'Group' | 'Note' | 'Product';
+    hideTabs?: boolean;
     initialContactId?: number;
     templateData?: any; // Template data to pre-fill form
 }
 
-const CreateModal = ({ isOpen, onClose, onSuccess, initialType = 'Contact', initialContactId, templateData }: CreateModalProps) => {
+const CreateModal = ({ isOpen, onClose, onSuccess, title, initialType = 'Contact', hideTabs = false, initialContactId, templateData }: CreateModalProps) => {
     const [type, setType] = useState<'Contact' | 'Company' | 'Opportunity' | 'Activity' | 'Group' | 'Note' | 'Product'>(initialType);
     const [loading, setLoading] = useState(false);
     const [customFields, setCustomFields] = useState<any[]>([]);
@@ -82,18 +85,7 @@ const CreateModal = ({ isOpen, onClose, onSuccess, initialType = 'Contact', init
         setCustomValues([]);
     }, [type, isOpen]);
 
-    const handleCustomChange = (defId: number, val: string) => {
-        setCustomValues(prev => {
-            const existing = prev.find(v => v.customFieldDefinitionId === defId);
-            if (existing) {
-                return prev.map(v => v.customFieldDefinitionId === defId ? { ...v, value: val } : v);
-            } else {
-                return [...prev, { customFieldDefinitionId: defId, value: val }];
-            }
-        });
-    };
 
-    const getCustomValue = (defId: number) => customValues.find(v => v.customFieldDefinitionId === defId)?.value || '';
 
     if (!isOpen) return null;
 
@@ -268,7 +260,7 @@ const CreateModal = ({ isOpen, onClose, onSuccess, initialType = 'Contact', init
                 {/* Header */}
                 <div className="px-8 py-5 border-b border-slate-100 flex justify-between items-center bg-white shrink-0">
                     <div>
-                        <h2 className="text-xl font-bold text-slate-900">Create New {type}</h2>
+                        <h2 className="text-xl font-bold text-slate-900">{title || `Create New ${type}`}</h2>
                         <p className="text-xs text-slate-500 mt-1">Enter the details below to create a new record.</p>
                     </div>
                     <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-full text-slate-400 hover:text-slate-600 transition-colors">
@@ -279,19 +271,21 @@ const CreateModal = ({ isOpen, onClose, onSuccess, initialType = 'Contact', init
                 <div className="flex-1 overflow-y-auto custom-scrollbar">
                     <div className="p-8">
                         {/* Tabs */}
-                        <div className="flex justify-center mb-8">
-                            <div className="flex bg-slate-100/80 p-1.5 rounded-xl overflow-x-auto w-full md:w-auto">
-                                {(['Contact', 'Company', 'Group', 'Opportunity', 'Activity', 'Note'] as const).map((t) => (
-                                    <button
-                                        key={t}
-                                        onClick={() => setType(t)}
-                                        className={`px-4 py-2 text-xs font-bold rounded-lg transition-all whitespace-nowrap min-w-[80px] ${type === t ? 'bg-white text-indigo-600 shadow-sm ring-1 ring-slate-200' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'}`}
-                                    >
-                                        {t}
-                                    </button>
-                                ))}
+                        {!hideTabs && (
+                            <div className="flex justify-center mb-8">
+                                <div className="flex bg-slate-100/80 p-1.5 rounded-xl overflow-x-auto w-full md:w-auto">
+                                    {(['Contact', 'Company', 'Group', 'Opportunity', 'Activity', 'Note'] as const).map((t) => (
+                                        <button
+                                            key={t}
+                                            onClick={() => setType(t)}
+                                            className={`px-4 py-2 text-xs font-bold rounded-lg transition-all whitespace-nowrap min-w-[80px] ${type === t ? 'bg-white text-indigo-600 shadow-sm ring-1 ring-slate-200' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'}`}
+                                        >
+                                            {t}
+                                        </button>
+                                    ))}
+                                </div>
                             </div>
-                        </div>
+                        )}
 
                         <form onSubmit={handleSubmit} className="space-y-6">
                             {type === 'Contact' && (
@@ -332,6 +326,18 @@ const CreateModal = ({ isOpen, onClose, onSuccess, initialType = 'Contact', init
                                             <input name="zip" value={formData.zip} onChange={handleChange} className={inputStyle} placeholder="Zip" />
                                         </div>
                                     </div>
+
+                                    {/* Custom Fields */}
+                                    {customFields.length > 0 && (
+                                        <div className="pt-4 border-t border-slate-100">
+                                            <h3 className="text-xs font-bold uppercase text-slate-500 tracking-wider mb-3">Additional Details</h3>
+                                            <CustomFieldRenderer
+                                                fields={customFields}
+                                                values={customValues}
+                                                onChange={setCustomValues}
+                                            />
+                                        </div>
+                                    )}
                                 </>
                             )}
 
@@ -402,6 +408,18 @@ const CreateModal = ({ isOpen, onClose, onSuccess, initialType = 'Contact', init
                                             )}
                                         </div>
                                     )}
+
+                                    {/* Custom Fields for Company */}
+                                    {type === 'Company' && customFields.length > 0 && (
+                                        <div className="pt-4 border-t border-slate-100">
+                                            <h3 className="text-xs font-bold uppercase text-slate-500 tracking-wider mb-3">Additional Details</h3>
+                                            <CustomFieldRenderer
+                                                fields={customFields}
+                                                values={customValues}
+                                                onChange={setCustomValues}
+                                            />
+                                        </div>
+                                    )}
                                 </>
                             )}
 
@@ -456,7 +474,7 @@ const CreateModal = ({ isOpen, onClose, onSuccess, initialType = 'Contact', init
                                                             key={c.id}
                                                             className="px-4 py-2 hover:bg-slate-50 cursor-pointer text-sm font-bold text-slate-700 flex justify-between items-center"
                                                             onClick={() => {
-                                                                setFormData(prev => ({ ...prev, contactId: c.id }));
+                                                                setFormData((prev: any) => ({ ...prev, contactId: c.id }));
                                                                 setSearchTerm(`${c.firstName} ${c.lastName}`);
                                                                 setSearchResults([]);
                                                             }}
@@ -469,6 +487,18 @@ const CreateModal = ({ isOpen, onClose, onSuccess, initialType = 'Contact', init
                                             )}
                                         </div>
                                     </div>
+
+                                    {/* Custom Fields */}
+                                    {customFields.length > 0 && (
+                                        <div className="pt-4 border-t border-slate-100">
+                                            <h3 className="text-xs font-bold uppercase text-slate-500 tracking-wider mb-3">Additional Details</h3>
+                                            <CustomFieldRenderer
+                                                fields={customFields}
+                                                values={customValues}
+                                                onChange={setCustomValues}
+                                            />
+                                        </div>
+                                    )}
                                 </>
                             )}
 
@@ -540,7 +570,7 @@ const CreateModal = ({ isOpen, onClose, onSuccess, initialType = 'Contact', init
                                                                 key={c.id}
                                                                 className="px-4 py-2 hover:bg-slate-50 cursor-pointer text-sm font-bold text-slate-700"
                                                                 onClick={() => {
-                                                                    setFormData(prev => ({ ...prev, contactId: c.id }));
+                                                                    setFormData((prev: any) => ({ ...prev, contactId: c.id }));
                                                                     setSearchTerm(`${c.firstName} ${c.lastName}`);
                                                                     setSearchResults([]);
                                                                 }}
@@ -828,7 +858,7 @@ const CreateModal = ({ isOpen, onClose, onSuccess, initialType = 'Contact', init
                                                 onChange={(e) => {
                                                     const prod = products.find(p => p.id === Number(e.target.value));
                                                     if (prod) {
-                                                        setFormData(prev => ({
+                                                        setFormData((prev: any) => ({
                                                             ...prev,
                                                             productName: prod.name,
                                                             productCode: prod.sku || prev.productCode,
@@ -881,50 +911,7 @@ const CreateModal = ({ isOpen, onClose, onSuccess, initialType = 'Contact', init
                                 </>
                             )}
 
-                            {/* Custom Fields Section */}
-                            {customFields.length > 0 && (
-                                <div className="mt-6 pt-6 border-t border-slate-100">
-                                    <h4 className="text-xs font-black uppercase text-slate-400 tracking-widest mb-4">Custom Fields</h4>
-                                    <div className="grid grid-cols-2 gap-4">
-                                        {customFields.map(def => (
-                                            <div key={def.id} className="space-y-1">
-                                                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block">
-                                                    {def.fieldName} {def.isRequired && <span className="text-red-500">*</span>}
-                                                </label>
-                                                {def.fieldType === 'Bool' ? (
-                                                    <div className="flex items-center gap-2 mt-2">
-                                                        <input
-                                                            type="checkbox"
-                                                            checked={getCustomValue(def.id) === 'true'}
-                                                            onChange={e => handleCustomChange(def.id, e.target.checked ? 'true' : 'false')}
-                                                            className="w-4 h-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500"
-                                                        />
-                                                        <span className="text-sm">Yes</span>
-                                                    </div>
-                                                ) : (def.fieldType === 'Select' || def.fieldType === 'MultiSelect') ? (
-                                                    <select
-                                                        className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded text-sm font-medium focus:outline-none focus:ring-2 focus:ring-indigo-100"
-                                                        value={getCustomValue(def.id)}
-                                                        onChange={e => handleCustomChange(def.id, e.target.value)}
-                                                    >
-                                                        <option value="">Select...</option>
-                                                        {def.optionsJson && JSON.parse(def.optionsJson).map((opt: string) => (
-                                                            <option key={opt} value={opt}>{opt}</option>
-                                                        ))}
-                                                    </select>
-                                                ) : (
-                                                    <input
-                                                        type={def.fieldType === 'Number' || def.fieldType === 'Currency' ? 'number' : def.fieldType === 'Date' ? 'date' : 'text'}
-                                                        className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded text-sm font-medium focus:outline-none focus:ring-2 focus:ring-indigo-100 placeholder:text-slate-300"
-                                                        value={getCustomValue(def.id)}
-                                                        onChange={e => handleCustomChange(def.id, e.target.value)}
-                                                    />
-                                                )}
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
+
 
                             <div className="pt-8 flex gap-3">
                                 <button

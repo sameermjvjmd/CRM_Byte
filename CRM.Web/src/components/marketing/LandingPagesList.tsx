@@ -47,7 +47,7 @@ const LandingPagesList: React.FC = () => {
             setNewPage({ name: '', slug: '', description: '' });
             fetchPages();
             // Optional: Navigate to builder immediately
-            // navigate(`/marketing/pages/${res.data.id}/edit`);
+            navigate(`/marketing/pages/${res.data.id}/edit`);
         } catch (error) {
             console.error(error);
             toast.error('Failed to create page');
@@ -140,7 +140,10 @@ const LandingPagesList: React.FC = () => {
                             </div>
 
                             <div className="flex gap-2 pt-4 border-t border-slate-100">
-                                <button className="flex-1 bg-indigo-50 text-indigo-700 py-2 rounded-lg text-sm font-medium hover:bg-indigo-100 transition-colors flex items-center justify-center gap-2">
+                                <button
+                                    onClick={() => navigate(`/marketing/pages/${page.id}/edit`)}
+                                    className="flex-1 bg-indigo-50 text-indigo-700 py-2 rounded-lg text-sm font-medium hover:bg-indigo-100 transition-colors flex items-center justify-center gap-2"
+                                >
                                     <Edit size={16} /> Edit
                                 </button>
                                 {page.status === 'Published' && (

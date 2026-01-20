@@ -1,0 +1,8 @@
+{
+    "name": "Form Submission",
+    "description": "Points for submitting a form",
+    "category": "Engagement",
+    "triggerType": "FormSubmit",
+    "pointsValue": 10,
+    "conditions": "{}"
+}

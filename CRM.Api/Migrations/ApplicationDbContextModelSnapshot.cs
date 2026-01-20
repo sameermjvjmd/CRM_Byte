@@ -1713,6 +1713,9 @@ namespace CRM.Api.Migrations
                     b.Property<int>("CreatedBy")
                         .HasColumnType("int");
 
+                    b.Property<string>("DesignJson")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<bool>("IsActive")
                         .HasColumnType("bit");
 
@@ -2154,7 +2157,13 @@ namespace CRM.Api.Migrations
                     b.Property<int>("CampaignId")
                         .HasColumnType("int");
 
+                    b.Property<int>("ClickCount")
+                        .HasColumnType("int");
+
                     b.Property<int>("DelayMinutes")
+                        .HasColumnType("int");
+
+                    b.Property<int>("DeliveredCount")
                         .HasColumnType("int");
 
                     b.Property<string>("HtmlContent")
@@ -2165,11 +2174,17 @@ namespace CRM.Api.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
+                    b.Property<int>("OpenCount")
+                        .HasColumnType("int");
+
                     b.Property<int>("OrderIndex")
                         .HasColumnType("int");
 
                     b.Property<string>("PlainTextContent")
                         .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("SentCount")
+                        .HasColumnType("int");
 
                     b.Property<string>("Subject")
                         .HasMaxLength(500)
@@ -2183,6 +2198,45 @@ namespace CRM.Api.Migrations
                     b.HasIndex("CampaignId");
 
                     b.ToTable("CampaignSteps");
+                });
+
+            modelBuilder.Entity("CRM.Api.Models.Marketing.CampaignStepExecutionLog", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("CampaignId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("ContactId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Email")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ErrorMessage")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("ExecutedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("RecipientId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("StepId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("CampaignStepExecutionLogs");
                 });
 
             modelBuilder.Entity("CRM.Api.Models.Marketing.LandingPage", b =>
@@ -2321,6 +2375,9 @@ namespace CRM.Api.Migrations
                         .IsRequired()
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
 
                     b.HasKey("Id");
 
@@ -3070,6 +3127,9 @@ namespace CRM.Api.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
 
+                    b.Property<int?>("QuoteTemplateId")
+                        .HasColumnType("int");
+
                     b.Property<string>("RecipientAddress")
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)");
@@ -3126,6 +3186,8 @@ namespace CRM.Api.Migrations
                     b.HasIndex("ContactId");
 
                     b.HasIndex("OpportunityId");
+
+                    b.HasIndex("QuoteTemplateId");
 
                     b.ToTable("Quotes");
                 });
@@ -3214,6 +3276,80 @@ namespace CRM.Api.Migrations
                     b.HasIndex("QuoteId");
 
                     b.ToTable("QuoteLineItems");
+                });
+
+            modelBuilder.Entity("CRM.Api.Models.QuoteTemplate", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("CompanyAddress")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("CompanyLogoUrl")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("CompanyName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("DefaultFooter")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("DefaultTerms")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("IsDefault")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("PrimaryColor")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("SecondaryColor")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<bool>("ShowDiscountColumn")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("ShowNotes")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("ShowQuantity")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("ShowShipping")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("ShowSku")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("ShowTaxSummary")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("TextColor")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("QuoteTemplates");
                 });
 
             modelBuilder.Entity("CRM.Api.Models.Reporting.ReportExecutionLog", b =>
@@ -3333,6 +3469,50 @@ namespace CRM.Api.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("SavedReports");
+                });
+
+            modelBuilder.Entity("CRM.Api.Models.SalesQuota", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<decimal>("Amount")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("EndDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("FiscalYear")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("LastModifiedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("PeriodNumber")
+                        .HasColumnType("int");
+
+                    b.Property<string>("PeriodType")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<DateTime>("StartDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("SalesQuotas");
                 });
 
             modelBuilder.Entity("CRM.Api.Models.SavedSearch", b =>
@@ -4117,11 +4297,17 @@ namespace CRM.Api.Migrations
                         .WithMany()
                         .HasForeignKey("OpportunityId");
 
+                    b.HasOne("CRM.Api.Models.QuoteTemplate", "QuoteTemplate")
+                        .WithMany()
+                        .HasForeignKey("QuoteTemplateId");
+
                     b.Navigation("Company");
 
                     b.Navigation("Contact");
 
                     b.Navigation("Opportunity");
+
+                    b.Navigation("QuoteTemplate");
                 });
 
             modelBuilder.Entity("CRM.Api.Models.QuoteLineItem", b =>
@@ -4148,6 +4334,17 @@ namespace CRM.Api.Migrations
                         .HasForeignKey("SavedReportId");
 
                     b.Navigation("SavedReport");
+                });
+
+            modelBuilder.Entity("CRM.Api.Models.SalesQuota", b =>
+                {
+                    b.HasOne("CRM.Api.Models.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("CRM.Api.Models.SavedSearch", b =>
