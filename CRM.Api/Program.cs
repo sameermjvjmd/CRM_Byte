@@ -70,6 +70,9 @@ builder.Services.AddHostedService<WorkflowBackgroundService>();
 // Email Scheduler (Background Service for Scheduled Emails)
 builder.Services.AddHostedService<EmailSchedulerBackgroundService>();
 
+// Deal Scoring (Background Service for Opportunity Health Scoring)
+builder.Services.AddHostedService<DealScoringBackgroundService>();
+
 // Reporting Services
 builder.Services.AddScoped<CRM.Api.Services.Reporting.IReportBuilderService, CRM.Api.Services.Reporting.ReportBuilderService>();
 builder.Services.AddScoped<CRM.Api.Services.Reporting.IPdfExportService, CRM.Api.Services.Reporting.PdfExportService>();

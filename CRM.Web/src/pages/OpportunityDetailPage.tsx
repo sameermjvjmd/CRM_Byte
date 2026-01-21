@@ -249,8 +249,8 @@ const OpportunityDetailPage = () => {
                                                             <div className="flex items-center gap-4 text-xs">
                                                                 {opportunity.nextActionDate && (
                                                                     <div className={`flex items-center gap-1.5 ${new Date(opportunity.nextActionDate) < new Date()
-                                                                            ? 'text-red-600 font-black'
-                                                                            : 'text-slate-600 font-medium'
+                                                                        ? 'text-red-600 font-black'
+                                                                        : 'text-slate-600 font-medium'
                                                                         }`}>
                                                                         <Calendar size={14} />
                                                                         <span>
@@ -301,21 +301,60 @@ const OpportunityDetailPage = () => {
                                                 {opportunity.dealHealth || 'Healthy'}
                                             </span>
                                         </div>
+
                                         {opportunity.dealScore !== undefined && (
-                                            <div className="mt-2">
+                                            <div className="space-y-3">
                                                 <div className="flex items-center justify-between text-xs mb-2">
-                                                    <span className="font-medium text-slate-600">Score</span>
+                                                    <span className="font-medium text-slate-600">Overall Score</span>
                                                     <span className="font-black text-slate-900">{opportunity.dealScore}/100</span>
                                                 </div>
-                                                <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
+                                                <div className="w-full bg-slate-100 rounded-full h-3 overflow-hidden shadow-inner">
                                                     <div
-                                                        className={`h-full rounded-full transition-all ${opportunity.dealScore >= 80 ? 'bg-green-500' :
-                                                                opportunity.dealScore >= 60 ? 'bg-yellow-500' :
-                                                                    opportunity.dealScore >= 40 ? 'bg-orange-500' :
-                                                                        'bg-red-500'
+                                                        className={`h-full rounded-full transition-all ${opportunity.dealScore >= 80 ? 'bg-gradient-to-r from-green-500 to-emerald-500' :
+                                                                opportunity.dealScore >= 60 ? 'bg-gradient-to-r from-yellow-500 to-amber-500' :
+                                                                    opportunity.dealScore >= 40 ? 'bg-gradient-to-r from-orange-500 to-red-500' :
+                                                                        'bg-gradient-to-r from-red-600 to-rose-600'
                                                             }`}
                                                         style={{ width: `${opportunity.dealScore}%` }}
                                                     />
+                                                </div>
+
+                                                {/* Score interpretation */}
+                                                <div className="text-xs text-slate-500 italic mt-2">
+                                                    {opportunity.dealScore >= 80 && "🔥 Excellent! This deal is on fire."}
+                                                    {opportunity.dealScore >= 60 && opportunity.dealScore < 80 && "✅ Healthy deal with good momentum."}
+                                                    {opportunity.dealScore >= 40 && opportunity.dealScore < 60 && "⚠️ Needs attention to improve chances."}
+                                                    {opportunity.dealScore < 40 && "🚨 Critical - immediate action required."}
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {/* Risk Factors */}
+                                        {opportunity.riskFactors && (
+                                            <div className="mt-4 pt-4 border-t border-slate-100">
+                                                <h5 className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-2">Risk Factors</h5>
+                                                <div className="space-y-1.5">
+                                                    {opportunity.riskFactors.split(',').map((risk: string, idx: number) => (
+                                                        <div key={idx} className="flex items-start gap-2 text-xs">
+                                                            <span className="text-red-500 mt-0.5">⚠</span>
+                                                            <span className="text-slate-600">{risk.trim()}</span>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {/* Days in Stage */}
+                                        {opportunity.daysInCurrentStage !== undefined && (
+                                            <div className="mt-4 pt-4 border-t border-slate-100">
+                                                <div className="flex items-center justify-between text-xs">
+                                                    <span className="font-medium text-slate-600">Days in {opportunity.stage}</span>
+                                                    <span className={`font-black ${opportunity.daysInCurrentStage > 60 ? 'text-red-600' :
+                                                            opportunity.daysInCurrentStage > 30 ? 'text-orange-600' :
+                                                                'text-slate-900'
+                                                        }`}>
+                                                        {opportunity.daysInCurrentStage} days
+                                                    </span>
                                                 </div>
                                             </div>
                                         )}
