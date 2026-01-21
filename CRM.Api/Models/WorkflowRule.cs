@@ -102,8 +102,9 @@ namespace CRM.Api.Models
         public const string OnFieldChange = "OnFieldChange";
         public const string OnStageChange = "OnStageChange";
         public const string OnSchedule = "OnSchedule";
+        public const string OnFormSubmission = "OnFormSubmission";
 
-        public static readonly string[] All = { OnRecordCreate, OnRecordUpdate, OnFieldChange, OnStageChange, OnSchedule };
+        public static readonly string[] All = { OnRecordCreate, OnRecordUpdate, OnFieldChange, OnStageChange, OnSchedule, OnFormSubmission };
     }
 
     /// <summary>

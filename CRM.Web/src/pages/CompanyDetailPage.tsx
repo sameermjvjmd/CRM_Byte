@@ -53,23 +53,6 @@ const CompanyDetailPage = () => {
     const [subsidiaries, setSubsidiaries] = useState<Company[]>([]);
     const [tabLoading, setTabLoading] = useState(false);
 
-    const handleUpdateCustomFields = async (values: any[]) => {
-        if (!company || !id) return;
-        try {
-            const updatedCompany = { ...company, customValues: values };
-            await api.put(`/companies/${id}`, updatedCompany);
-
-            // Refresh
-            const res = await api.get(`/companies/${id}`);
-            setCompany(res.data);
-
-            alert('Custom fields updated successfully!');
-        } catch (error) {
-            console.error('Error updating custom fields:', error);
-            alert('Failed to update custom fields');
-        }
-    };
-
     useEffect(() => {
         const fetchCompany = async () => {
             try {
@@ -423,8 +406,6 @@ const CompanyDetailPage = () => {
                                         <UserFieldsTab
                                             entityId={Number(id)}
                                             entityType="Company"
-                                            customValues={company.customValues || []}
-                                            onUpdate={handleUpdateCustomFields}
                                         />
                                     )}
 

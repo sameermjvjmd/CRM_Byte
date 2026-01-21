@@ -4,6 +4,7 @@ using CRM.Api.Models.Auth;
 using CRM.Api.Models.Email;
 using CRM.Api.Models.Marketing;
 using CRM.Api.Models.Reporting;
+using NewFields = CRM.Api.Models.CustomFields;
 
 namespace CRM.Api.Data
 {
@@ -76,9 +77,13 @@ namespace CRM.Api.Data
         public DbSet<WorkflowRule> WorkflowRules { get; set; }
         public DbSet<WorkflowExecutionLog> WorkflowExecutionLogs { get; set; }
 
-        // Custom Fields (Week 17)
+        // Custom Fields (Week 17) - Legacy
         public DbSet<CustomFieldDefinition> CustomFieldDefinitions { get; set; }
         public DbSet<CustomFieldValue> CustomFieldValues { get; set; }
+
+        // New Custom Fields System (SaaS)
+        public DbSet<NewFields.CustomField> AppCustomFields { get; set; }
+        public DbSet<NewFields.CustomFieldValue> AppCustomFieldValues { get; set; }
 
 
         // Tenant Email Configuration (SaaS)
@@ -91,6 +96,10 @@ namespace CRM.Api.Data
         public DbSet<RolePermission> RolePermissions { get; set; }
         public DbSet<UserRole> UserRoles { get; set; }
         public DbSet<RefreshToken> RefreshTokens { get; set; }
+
+        // External Integrations (Week 23-24)
+        public DbSet<Webhook> Webhooks { get; set; }
+        public DbSet<WebhookLog> WebhookLogs { get; set; }
 
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)

@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "d:\\Project(s)\\CRM_ACT\\CRM.Api\\CRM.Api.csproj": {}
+    "D:\\Project(s)\\CRM_ACT\\CRM.Api\\CRM.Api.csproj": {}
   },
   "projects": {
-    "d:\\Project(s)\\CRM_ACT\\CRM.Api\\CRM.Api.csproj": {
+    "D:\\Project(s)\\CRM_ACT\\CRM.Api\\CRM.Api.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "d:\\Project(s)\\CRM_ACT\\CRM.Api\\CRM.Api.csproj",
+        "projectUniqueName": "D:\\Project(s)\\CRM_ACT\\CRM.Api\\CRM.Api.csproj",
         "projectName": "CRM.Api",
-        "projectPath": "d:\\Project(s)\\CRM_ACT\\CRM.Api\\CRM.Api.csproj",
+        "projectPath": "D:\\Project(s)\\CRM_ACT\\CRM.Api\\CRM.Api.csproj",
         "packagesPath": "C:\\Users\\SAMEER MJ\\.nuget\\packages\\",
-        "outputPath": "d:\\Project(s)\\CRM_ACT\\CRM.Api\\obj\\",
+        "outputPath": "D:\\Project(s)\\CRM_ACT\\CRM.Api\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files\\DevExpress 24.1\\Components\\Offline Packages",
@@ -54,6 +54,10 @@
         "net10.0": {
           "targetAlias": "net10.0",
           "dependencies": {
+            "AspNetCoreRateLimit": {
+              "target": "Package",
+              "version": "[5.0.0, )"
+            },
             "BCrypt.Net-Next": {
               "target": "Package",
               "version": "[4.0.3, )"
@@ -65,6 +69,14 @@
             "CsvHelper": {
               "target": "Package",
               "version": "[33.1.0, )"
+            },
+            "EPPlus": {
+              "target": "Package",
+              "version": "[7.5.0, )"
+            },
+            "Hangfire.AspNetCore": {
+              "target": "Package",
+              "version": "[1.8.22, )"
             },
             "Microsoft.AspNetCore.Authentication.JwtBearer": {
               "target": "Package",
@@ -90,9 +102,25 @@
               "target": "Package",
               "version": "[10.0.1, )"
             },
+            "Newtonsoft.Json": {
+              "target": "Package",
+              "version": "[13.0.4, )"
+            },
+            "QuestPDF": {
+              "target": "Package",
+              "version": "[2025.12.3, )"
+            },
             "Scalar.AspNetCore": {
               "target": "Package",
               "version": "[2.12.11, )"
+            },
+            "Syncfusion.DocIO.Net.Core": {
+              "target": "Package",
+              "version": "[20.1.0.61, )"
+            },
+            "Syncfusion.EJ2.WordEditor.AspNet.Core": {
+              "target": "Package",
+              "version": "[20.1.0.61, )"
             }
           },
           "imports": [

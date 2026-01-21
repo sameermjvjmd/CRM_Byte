@@ -285,7 +285,7 @@ const CampaignsList: React.FC = () => {
                                                 className="p-2 text-slate-400 hover:text-purple-600 hover:bg-purple-50 rounded-full transition-colors"
                                                 title="Manage Steps"
                                             >
-                                                <Plus size={18} />
+                                                <Layers size={18} />
                                             </button>
                                         )}
                                         {camp.status === 'Draft' && (

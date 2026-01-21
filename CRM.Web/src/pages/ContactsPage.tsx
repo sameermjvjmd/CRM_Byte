@@ -12,6 +12,10 @@ import AdvancedSearch from '../components/AdvancedSearch';
 import type { SearchScope } from '../components/AdvancedSearch';
 import ColumnCustomizer from '../components/ColumnCustomizer';
 import type { Column } from '../components/ColumnCustomizer';
+import BulkEmailComposer from '../components/email/BulkEmailComposer';
+import ExportMenu from '../components/common/ExportMenu';
+import { exportToPdf, exportToExcel } from '../utils/exportUtils';
+import { toast } from 'react-hot-toast';
 
 const ContactsPage = () => {
     const navigate = useNavigate();
@@ -21,6 +25,7 @@ const ContactsPage = () => {
     const [viewMode, setViewMode] = useState<'list' | 'detail'>('list');
     const [activeContactId, setActiveContactId] = useState<number | null>(null);
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+    const [showBulkEmail, setShowBulkEmail] = useState(false);
 
     // Selection State
     const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
@@ -137,6 +142,27 @@ const ContactsPage = () => {
         }
     };
 
+    // Export Handlers
+    const handleExportPdf = async () => {
+        try {
+            await exportToPdf('/reports/export/contacts/pdf', 'contacts_report');
+            toast.success('Contacts exported to PDF successfully!');
+        } catch (error) {
+            toast.error('Failed to export contacts to PDF');
+            console.error('PDF export error:', error);
+        }
+    };
+
+    const handleExportExcel = async () => {
+        try {
+            await exportToExcel('/reports/export/contacts/excel', 'contacts_report');
+            toast.success('Contacts exported to Excel successfully!');
+        } catch (error) {
+            toast.error('Failed to export contacts to Excel');
+            console.error('Excel export error:', error);
+        }
+    };
+
     // Saved Views Logic
     const handleSaveView = (name: string, filters: any[], sortBy: string, isDefault: boolean) => {
         const newView: SavedView = {
@@ -231,6 +257,10 @@ const ContactsPage = () => {
                         <Filter size={14} />
                         COLUMNS
                     </button>
+                    <ExportMenu
+                        onExportPdf={handleExportPdf}
+                        onExportExcel={handleExportExcel}
+                    />
                     <button
                         onClick={() => setIsCreateModalOpen(true)}
                         className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg text-xs font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200">
@@ -259,7 +289,7 @@ const ContactsPage = () => {
                 onClearSelection={() => setSelectedIds(new Set())}
                 onBulkDelete={handleBulkDelete}
                 recordType="contacts"
-                onBulkEmail={() => alert('Bulk Email')}
+                onBulkEmail={() => setShowBulkEmail(true)}
                 onBulkAddTag={() => alert('Bulk Tag')}
             />
 
@@ -457,6 +487,25 @@ const ContactsPage = () => {
                     // Optional: Show success toast
                 }}
                 initialType="Contact"
+            />
+
+            {/* Bulk Email Composer */}
+            <BulkEmailComposer
+                isOpen={showBulkEmail}
+                onClose={() => setShowBulkEmail(false)}
+                selectedContacts={contacts
+                    .filter(c => selectedIds.has(c.id))
+                    .map(c => ({
+                        id: c.id,
+                        firstName: c.firstName,
+                        lastName: c.lastName,
+                        email: c.email,
+                        companyName: typeof c.company === 'string' ? c.company : c.company?.name
+                    }))}
+                onSent={() => {
+                    setSelectedIds(new Set());
+                    setShowBulkEmail(false);
+                }}
             />
         </div>
     );

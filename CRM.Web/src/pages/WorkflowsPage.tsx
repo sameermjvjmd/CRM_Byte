@@ -42,6 +42,7 @@ const triggerConfig: Record<string, { label: string; icon: any; color: string }>
     OnFieldChange: { label: 'Field Change', icon: Edit, color: 'text-purple-600' },
     OnStageChange: { label: 'Stage Change', icon: ChevronRight, color: 'text-orange-600' },
     OnSchedule: { label: 'Scheduled', icon: Calendar, color: 'text-slate-600' },
+    OnFormSubmission: { label: 'Form Submission', icon: FileText, color: 'text-teal-600' },
 };
 
 const actionConfig: Record<string, { label: string; icon: any; color: string }> = {
@@ -280,8 +281,8 @@ const WorkflowsPage = () => {
                                         <div className="flex items-center gap-3 mb-2">
                                             <h3 className="text-lg font-bold text-slate-900">{workflow.name}</h3>
                                             <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${workflow.isActive
-                                                    ? 'bg-green-100 text-green-700'
-                                                    : 'bg-slate-100 text-slate-500'
+                                                ? 'bg-green-100 text-green-700'
+                                                : 'bg-slate-100 text-slate-500'
                                                 }`}>
                                                 {workflow.isActive ? 'Active' : 'Inactive'}
                                             </span>
@@ -331,8 +332,8 @@ const WorkflowsPage = () => {
                                         <button
                                             onClick={() => handleToggle(workflow.id)}
                                             className={`p-2 rounded-lg transition-colors ${workflow.isActive
-                                                    ? 'hover:bg-orange-100 text-orange-600'
-                                                    : 'hover:bg-green-100 text-green-600'
+                                                ? 'hover:bg-orange-100 text-orange-600'
+                                                : 'hover:bg-green-100 text-green-600'
                                                 }`}
                                             title={workflow.isActive ? 'Deactivate' : 'Activate'}
                                         >

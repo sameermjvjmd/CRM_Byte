@@ -19,6 +19,7 @@ interface QuickActionsMenuProps {
     onSendSMS?: () => void;
     onVideoCall?: () => void;
     onViewMap?: () => void;
+    onCreateDocument?: () => void;
 }
 
 const QuickActionsMenu = ({
@@ -31,7 +32,8 @@ const QuickActionsMenu = ({
     onAddNote,
     onSendSMS,
     onVideoCall,
-    onViewMap
+    onViewMap,
+    onCreateDocument
 }: QuickActionsMenuProps) => {
     const actions: QuickAction[] = [
         {
@@ -54,6 +56,13 @@ const QuickActionsMenu = ({
             icon: <Mail size={20} />,
             color: 'indigo',
             action: onSendEmail || (() => { })
+        },
+        {
+            id: 'document',
+            label: 'Create Document',
+            icon: <FileText size={20} />,
+            color: 'amber',
+            action: onCreateDocument || (() => { })
         },
         {
             id: 'note',

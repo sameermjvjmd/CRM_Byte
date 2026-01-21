@@ -13,6 +13,9 @@ import EnhancedActivitiesTable from '../components/EnhancedActivitiesTable';
 import ActivityDetailModal from '../components/ActivityDetailModal';
 import type { RecurringPattern } from '../components/RecurringActivityModal';
 import type { ActivityTemplate } from '../components/ActivityTemplateSelector';
+import ExportMenu from '../components/common/ExportMenu';
+import { exportToPdf, exportToExcel } from '../utils/exportUtils';
+import { toast } from 'react-hot-toast';
 
 const ActivitiesPage = () => {
     const [activities, setActivities] = useState<Activity[]>([]);
@@ -22,7 +25,7 @@ const ActivitiesPage = () => {
     const [isRecurringModalOpen, setIsRecurringModalOpen] = useState(false);
     const [showTemplates, setShowTemplates] = useState(false);
     const [showTypeSelector, setShowTypeSelector] = useState(false);
-    const [selectedType, setSelectedType] = useState('Call');
+    const [selectedType, setSelectedType] = useState<string | null>(null);
     const [recurringPattern, setRecurringPattern] = useState<RecurringPattern | null>(null);
     const [templateData, setTemplateData] = useState<any>(null);
     const [selectedActivityId, setSelectedActivityId] = useState<number | null>(null);
@@ -72,6 +75,31 @@ const ActivitiesPage = () => {
         setShowTemplates(false);
         setIsModalOpen(true);
     };
+
+    // Export Handlers
+    const handleExportPdf = async () => {
+        try {
+            await exportToPdf('/reports/export/activities/pdf', 'activities_report');
+            toast.success('Activities exported to PDF successfully!');
+        } catch (error) {
+            toast.error('Failed to export activities to PDF');
+            console.error('PDF export error:', error);
+        }
+    };
+
+    const handleExportExcel = async () => {
+        try {
+            await exportToExcel('/reports/export/activities/excel', 'activities_report');
+            toast.success('Activities exported to Excel successfully!');
+        } catch (error) {
+            toast.error('Failed to export activities to Excel');
+            console.error('Excel export error:', error);
+        }
+    };
+
+    const filteredActivities = selectedType
+        ? activities.filter(a => a.type === selectedType)
+        : activities;
 
     return (
         <div className="flex flex-col h-full bg-slate-50">
@@ -135,11 +163,16 @@ const ActivitiesPage = () => {
                     </button>
                     <button
                         onClick={() => setShowTypeSelector(!showTypeSelector)}
-                        className="bg-white border border-slate-200 text-slate-700 px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 hover:bg-slate-50 transition-all"
+                        className={`border px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-all ${showTypeSelector ? 'bg-indigo-50 border-indigo-200 text-indigo-700' : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                            }`}
                     >
                         <Grid size={18} />
                         Type
                     </button>
+                    <ExportMenu
+                        onExportPdf={handleExportPdf}
+                        onExportExcel={handleExportExcel}
+                    />
                     <button
                         onClick={() => setIsModalOpen(true)}
                         className="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200"
@@ -161,12 +194,22 @@ const ActivitiesPage = () => {
             {showTypeSelector && (
                 <div className="p-6 bg-white border-b border-slate-200">
                     <div className="max-w-4xl mx-auto">
-                        <h3 className="text-sm font-black uppercase text-slate-400 mb-4 tracking-wide">
-                            Activity Type
-                        </h3>
+                        <div className="flex justify-between items-center mb-4">
+                            <h3 className="text-sm font-black uppercase text-slate-400 tracking-wide">
+                                Activity Type Filter
+                            </h3>
+                            {selectedType && (
+                                <button
+                                    onClick={() => setSelectedType(null)}
+                                    className="text-xs font-bold text-indigo-600 hover:text-indigo-800"
+                                >
+                                    Clear Filter
+                                </button>
+                            )}
+                        </div>
                         <ActivityTypeSelector
-                            selectedType={selectedType}
-                            onTypeChange={setSelectedType}
+                            selectedType={selectedType || ''}
+                            onTypeChange={(type) => setSelectedType(prev => prev === type ? null : type)}
                             layout="grid"
                         />
                     </div>
@@ -186,7 +229,7 @@ const ActivitiesPage = () => {
                     <>
                         {viewMode === 'list' && (
                             <EnhancedActivitiesTable
-                                activities={activities}
+                                activities={filteredActivities}
                                 onActivityClick={handleActivityClick}
                                 onEdit={(activity) => {
                                     console.log('Edit:', activity);
@@ -201,7 +244,7 @@ const ActivitiesPage = () => {
 
                         {viewMode === 'week' && (
                             <CalendarWeekView
-                                activities={activities}
+                                activities={filteredActivities}
                                 onActivityClick={handleActivityClick}
                                 onTimeSlotClick={handleTimeSlotClick}
                             />
@@ -209,7 +252,7 @@ const ActivitiesPage = () => {
 
                         {viewMode === 'day' && (
                             <CalendarDayView
-                                activities={activities}
+                                activities={filteredActivities}
                                 onActivityClick={handleActivityClick}
                                 onTimeSlotClick={(hour) => handleTimeSlotClick(new Date(), hour)}
                             />
@@ -217,7 +260,7 @@ const ActivitiesPage = () => {
 
                         {viewMode === 'month' && (
                             <CalendarMonthView
-                                activities={activities}
+                                activities={filteredActivities}
                                 onActivityClick={handleActivityClick}
                                 onTimeSlotClick={(date, hour) => handleTimeSlotClick(date, hour)}
                             />

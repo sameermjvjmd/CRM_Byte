@@ -1,111 +1,98 @@
+using System;
+using System.Collections.Generic;
+using System.Security.Claims;
+using System.Threading.Tasks;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using CRM.Api.Data;
-using CRM.Api.Models;
+using CRM.Api.DTOs.CustomFields;
+using CRM.Api.Services;
 
 namespace CRM.Api.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
+    [Authorize]
     public class CustomFieldsController : ControllerBase
     {
-        private readonly ApplicationDbContext _context;
+        private readonly ICustomFieldService _customFieldService;
 
-        public CustomFieldsController(ApplicationDbContext context)
+        public CustomFieldsController(ICustomFieldService customFieldService)
         {
-            _context = context;
+            _customFieldService = customFieldService;
         }
 
-        // GET: api/CustomFields/Contact
         [HttpGet("{entityType}")]
-        public async Task<ActionResult<IEnumerable<CustomFieldDefinition>>> GetFields(string entityType)
+        public async Task<ActionResult<List<CustomFieldDto>>> GetCustomFields(string entityType)
         {
-            return await _context.CustomFieldDefinitions
-                .Where(f => f.EntityType == entityType && f.IsActive)
-                .OrderBy(f => f.SortOrder)
-                .ToListAsync();
+            var fields = await _customFieldService.GetCustomFieldsAsync(entityType);
+            return Ok(fields);
         }
 
-        // POST: api/CustomFields
+        [HttpGet("field/{id}")]
+        public async Task<ActionResult<CustomFieldDto>> GetCustomField(int id)
+        {
+            var field = await _customFieldService.GetCustomFieldByIdAsync(id);
+            if (field == null) return NotFound();
+            return Ok(field);
+        }
+
         [HttpPost]
-        public async Task<ActionResult<CustomFieldDefinition>> CreateField(CustomFieldDefinition field)
+        public async Task<ActionResult<CustomFieldDto>> CreateCustomField(CreateCustomFieldDto dto)
         {
-            field.CreatedAt = DateTime.UtcNow;
-            
-            // Auto-generate FieldKey if empty
-            if (string.IsNullOrEmpty(field.FieldKey))
-            {
-                field.FieldKey = field.FieldName.ToLower().Replace(" ", "_");
-            }
-
-            _context.CustomFieldDefinitions.Add(field);
-            await _context.SaveChangesAsync();
-
-            return CreatedAtAction(nameof(GetFields), new { entityType = field.EntityType }, field);
+            var userId = GetUserId();
+            var field = await _customFieldService.CreateCustomFieldAsync(dto, userId);
+            return CreatedAtAction(nameof(GetCustomField), new { id = field.Id }, field);
         }
 
-        // PUT: api/CustomFields/5
         [HttpPut("{id}")]
-        public async Task<IActionResult> UpdateField(int id, CustomFieldDefinition field)
+        public async Task<ActionResult<CustomFieldDto>> UpdateCustomField(int id, UpdateCustomFieldDto dto)
         {
-            if (id != field.Id)
-            {
-                return BadRequest();
-            }
-
-            var existingField = await _context.CustomFieldDefinitions.FindAsync(id);
-            if (existingField == null)
-            {
-                return NotFound();
-            }
-
-            // Update properties
-            existingField.FieldName = field.FieldName;
-            existingField.FieldType = field.FieldType;
-            existingField.OptionsJson = field.OptionsJson;
-            existingField.IsRequired = field.IsRequired;
-            existingField.SortOrder = field.SortOrder;
-            existingField.IsActive = field.IsActive;
-
             try
             {
-                await _context.SaveChangesAsync();
+                var userId = GetUserId();
+                var field = await _customFieldService.UpdateCustomFieldAsync(id, dto, userId);
+                return Ok(field);
             }
-            catch (DbUpdateConcurrencyException)
-            {
-                if (!FieldExists(id))
-                {
-                    return NotFound();
-                }
-                else
-                {
-                    throw;
-                }
-            }
-
-            return NoContent();
-        }
-
-        // DELETE: api/CustomFields/5
-        [HttpDelete("{id}")]
-        public async Task<IActionResult> DeleteField(int id)
-        {
-            var field = await _context.CustomFieldDefinitions.FindAsync(id);
-            if (field == null)
+            catch (KeyNotFoundException)
             {
                 return NotFound();
             }
+        }
 
-            // Soft delete
-            field.IsActive = false;
-            await _context.SaveChangesAsync();
-
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> DeleteCustomField(int id)
+        {
+            var result = await _customFieldService.DeleteCustomFieldAsync(id);
+            if (!result) return NotFound();
             return NoContent();
         }
 
-        private bool FieldExists(int id)
+        [HttpGet("{entityType}/{entityId}/values")]
+        public async Task<ActionResult<List<CustomFieldValueDto>>> GetEntityValues(string entityType, int entityId)
         {
-            return _context.CustomFieldDefinitions.Any(e => e.Id == id);
+            var values = await _customFieldService.GetEntityCustomFieldValuesAsync(entityType, entityId);
+            return Ok(values);
+        }
+
+        [HttpPost("{entityType}/{entityId}/values")]
+        public async Task<IActionResult> SaveEntityValues(string entityType, int entityId, [FromBody] SaveCustomFieldValuesDto dto)
+        {
+            // Note: Dictionary<string, object> deserialization can be tricky.
+            // System.Text.Json deserializes 'object' as 'JsonElement'.
+            // The service handles JsonElement conversion.
+            await _customFieldService.SaveEntityCustomFieldValuesAsync(entityType, entityId, dto.Values!);
+            return Ok();
+        }
+
+        private int GetUserId()
+        {
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
+            if (userIdClaim != null && int.TryParse(userIdClaim.Value, out int userId))
+            {
+                return userId;
+            }
+            // Fallback for dev/testing if token structure differs (or throw)
+            return 0; 
         }
     }
 }

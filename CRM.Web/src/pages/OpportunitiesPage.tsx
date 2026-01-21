@@ -6,6 +6,9 @@ import { Plus, MoreVertical, Calendar, User } from 'lucide-react';
 import { DragDropContext, Droppable, Draggable, type DropResult } from '@hello-pangea/dnd';
 import CreateModal from '../components/CreateModal';
 import CloseOpportunityModal from '../components/CloseOpportunityModal';
+import ExportMenu from '../components/common/ExportMenu';
+import { exportToPdf, exportToExcel } from '../utils/exportUtils';
+import { toast } from 'react-hot-toast';
 
 const STAGES = ['Initial', 'Qualification', 'Proposal', 'Negotiation', 'Closed Won', 'Closed Lost'];
 
@@ -81,6 +84,27 @@ const OpportunitiesPage = () => {
         return getOppsByStage(stage).reduce((sum, op) => sum + (op.amount || 0), 0);
     };
 
+    // Export Handlers
+    const handleExportPdf = async () => {
+        try {
+            await exportToPdf('/reports/export/opportunities/pdf', 'opportunities_report');
+            toast.success('Opportunities exported to PDF successfully!');
+        } catch (error) {
+            toast.error('Failed to export opportunities to PDF');
+            console.error('PDF export error:', error);
+        }
+    };
+
+    const handleExportExcel = async () => {
+        try {
+            await exportToExcel('/reports/export/opportunities/excel', 'opportunities_report');
+            toast.success('Opportunities exported to Excel successfully!');
+        } catch (error) {
+            toast.error('Failed to export opportunities to Excel');
+            console.error('Excel export error:', error);
+        }
+    };
+
     if (loading) {
         return (
             <div className="p-8 h-full flex flex-col justify-center items-center text-slate-400">
@@ -97,13 +121,19 @@ const OpportunitiesPage = () => {
                     <h1 className="text-2xl font-bold text-slate-900">Opportunities Pipeline</h1>
                     <p className="text-slate-500 text-sm">Track and manage your sales deals through stages.</p>
                 </div>
-                <button
-                    onClick={() => setIsModalOpen(true)}
-                    className="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 hover:bg-indigo-700 transition-all shadow-sm"
-                >
-                    <Plus size={18} />
-                    New Opportunity
-                </button>
+                <div className="flex gap-2">
+                    <ExportMenu
+                        onExportPdf={handleExportPdf}
+                        onExportExcel={handleExportExcel}
+                    />
+                    <button
+                        onClick={() => setIsModalOpen(true)}
+                        className="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 hover:bg-indigo-700 transition-all shadow-sm"
+                    >
+                        <Plus size={18} />
+                        New Opportunity
+                    </button>
+                </div>
             </div>
 
             <DragDropContext onDragEnd={handleOnDragEnd}>

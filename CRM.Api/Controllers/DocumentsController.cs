@@ -116,6 +116,45 @@ namespace CRM.Api.Controllers
             return CreatedAtAction(nameof(DownloadDocument), new { id = document.Id }, document);
         }
 
+        // PUT: api/documents/5/content
+        [HttpPut("{id}/content")]
+        public async Task<IActionResult> UpdateDocumentContent(int id, [FromForm] IFormFile file)
+        {
+            var document = await _context.Documents.FindAsync(id);
+            if (document == null) return NotFound();
+            if (file == null || file.Length == 0) return BadRequest("No file content");
+
+            var uploadPath = Path.Combine(_env.WebRootPath ?? Path.Combine(Directory.GetCurrentDirectory(), "wwwroot"), "uploads");
+            if (!Directory.Exists(uploadPath)) Directory.CreateDirectory(uploadPath);
+
+            // Delete old physical file
+            var oldFilePath = Path.Combine(uploadPath, document.StoredFileName);
+            if (System.IO.File.Exists(oldFilePath))
+            {
+                try { System.IO.File.Delete(oldFilePath); } catch { }
+            }
+
+            // Save new file
+            var storedFileName = $"{Guid.NewGuid()}{Path.GetExtension(file.FileName)}";
+            var filePath = Path.Combine(uploadPath, storedFileName);
+            using (var stream = new FileStream(filePath, FileMode.Create))
+            {
+                await file.CopyToAsync(stream);
+            }
+
+            // Update entity
+            document.StoredFileName = storedFileName;
+            // Optionally update FileName if you want to overwrite name, or keep original
+            // document.FileName = file.FileName; 
+            document.ContentType = file.ContentType;
+            document.FileSize = file.Length;
+            document.UploadedAt = DateTime.UtcNow;
+
+            await _context.SaveChangesAsync();
+
+            return NoContent();
+        }
+
         // DELETE: api/documents/5
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteDocument(int id)

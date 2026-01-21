@@ -1,5 +1,5 @@
 # CRM Master End-User Testing Guide
-**Version:** 1.1 (Comprehensive "A-Z" Coverage)
+**Version:** 1.2 (Marketing Automation Update)
 
 This guide provides a complete, end-to-end walkthrough for validating the CRM application functionality. It is designed for QA testers and end-users to verify all major modules implemented to date.
 
@@ -138,16 +138,47 @@ This guide provides a complete, end-to-end walkthrough for validating the CRM ap
 
 ---
 
-## � Section 9: Marketing & Lists
-**Objective:** Manage leads and marketing lists.
+## 📢 Section 9: Marketing Automation Module
+**Objective:** Verify end-to-end marketing campaigns, list segmentation, and engagement tracking.
 
-1. **Lists Management**
-   - Create a new "Marketing List" (Dynamic or Static).
-   - **Add Members**: Add contacts to the list manually.
-   - **Check**: Member count updates.
-2. **Lead Scoring (Backend Check)**
-   - Perform actions (e.g., Open Email, Visit Website) for a Contact.
-   - **Check**: Verify the Contact's "Lead Score" increases (if visible on UI).
+1.  **Lists Management**
+    - **Static Lists**: Create a list, manually add members.
+    - **Dynamic Lists**: Create a list with rules (e.g., "City = New York"). Verify that new contacts matching the rule are auto-added by the background job.
+    - **View Subscribers**: Click the "View Subscribers" button on any list card. Verify you can see the table of members and remove them if needed.
+2.  **Email Templates**
+    - Navigate to **Marketing > Templates**.
+    - Click `+ New Template`.
+    - Use the Drag-and-Drop builder to add Text, Images, and Buttons.
+    - **Save** and verify the preview.
+3.  **Standard (Blast) Campaigns**
+    - Create a new Campaign (Type: "Standard").
+    - Select a List and a Template.
+    - Click **Start** (Play Icon).
+    - **Check**: Toast notification "Campaign started". Status changes to "Active".
+    - **Verify Email**: Recipient receives the email with correct content.
+4.  **Drip Campaigns (Automation)**
+    - Create a new Campaign (Type: "Drip").
+    - Click the **Layers Icon** to manage steps.
+    - **Add Steps**:
+        - Step 1: "Welcome" (Delay: Immediately).
+        - Step 2: "Follow-up" (Delay: 1 Unit: Day / 1 Hour).
+    - **Start Campaign**.
+    - **Check**: Step 1 sends immediately. Step 2 is scheduled for the future.
+5.  **Analytics & Tracking**
+    - **Opens**: Open a received campaign email. Refresh the Campaign list/stats. **Check**: "Opens" count increments.
+    - **Clicks**: Click a link in the email. **Check**: "Clicks" count increments.
+    - **Dashboard**: Verify the "Marketing Dashboard" shows the aggregate performance.
+6.  **Landing Pages & Forms**
+    - **Create Page**: Go to **Marketing > Landing Pages** and create a new page (e.g., "Newsletter Signup").
+    - **Form Builder**:
+        - Open the builder. Drag a **Form** block onto the canvas.
+        - Click the form to select it. In the settings, choose a **Target List** (e.g., "Newsletter Subscribers").
+        - (Optional) Set "Assign Leads To" to a specific user.
+    - **Publishing**: Change status to **Published** in the header.
+    - **Testing**:
+        - Click **Preview** to open the public link.
+        - Fill out the form with a new email address.
+        - **Verify**: The new contact is created in CRM and added to the chosen Marketing List (check via "View Subscribers").
 
 ---
 
@@ -192,6 +223,7 @@ The application is considered **Stable** for this release if:
 - [ ] Core CRUD operations (Create, Read, Update, Delete) work for Contacts, Companies, and Opportunities.
 - [ ] The "Custom Fields" feature is functional.
 - [ ] Quotes can be created and PDFs generated.
+- [ ] Marketing Campaigns (Blast & Drip) execute correctly.
 - [ ] Advanced Search returns correct results.
 - [ ] No critical "Red Screen" crashes occur during normal workflow.
 - [ ] Data persists accurately after page reloads.

@@ -768,7 +768,12 @@ namespace CRM.Api.Controllers
                     .OrderByDescending(c => c.CreatedAt)
                     .Take(5)
                     .Select(c => MapToDto(c))
-                    .ToList()
+                    .ToList(),
+                TotalLandingPageViews = await _context.LandingPages.SumAsync(p => p.VisitCount),
+                TotalLandingPageSubmissions = await _context.LandingPages.SumAsync(p => p.SubmissionCount),
+                LandingPageConversionRate = await _context.LandingPages.SumAsync(p => p.VisitCount) > 0 
+                    ? (double)await _context.LandingPages.SumAsync(p => p.SubmissionCount) / await _context.LandingPages.SumAsync(p => p.VisitCount) * 100 
+                    : 0
             };
 
             return Ok(dashboard);

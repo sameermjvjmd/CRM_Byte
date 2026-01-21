@@ -30,7 +30,8 @@ const CreateModal = ({ isOpen, onClose, onSuccess, title, initialType = 'Contact
 
     const [formData, setFormData] = useState<any>({
         // Contact
-        firstName: '', lastName: '', email: '', phone: '', jobTitle: '',
+        salutation: '', firstName: '', lastName: '', email: '', phone: '', mobilePhone: '', fax: '', phoneExtension: '',
+        jobTitle: '', department: '', status: 'Active', referredBy: '',
         address1: '', city: '', state: '', zip: '', country: '',
         // Company/Group
         name: '', industry: '', website: '', description: '', isDynamic: false, savedSearchId: '',
@@ -100,11 +101,18 @@ const CreateModal = ({ isOpen, onClose, onSuccess, title, initialType = 'Contact
                 case 'Contact':
                     endpoint = '/contacts';
                     payload = {
+                        salutation: formData.salutation || null,
                         firstName: formData.firstName,
                         lastName: formData.lastName,
                         email: formData.email,
                         phone: formData.phone || null,
+                        mobilePhone: formData.mobilePhone || null,
+                        fax: formData.fax || null,
+                        phoneExtension: formData.phoneExtension || null,
                         jobTitle: formData.jobTitle || null,
+                        department: formData.department || null,
+                        status: formData.status || 'Active',
+                        referredBy: formData.referredBy || null,
                         address1: formData.address1 || null,
                         city: formData.city || null,
                         state: formData.state || null,
@@ -290,16 +298,39 @@ const CreateModal = ({ isOpen, onClose, onSuccess, title, initialType = 'Contact
                         <form onSubmit={handleSubmit} className="space-y-6">
                             {type === 'Contact' && (
                                 <>
-                                    <div className="grid grid-cols-2 gap-5">
-                                        <div>
+                                    <div className="grid grid-cols-12 gap-5">
+                                        <div className="col-span-3">
+                                            <label className={labelStyle}>Salutation</label>
+                                            <select name="salutation" value={formData.salutation} onChange={handleChange} className={selectStyle}>
+                                                <option value="">-</option>
+                                                <option value="Mr.">Mr.</option>
+                                                <option value="Ms.">Ms.</option>
+                                                <option value="Mrs.">Mrs.</option>
+                                                <option value="Dr.">Dr.</option>
+                                                <option value="Prof.">Prof.</option>
+                                            </select>
+                                        </div>
+                                        <div className="col-span-4">
                                             <label className={labelStyle}>First Name</label>
                                             <input required name="firstName" value={formData.firstName} onChange={handleChange} className={inputStyle} placeholder="John" />
                                         </div>
-                                        <div>
+                                        <div className="col-span-5">
                                             <label className={labelStyle}>Last Name</label>
                                             <input required name="lastName" value={formData.lastName} onChange={handleChange} className={inputStyle} placeholder="Doe" />
                                         </div>
                                     </div>
+
+                                    <div className="grid grid-cols-2 gap-5">
+                                        <div>
+                                            <label className={labelStyle}>Job Title</label>
+                                            <input name="jobTitle" value={formData.jobTitle} onChange={handleChange} className={inputStyle} placeholder="e.g. Sales Manager" />
+                                        </div>
+                                        <div>
+                                            <label className={labelStyle}>Department</label>
+                                            <input name="department" value={formData.department} onChange={handleChange} className={inputStyle} placeholder="e.g. Marketing" />
+                                        </div>
+                                    </div>
+
                                     <div>
                                         <label className={labelStyle}>Email Address</label>
                                         <div className="relative">
@@ -307,15 +338,41 @@ const CreateModal = ({ isOpen, onClose, onSuccess, title, initialType = 'Contact
                                             <input required type="email" name="email" value={formData.email} onChange={handleChange} className={`${inputStyle} pl-10`} placeholder="john.doe@example.com" />
                                         </div>
                                     </div>
+
+                                    <div className="grid grid-cols-12 gap-3">
+                                        <div className="col-span-5">
+                                            <label className={labelStyle}>Phone</label>
+                                            <input name="phone" value={formData.phone} onChange={handleChange} className={inputStyle} placeholder="Office" />
+                                        </div>
+                                        <div className="col-span-2">
+                                            <label className={labelStyle}>Ext</label>
+                                            <input name="phoneExtension" value={formData.phoneExtension} onChange={handleChange} className={inputStyle} placeholder="123" />
+                                        </div>
+                                        <div className="col-span-5">
+                                            <label className={labelStyle}>Mobile</label>
+                                            <input name="mobilePhone" value={formData.mobilePhone} onChange={handleChange} className={inputStyle} placeholder="Cell" />
+                                        </div>
+                                    </div>
+
                                     <div className="grid grid-cols-2 gap-5">
                                         <div>
-                                            <label className={labelStyle}>Job Title</label>
-                                            <input name="jobTitle" value={formData.jobTitle} onChange={handleChange} className={inputStyle} placeholder="e.g. Sales Manager" />
+                                            <label className={labelStyle}>Fax</label>
+                                            <input name="fax" value={formData.fax} onChange={handleChange} className={inputStyle} placeholder="Fax Number" />
                                         </div>
                                         <div>
-                                            <label className={labelStyle}>Phone</label>
-                                            <input name="phone" value={formData.phone} onChange={handleChange} className={inputStyle} placeholder="+1 (555) 000-0000" />
+                                            <label className={labelStyle}>Status</label>
+                                            <select name="status" value={formData.status} onChange={handleChange} className={selectStyle}>
+                                                <option value="Active">Active</option>
+                                                <option value="Inactive">Inactive</option>
+                                                <option value="Prospect">Prospect</option>
+                                                <option value="Customer">Customer</option>
+                                                <option value="Vendor">Vendor</option>
+                                            </select>
                                         </div>
+                                    </div>
+                                    <div>
+                                        <label className={labelStyle}>Referred By</label>
+                                        <input name="referredBy" value={formData.referredBy} onChange={handleChange} className={inputStyle} placeholder="Name of referrer" />
                                     </div>
                                     <div>
                                         <label className={labelStyle}>Address</label>

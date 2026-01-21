@@ -68,23 +68,6 @@ const OpportunityDetailPage = () => {
         if (activeTab === 'Products' && id) fetchProducts();
     }, [activeTab, id]);
 
-    const handleUpdateCustomFields = async (values: any[]) => {
-        if (!opportunity || !id) return;
-        try {
-            const updated = { ...opportunity, customValues: values };
-            await api.put(`/opportunities/${id}`, updated);
-
-            // Refresh
-            const res = await api.get(`/opportunities/${id}`);
-            setOpportunity(res.data);
-
-            alert('Custom fields updated successfully!');
-        } catch (error) {
-            console.error('Error updating custom fields:', error);
-            alert('Failed to update custom fields');
-        }
-    };
-
     const handleDeleteProduct = async (productId: number) => {
         if (!confirm('Are you sure you want to delete this product?')) return;
         try {
@@ -258,8 +241,6 @@ const OpportunityDetailPage = () => {
                                 <UserFieldsTab
                                     entityId={Number(id)}
                                     entityType="Opportunity"
-                                    customValues={opportunity.customValues || []}
-                                    onUpdate={handleUpdateCustomFields}
                                 />
                             )}
 

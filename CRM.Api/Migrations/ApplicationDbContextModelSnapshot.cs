@@ -1563,6 +1563,110 @@ namespace CRM.Api.Migrations
                     b.ToTable("CustomFieldValues");
                 });
 
+            modelBuilder.Entity("CRM.Api.Models.CustomFields.CustomField", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("CreatedBy")
+                        .HasColumnType("int");
+
+                    b.Property<string>("DefaultValue")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("DisplayName")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("DisplayOrder")
+                        .HasColumnType("int");
+
+                    b.Property<string>("EntityType")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("FieldName")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("FieldType")
+                        .HasColumnType("int");
+
+                    b.Property<string>("HelpText")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsRequired")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Options")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("SectionName")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ValidationRules")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("AppCustomFields");
+                });
+
+            modelBuilder.Entity("CRM.Api.Models.CustomFields.CustomFieldValue", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<bool?>("BooleanValue")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("CustomFieldId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("DateValue")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("EntityId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("EntityType")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<decimal?>("NumberValue")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("TextValue")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CustomFieldId");
+
+                    b.ToTable("AppCustomFieldValues");
+                });
+
             modelBuilder.Entity("CRM.Api.Models.Document", b =>
                 {
                     b.Property<int>("Id")
@@ -3757,6 +3861,106 @@ namespace CRM.Api.Migrations
                         });
                 });
 
+            modelBuilder.Entity("CRM.Api.Models.Webhook", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CustomHeaders")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Events")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("FailureCount")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("LastError")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("LastTriggeredAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Secret")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("TriggerCount")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Url")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Webhooks");
+                });
+
+            modelBuilder.Entity("CRM.Api.Models.WebhookLog", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("AttemptNumber")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ErrorMessage")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("EventType")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Payload")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Response")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("StatusCode")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("Success")
+                        .HasColumnType("bit");
+
+                    b.Property<int>("WebhookId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("WebhookId");
+
+                    b.ToTable("WebhookLogs");
+                });
+
             modelBuilder.Entity("CRM.Api.Models.WorkflowExecutionLog", b =>
                 {
                     b.Property<int>("Id")
@@ -4072,6 +4276,17 @@ namespace CRM.Api.Migrations
                     b.Navigation("CustomFieldDefinition");
                 });
 
+            modelBuilder.Entity("CRM.Api.Models.CustomFields.CustomFieldValue", b =>
+                {
+                    b.HasOne("CRM.Api.Models.CustomFields.CustomField", "CustomField")
+                        .WithMany("Values")
+                        .HasForeignKey("CustomFieldId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("CustomField");
+                });
+
             modelBuilder.Entity("CRM.Api.Models.Document", b =>
                 {
                     b.HasOne("CRM.Api.Models.Company", "Company")
@@ -4375,6 +4590,17 @@ namespace CRM.Api.Migrations
                     b.Navigation("Opportunity");
                 });
 
+            modelBuilder.Entity("CRM.Api.Models.WebhookLog", b =>
+                {
+                    b.HasOne("CRM.Api.Models.Webhook", "Webhook")
+                        .WithMany()
+                        .HasForeignKey("WebhookId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Webhook");
+                });
+
             modelBuilder.Entity("CRM.Api.Models.WorkflowExecutionLog", b =>
                 {
                     b.HasOne("CRM.Api.Models.WorkflowRule", "WorkflowRule")
@@ -4442,6 +4668,11 @@ namespace CRM.Api.Migrations
             modelBuilder.Entity("CRM.Api.Models.ContactWebInfo", b =>
                 {
                     b.Navigation("CustomLinks");
+                });
+
+            modelBuilder.Entity("CRM.Api.Models.CustomFields.CustomField", b =>
+                {
+                    b.Navigation("Values");
                 });
 
             modelBuilder.Entity("CRM.Api.Models.Email.SentEmail", b =>

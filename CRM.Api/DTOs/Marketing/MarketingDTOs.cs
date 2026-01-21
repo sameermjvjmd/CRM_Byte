@@ -347,5 +347,10 @@ namespace CRM.Api.DTOs.Marketing
         
         // Top performing campaigns
         public List<CampaignDto>? TopCampaigns { get; set; }
+
+        // Landing Pages
+        public int TotalLandingPageViews { get; set; }
+        public int TotalLandingPageSubmissions { get; set; }
+        public double LandingPageConversionRate { get; set; }
     }
 }

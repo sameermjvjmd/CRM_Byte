@@ -338,20 +338,21 @@ namespace CRM.Api.Controllers
         [HttpGet("stats/contact/{contactId}")]
         public async Task<ActionResult<object>> GetContactActivityStats(int contactId)
         {
-            var activities = await _context.Activities
-                .Where(a => a.ContactId == contactId)
+            // Use HistoryItems for stats to reflect past interactions
+            var history = await _context.HistoryItems
+                .Where(h => h.ContactId == contactId)
                 .ToListAsync();
 
             var stats = new
             {
                 ContactId = contactId,
-                TotalActivities = activities.Count,
-                EmailCount = activities.Count(a => a.Type == ActivityTypes.Email),
-                CallAttemptCount = activities.Count(a => a.Type == ActivityTypes.CallAttempt || (a.Type == ActivityTypes.Call && a.Result == ActivityResults.Attempted)),
-                CallReachedCount = activities.Count(a => a.Type == ActivityTypes.CallReached || (a.Type == ActivityTypes.Call && a.IsCompleted && a.Result == ActivityResults.Completed)),
-                MeetingCount = activities.Count(a => a.Type == ActivityTypes.Meeting || a.Type == ActivityTypes.Appointment),
-                LetterSentCount = activities.Count(a => a.Type == ActivityTypes.Letter),
-                LastActivityDate = activities.OrderByDescending(a => a.StartTime).FirstOrDefault()?.StartTime
+                TotalActivities = history.Count,
+                EmailCount = history.Count(h => h.Type == ActivityTypes.Email),
+                CallAttemptCount = history.Count(h => h.Type == ActivityTypes.CallAttempt || (h.Type == ActivityTypes.Call && h.Result == ActivityResults.Attempted)),
+                CallReachedCount = history.Count(h => h.Type == ActivityTypes.CallReached || (h.Type == ActivityTypes.Call && (h.Result == ActivityResults.Completed || h.Result == "Reached"))),
+                MeetingCount = history.Count(h => h.Type == ActivityTypes.Meeting || h.Type == ActivityTypes.Appointment),
+                LetterSentCount = history.Count(h => h.Type == ActivityTypes.Letter),
+                LastActivityDate = history.OrderByDescending(h => h.Date).FirstOrDefault()?.Date
             };
 
             return Ok(stats);

@@ -10,6 +10,12 @@ using CRM.Api.Services.Security;
 using CRM.Api.Middleware;
 using CRM.Api.Services.Import;
 using CRM.Api.Services.DataQuality;
+using CRM.Api.Services.Webhooks;
+using AspNetCoreRateLimit;
+using QuestPDF.Infrastructure;
+
+// Configure QuestPDF license (Community is free)
+QuestPDF.Settings.License = LicenseType.Community;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -63,12 +69,19 @@ builder.Services.AddHostedService<WorkflowBackgroundService>();
 
 // Reporting Services
 builder.Services.AddScoped<CRM.Api.Services.Reporting.IReportBuilderService, CRM.Api.Services.Reporting.ReportBuilderService>();
+builder.Services.AddScoped<CRM.Api.Services.Reporting.IPdfExportService, CRM.Api.Services.Reporting.PdfExportService>();
+builder.Services.AddScoped<CRM.Api.Services.Reporting.IExcelExportService, CRM.Api.Services.Reporting.ExcelExportService>();
 
 // Security Services
 builder.Services.AddSingleton<IEncryptionService, EncryptionService>();
 
 // Search Services
 builder.Services.AddScoped<CRM.Api.Services.Search.ISearchService, CRM.Api.Services.Search.SearchService>();
+
+// Webhook Services (External Integrations)
+builder.Services.AddScoped<IWebhookService, WebhookService>();
+builder.Services.AddScoped<ICustomFieldService, CustomFieldService>();
+builder.Services.AddHttpClient(); // For webhook HTTP requests
 
 // JWT Authentication
 var jwtSettings = builder.Configuration.GetSection("JwtSettings");
@@ -95,6 +108,33 @@ builder.Services.AddAuthentication(options =>
 });
 
 builder.Services.AddPermissionAuthorization();
+
+// API Rate Limiting
+builder.Services.AddMemoryCache();
+builder.Services.Configure<IpRateLimitOptions>(options =>
+{
+    options.EnableEndpointRateLimiting = true;
+    options.StackBlockedRequests = false;
+    options.HttpStatusCode = 429;
+    options.RealIpHeader = "X-Real-IP";
+    options.GeneralRules = new List<RateLimitRule>
+    {
+        new RateLimitRule
+        {
+            Endpoint = "*",
+            Period = "1m",
+            Limit = 100 // 100 requests per minute
+        },
+        new RateLimitRule
+        {
+            Endpoint = "*",
+            Period = "1h",
+            Limit = 1000 // 1000 requests per hour
+        }
+    };
+});
+builder.Services.AddSingleton<IRateLimitConfiguration, RateLimitConfiguration>();
+builder.Services.AddInMemoryRateLimiting();
 
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
@@ -123,6 +163,9 @@ app.UseCors("AllowAll");
 
 // Tenant Resolution Middleware (before authentication)
 app.UseTenantMiddleware();
+
+// Rate Limiting Middleware
+app.UseIpRateLimiting();
 
 // Authentication & Authorization middleware
 app.UseAuthentication();
@@ -331,6 +374,58 @@ using (var scope = app.Services.CreateScope())
             logger.LogInformation("Ensured Quotes tables exist.");
         } catch (Exception ex) {
             logger.LogError(ex, "Failed to manually create Quotes tables.");
+        }
+
+        // WEBHOOKS TABLES (External Integrations)
+        try {
+            // 1. Webhooks
+            context.Database.ExecuteSqlRaw(@"
+                IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='Webhooks' AND xtype='U')
+                BEGIN
+                    CREATE TABLE [Webhooks] (
+                        [Id] int NOT NULL IDENTITY,
+                        [Name] nvarchar(200) NOT NULL,
+                        [Url] nvarchar(max) NOT NULL,
+                        [Events] nvarchar(max) NOT NULL,
+                        [Secret] nvarchar(max) NOT NULL,
+                        [IsActive] bit NOT NULL DEFAULT 1,
+                        [Description] nvarchar(max) NULL,
+                        [TriggerCount] int NOT NULL DEFAULT 0,
+                        [LastTriggeredAt] datetime2 NULL,
+                        [LastError] nvarchar(max) NULL,
+                        [FailureCount] int NOT NULL DEFAULT 0,
+                        [CustomHeaders] nvarchar(max) NULL,
+                        [CreatedAt] datetime2 NOT NULL,
+                        [UpdatedAt] datetime2 NULL,
+                        CONSTRAINT [PK_Webhooks] PRIMARY KEY ([Id])
+                    );
+                END
+            ");
+
+            // 2. WebhookLogs
+            context.Database.ExecuteSqlRaw(@"
+                IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='WebhookLogs' AND xtype='U')
+                BEGIN
+                    CREATE TABLE [WebhookLogs] (
+                        [Id] int NOT NULL IDENTITY,
+                        [WebhookId] int NOT NULL,
+                        [EventType] nvarchar(100) NOT NULL,
+                        [Payload] nvarchar(max) NOT NULL,
+                        [StatusCode] int NOT NULL,
+                        [Response] nvarchar(max) NULL,
+                        [Success] bit NOT NULL,
+                        [ErrorMessage] nvarchar(max) NULL,
+                        [AttemptNumber] int NOT NULL DEFAULT 1,
+                        [CreatedAt] datetime2 NOT NULL,
+                        CONSTRAINT [PK_WebhookLogs] PRIMARY KEY ([Id]),
+                        CONSTRAINT [FK_WebhookLogs_Webhooks_WebhookId] FOREIGN KEY ([WebhookId]) REFERENCES [Webhooks] ([Id]) ON DELETE CASCADE
+                    );
+                    CREATE INDEX [IX_WebhookLogs_WebhookId] ON [WebhookLogs] ([WebhookId]);
+                END
+            ");
+            logger.LogInformation("Ensured Webhooks tables exist.");
+        } catch (Exception ex) {
+            logger.LogError(ex, "Failed to manually create Webhooks tables.");
         }
 
         DbInitializer.Initialize(context);

@@ -7,9 +7,12 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="AspNetCoreRateLimit" Version="5.0.0" />
     <PackageReference Include="BCrypt.Net-Next" Version="4.0.3" />
     <PackageReference Include="ClosedXML" Version="0.105.0" />
     <PackageReference Include="CsvHelper" Version="33.1.0" />
+    <PackageReference Include="EPPlus" Version="7.5.0" />
+    <PackageReference Include="Hangfire.AspNetCore" Version="1.8.22" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.2" />
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.1" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.1">
@@ -21,7 +24,11 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
+    <PackageReference Include="QuestPDF" Version="2025.12.3" />
     <PackageReference Include="Scalar.AspNetCore" Version="2.12.11" />
+    <PackageReference Include="Syncfusion.DocIO.Net.Core" Version="20.1.0.61" />
+    <PackageReference Include="Syncfusion.EJ2.WordEditor.AspNet.Core" Version="20.1.0.61" />
   </ItemGroup>
 
 </Project>

@@ -5,6 +5,7 @@ import api from '../api/api';
 interface DocumentsTabProps {
     entityType: 'Contact' | 'Company' | 'Group' | 'Opportunity';
     entityId: number;
+    onEdit?: (document: Document) => void;
 }
 
 interface Document {
@@ -15,7 +16,7 @@ interface Document {
     contentType: string;
 }
 
-const DocumentsTab = ({ entityType, entityId }: DocumentsTabProps) => {
+const DocumentsTab = ({ entityType, entityId, onEdit }: DocumentsTabProps) => {
     const [documents, setDocuments] = useState<Document[]>([]);
     const [loading, setLoading] = useState(true);
     const [uploading, setUploading] = useState(false);
@@ -158,6 +159,15 @@ const DocumentsTab = ({ entityType, entityId }: DocumentsTabProps) => {
                                 </div>
                             </div>
                             <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                {onEdit && (
+                                    <button
+                                        onClick={() => onEdit?.(doc)}
+                                        className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                                        title="Edit"
+                                    >
+                                        <FileText size={16} />
+                                    </button>
+                                )}
                                 <button
                                     onClick={() => handleDownload(doc)}
                                     className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"

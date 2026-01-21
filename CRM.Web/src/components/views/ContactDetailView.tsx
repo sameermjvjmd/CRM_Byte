@@ -19,6 +19,8 @@ import ContactEmailsTab from '../tabs/ContactEmailsTab';
 import ContactAddressesTab from '../tabs/ContactAddressesTab';
 import EmailComposer from '../email/EmailComposer';
 import EmailHistoryTab from '../email/EmailHistoryTab';
+import DocumentEditor from '../documents/DocumentEditor';
+import Pagination from '../Pagination';
 
 interface ContactDetailViewProps {
     contactId: number;
@@ -58,6 +60,14 @@ const ContactDetailView = ({ contactId, navigation }: ContactDetailViewProps) =>
     const [selectedNote, setSelectedNote] = useState<any>(null);
     const [activityTypeFilter, setActivityTypeFilter] = useState<string | null>(null);
     const [isEmailComposerOpen, setIsEmailComposerOpen] = useState(false);
+    const [isDocEditorOpen, setIsDocEditorOpen] = useState(false);
+    const [selectedDocument, setSelectedDocument] = useState<any>(null);
+
+    // Pagination state
+    const [historyPage, setHistoryPage] = useState(1);
+    const [historyPerPage, setHistoryPerPage] = useState(10);
+    const [activitiesPage, setActivitiesPage] = useState(1);
+    const [activitiesPerPage, setActivitiesPerPage] = useState(10);
 
     useEffect(() => {
         const fetchData = async () => {
@@ -249,22 +259,9 @@ const ContactDetailView = ({ contactId, navigation }: ContactDetailViewProps) =>
         }
     };
 
-    // Custom fields handler
-    const handleUpdateCustomFields = async (values: any[]) => {
-        if (!contact) return;
-        try {
-            const updatedContact = { ...contact, customValues: values };
-            await api.put(`/contacts/${contactId}`, updatedContact);
-
-            // Refresh to confirm save
-            const res = await api.get(`/contacts/${contactId}`);
-            setContact(res.data);
-
-            alert('Custom fields updated successfully!');
-        } catch (error) {
-            console.error('Error updating custom fields:', error);
-            alert('Failed to update custom fields');
-        }
+    const handleEditDocument = (doc: any) => {
+        setSelectedDocument(doc);
+        setIsDocEditorOpen(true);
     };
 
 
@@ -419,6 +416,16 @@ const ContactDetailView = ({ contactId, navigation }: ContactDetailViewProps) =>
                                     </div>
                                 </div>
                             )}
+
+                            {contact.referredBy && (
+                                <div className="flex items-start gap-3">
+                                    <User size={16} className="text-slate-400 mt-0.5" />
+                                    <div className="flex-1">
+                                        <div className="text-[10px] font-bold uppercase text-slate-400">Referred By</div>
+                                        <div className="text-sm font-bold text-slate-900">{contact.referredBy}</div>
+                                    </div>
+                                </div>
+                            )}
                         </div>
 
                         {/* Address Section */}
@@ -467,10 +474,9 @@ const ContactDetailView = ({ contactId, navigation }: ContactDetailViewProps) =>
                         contactId={contactId}
                         onActivityTypeClick={(activityType) => {
                             console.log('Activity type clicked:', activityType);
-                            console.log('Current active tab:', activeTab);
                             setActivityTypeFilter(activityType);
-                            setActiveTab('Activities');
-                            console.log('Switched to Activities tab with filter:', activityType);
+                            setActiveTab('History');
+                            console.log('Switched to History tab with filter:', activityType);
                         }}
                     />
 
@@ -492,6 +498,7 @@ const ContactDetailView = ({ contactId, navigation }: ContactDetailViewProps) =>
                             setModalType('Note');
                             setIsModalOpen(true);
                         }}
+                        onCreateDocument={() => setIsDocEditorOpen(true)}
                     />
                 </div>
 
@@ -519,36 +526,93 @@ const ContactDetailView = ({ contactId, navigation }: ContactDetailViewProps) =>
                             {activeTab === 'History' && (
                                 <div className="space-y-6">
                                     <div className="flex justify-between items-center">
-                                        <h4 className="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em]">Interaction Timeline</h4>
-                                        <button className="text-[10px] font-black text-indigo-600 uppercase border-b-2 border-indigo-100 pb-0.5">Filter Log</button>
+                                        <h4 className="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em]">
+                                            Interaction Timeline
+                                            {activityTypeFilter && (
+                                                <span className="ml-2 text-indigo-600">
+                                                    • Filtered by {activityTypeFilter}
+                                                </span>
+                                            )}
+                                        </h4>
+                                        {activityTypeFilter ? (
+                                            <button
+                                                onClick={() => setActivityTypeFilter(null)}
+                                                className="text-xs text-indigo-600 hover:text-indigo-800 font-bold"
+                                            >
+                                                Clear Filter
+                                            </button>
+                                        ) : (
+                                            <button className="text-[10px] font-black text-indigo-600 uppercase border-b-2 border-indigo-100 pb-0.5">Filter Log</button>
+                                        )}
                                     </div>
-                                    {history.length > 0 ? (
-                                        <div className="relative border-l-2 border-slate-100 ml-3 pl-8 space-y-6">
-                                            {history.map(item => (
-                                                <div key={item.id} className="relative">
-                                                    <div className={`absolute -left-[41px] top-0 w-8 h-8 rounded-full border-4 border-white flex items-center justify-center shadow-sm ${item.type === 'Call' ? 'bg-blue-500 text-white' : 'bg-indigo-500 text-white'
-                                                        }`}>
-                                                        {item.type === 'Call' ? <Phone size={12} strokeWidth={3} /> : <History size={12} strokeWidth={3} />}
-                                                    </div>
-                                                    <div className="bg-slate-50 border border-slate-100 p-4 rounded-lg group hover:bg-white hover:shadow-md transition-all">
-                                                        <div className="flex justify-between items-start mb-2">
-                                                            <div className="font-black text-slate-900 text-xs uppercase tracking-tight">{item.regarding}</div>
-                                                            <span className="text-[9px] font-black uppercase bg-white border border-slate-200 px-2 py-0.5 rounded text-slate-500">{new Date(item.date).toLocaleDateString()}</span>
-                                                        </div>
-                                                        <div className="text-xs font-bold text-slate-500 uppercase leading-snug">{item.details || "System automated record entry."}</div>
-                                                        <div className="mt-3 flex items-center justify-between">
-                                                            <div className="text-[10px] font-black text-indigo-500 uppercase tracking-widest">{item.result || 'Logged'}</div>
-                                                            <button className="p-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                                <MoreVertical size={14} className="text-slate-300" />
-                                                            </button>
-                                                        </div>
-                                                    </div>
+                                    {(() => {
+                                        const filteredHistory = activityTypeFilter
+                                            ? history.filter(h => {
+                                                if (activityTypeFilter === 'Email') return h.type === 'Email';
+                                                if (activityTypeFilter === 'Meeting') return h.type === 'Meeting';
+                                                if (activityTypeFilter === 'Call Attempt') return h.type === 'Call' && (h.result === 'Attempted' || h.result === 'Left Message');
+                                                if (activityTypeFilter === 'Call Reached') return h.type === 'Call' && (h.result === 'Reached' || h.result === 'Completed');
+                                                // Generic match if specific logic doesn't catch
+                                                return h.type === activityTypeFilter || (activityTypeFilter === 'Call' && h.type === 'Call');
+                                            })
+                                            : history;
+
+                                        if (filteredHistory.length === 0) {
+                                            return (
+                                                <div className="py-16 text-center text-slate-300 font-bold uppercase text-[10px] tracking-[0.3em]">
+                                                    {activityTypeFilter ? 'No matching history found' : 'Timeline Empty'}
                                                 </div>
-                                            ))}
-                                        </div>
-                                    ) : (
-                                        <div className="py-16 text-center text-slate-300 font-bold uppercase text-[10px] tracking-[0.3em]">Timeline Empty</div>
-                                    )}
+                                            );
+                                        }
+
+                                        const paginatedHistory = filteredHistory.slice((historyPage - 1) * historyPerPage, historyPage * historyPerPage);
+
+                                        return (
+                                            <>
+                                                <div className="relative border-l-2 border-slate-100 ml-3 pl-8 space-y-6">
+                                                    {paginatedHistory.map(item => (
+                                                        <div key={item.id} className="relative">
+                                                            <div className={`absolute -left-[41px] top-0 w-8 h-8 rounded-full border-4 border-white flex items-center justify-center shadow-sm ${item.type === 'Call' ? 'bg-blue-500 text-white' : 'bg-indigo-500 text-white'
+                                                                }`}>
+                                                                {item.type === 'Call' ? <Phone size={12} strokeWidth={3} /> : <History size={12} strokeWidth={3} />}
+                                                            </div>
+                                                            <div className="bg-slate-50 border border-slate-100 p-4 rounded-lg group hover:bg-white hover:shadow-md transition-all">
+                                                                <div className="flex justify-between items-start mb-2">
+                                                                    <div className="font-black text-slate-900 text-xs uppercase tracking-tight">{item.regarding}</div>
+                                                                    <span className="text-[9px] font-black uppercase bg-white border border-slate-200 px-2 py-0.5 rounded text-slate-500">
+                                                                        {new Date(item.date).toLocaleDateString()} • {new Date(item.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                                    </span>
+                                                                </div>
+                                                                <div className="text-xs font-bold text-slate-500 uppercase leading-snug">{item.details || "System automated record entry."}</div>
+                                                                <div className="mt-3 flex items-center justify-between">
+                                                                    <div className="flex items-center gap-3">
+                                                                        <div className="text-[10px] font-black text-indigo-500 uppercase tracking-widest">{item.result || 'Logged'}</div>
+                                                                        {(item.durationMinutes || 0) > 0 && (
+                                                                            <div className="text-[9px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+                                                                                <span className="w-1 h-1 rounded-full bg-slate-300"></span>
+                                                                                {item.durationMinutes || 0} min
+                                                                            </div>
+                                                                        )}
+                                                                    </div>
+                                                                    <button className="p-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                                        <MoreVertical size={14} className="text-slate-300" />
+                                                                    </button>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                                <Pagination
+                                                    currentPage={historyPage}
+                                                    totalPages={Math.ceil(filteredHistory.length / historyPerPage)}
+                                                    totalRecords={filteredHistory.length}
+                                                    recordsPerPage={historyPerPage}
+                                                    onPageChange={setHistoryPage}
+                                                    onRecordsPerPageChange={(n) => { setHistoryPerPage(n); setHistoryPage(1); }}
+                                                />
+                                            </>
+                                        );
+                                    })()}
                                 </div>
                             )}
 
@@ -633,32 +697,57 @@ const ContactDetailView = ({ contactId, navigation }: ContactDetailViewProps) =>
 
                                         console.log('Filtered activities count:', filteredActivities.length);
 
-                                        return filteredActivities.length > 0 ? filteredActivities.map(act => (
-                                            <div key={act.id} className="flex gap-4 p-4 rounded-lg border border-slate-100 bg-white hover:shadow-md transition-all cursor-pointer group">
-                                                <div className="p-2 h-fit bg-slate-50 rounded group-hover:bg-indigo-50 transition-all border border-slate-100">
-                                                    {((act as any).type || (act as any).activityType) === 'Call' ? <Phone className="text-blue-500" size={16} /> : <Users className="text-indigo-500" size={16} />}
+                                        if (filteredActivities.length === 0) {
+                                            return (
+                                                <div className="py-16 text-center text-slate-300 font-bold uppercase text-[10px] tracking-[0.3em]">
+                                                    {activityTypeFilter ? `No ${activityTypeFilter} activities found` : 'Schedule Cleared'}
                                                 </div>
-                                                <div className="flex-1">
-                                                    <div className="font-black text-slate-900 text-xs uppercase tracking-tight">{act.subject}</div>
-                                                    <div className="text-[10px] font-black text-slate-400 mt-1 uppercase tracking-widest">
-                                                        {new Date(act.startTime).toLocaleString()} • {act.priority} Prio
+                                            );
+                                        }
+
+                                        const paginatedActivities = filteredActivities.slice((activitiesPage - 1) * activitiesPerPage, activitiesPage * activitiesPerPage);
+
+                                        return (
+                                            <>
+                                                {paginatedActivities.map(act => (
+                                                    <div key={act.id} className="flex gap-4 p-4 rounded-lg border border-slate-100 bg-white hover:shadow-md transition-all cursor-pointer group">
+                                                        <div className="p-2 h-fit bg-slate-50 rounded group-hover:bg-indigo-50 transition-all border border-slate-100">
+                                                            {((act as any).type || (act as any).activityType) === 'Call' ? <Phone className="text-blue-500" size={16} /> : <Users className="text-indigo-500" size={16} />}
+                                                        </div>
+                                                        <div className="flex-1">
+                                                            <div className="font-black text-slate-900 text-xs uppercase tracking-tight">{act.subject}</div>
+                                                            <div className="text-[10px] font-black text-slate-400 mt-1 uppercase tracking-widest">
+                                                                {new Date(act.startTime).toLocaleString()} • {act.priority} Prio
+                                                                {(new Date(act.endTime).getTime() - new Date(act.startTime).getTime()) > 0 && (
+                                                                    <span> • {Math.round((new Date(act.endTime).getTime() - new Date(act.startTime).getTime()) / 60000)} min</span>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                        <button className={`text-[9px] font-black uppercase px-2 py-1 rounded border ${act.isCompleted ? 'text-emerald-500 border-emerald-100 bg-emerald-50' : 'text-indigo-500 border-indigo-100 bg-indigo-50'}`}>
+                                                            {act.isCompleted ? 'Verified' : 'Active'}
+                                                        </button>
                                                     </div>
-                                                </div>
-                                                <button className={`text-[9px] font-black uppercase px-2 py-1 rounded border ${act.isCompleted ? 'text-emerald-500 border-emerald-100 bg-emerald-50' : 'text-indigo-500 border-indigo-100 bg-indigo-50'}`}>
-                                                    {act.isCompleted ? 'Verified' : 'Active'}
-                                                </button>
-                                            </div>
-                                        )) : (
-                                            <div className="py-16 text-center text-slate-300 font-bold uppercase text-[10px] tracking-[0.3em]">
-                                                {activityTypeFilter ? `No ${activityTypeFilter} activities found` : 'Schedule Cleared'}
-                                            </div>
+                                                ))}
+                                                <Pagination
+                                                    currentPage={activitiesPage}
+                                                    totalPages={Math.ceil(filteredActivities.length / activitiesPerPage)}
+                                                    totalRecords={filteredActivities.length}
+                                                    recordsPerPage={activitiesPerPage}
+                                                    onPageChange={setActivitiesPage}
+                                                    onRecordsPerPageChange={(n) => { setActivitiesPerPage(n); setActivitiesPage(1); }}
+                                                />
+                                            </>
                                         );
                                     })()}
                                 </div>
                             )}
 
                             {activeTab === 'Documents' && (
-                                <DocumentsTab entityType="Contact" entityId={contactId} />
+                                <DocumentsTab
+                                    entityType="Contact"
+                                    entityId={contactId}
+                                    onEdit={handleEditDocument}
+                                />
                             )}
 
                             {activeTab === 'Groups' && (
@@ -701,8 +790,6 @@ const ContactDetailView = ({ contactId, navigation }: ContactDetailViewProps) =>
                                 <UserFieldsTab
                                     entityId={contactId}
                                     entityType="Contact"
-                                    customValues={contact.customValues || []}
-                                    onUpdate={handleUpdateCustomFields}
                                 />
                             )}
 
@@ -934,6 +1021,18 @@ const ContactDetailView = ({ contactId, navigation }: ContactDetailViewProps) =>
 
                                 <div>
                                     <label className="block text-xs font-black uppercase tracking-widest text-slate-400 mb-2">
+                                        Referred By
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={editFormData.referredBy || ''}
+                                        onChange={(e) => setEditFormData({ ...editFormData, referredBy: e.target.value })}
+                                        className="w-full px-4 py-2 border border-slate-200 rounded-lg text-sm font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="block text-xs font-black uppercase tracking-widest text-slate-400 mb-2">
                                         Address
                                     </label>
                                     <input
@@ -1070,6 +1169,17 @@ const ContactDetailView = ({ contactId, navigation }: ContactDetailViewProps) =>
                     // Optionally refresh history after email is sent
                     api.get(`/history/contact/${contactId}`).then(res => setHistory(res.data));
                 }}
+            />
+
+            <DocumentEditor
+                isOpen={isDocEditorOpen}
+                onClose={() => {
+                    setIsDocEditorOpen(false);
+                    setSelectedDocument(null);
+                }}
+                contactId={contactId}
+                contactName={contact ? `${contact.firstName} ${contact.lastName}` : ''}
+                initialDocumentId={selectedDocument?.id}
             />
         </div>
     );

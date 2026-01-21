@@ -249,9 +249,52 @@ const CampaignStepsEditor: React.FC<Props> = ({ campaignId, campaignName, onClos
                                                 <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Step Name *</label>
                                                 <input required value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500" placeholder="e.g. Welcome Email" />
                                             </div>
-                                            <div>
-                                                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Delay (Minutes) *</label>
-                                                <input type="number" required min="0" value={formData.delayMinutes} onChange={e => setFormData({ ...formData, delayMinutes: parseInt(e.target.value) })} className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500" />
+                                            <div className="col-span-1">
+                                                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Delay *</label>
+                                                <div className="flex gap-2">
+                                                    <input
+                                                        type="number"
+                                                        required
+                                                        min="0"
+                                                        value={
+                                                            formData.delayMinutes % 1440 === 0 && formData.delayMinutes > 0 ? formData.delayMinutes / 1440 :
+                                                                formData.delayMinutes % 60 === 0 && formData.delayMinutes > 0 ? formData.delayMinutes / 60 :
+                                                                    formData.delayMinutes
+                                                        }
+                                                        onChange={e => {
+                                                            const val = parseInt(e.target.value) || 0;
+                                                            const unitSelect = document.getElementById('unit-select') as HTMLSelectElement;
+                                                            const unit = unitSelect?.value || 'minutes';
+                                                            let mins = val;
+                                                            if (unit === 'hours') mins = val * 60;
+                                                            if (unit === 'days') mins = val * 1440;
+                                                            setFormData({ ...formData, delayMinutes: mins });
+                                                        }}
+                                                        className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500"
+                                                    />
+                                                    <select
+                                                        id="unit-select"
+                                                        defaultValue={
+                                                            formData.delayMinutes % 1440 === 0 && formData.delayMinutes > 0 ? 'days' :
+                                                                formData.delayMinutes % 60 === 0 && formData.delayMinutes > 0 ? 'hours' :
+                                                                    'minutes'
+                                                        }
+                                                        onChange={e => {
+                                                            const unit = e.target.value;
+                                                            const input = e.target.previousElementSibling as HTMLInputElement;
+                                                            const val = parseInt(input.value) || 0;
+                                                            let mins = val;
+                                                            if (unit === 'hours') mins = val * 60;
+                                                            if (unit === 'days') mins = val * 1440;
+                                                            setFormData({ ...formData, delayMinutes: mins });
+                                                        }}
+                                                        className="bg-slate-100 border border-slate-200 rounded-lg px-2 text-sm outline-none focus:ring-2 focus:ring-emerald-500"
+                                                    >
+                                                        <option value="minutes">Minutes</option>
+                                                        <option value="hours">Hours</option>
+                                                        <option value="days">Days</option>
+                                                    </select>
+                                                </div>
                                             </div>
                                             <div>
                                                 <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Subject *</label>

@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using CRM.Api.Data;
 using CRM.Api.Models;
 using CRM.Api.Models.Marketing;
+using CRM.Api.Models.Reporting;
 using CRM.Api.DTOs.Reporting;
 using CRM.Api.Services.Reporting;
 using System.Security.Claims;
@@ -17,12 +18,21 @@ namespace CRM.Api.Controllers
         private readonly ApplicationDbContext _context;
         private readonly ILogger<ReportsController> _logger;
         private readonly IReportBuilderService _reportService;
+        private readonly IPdfExportService _pdfExportService;
+        private readonly IExcelExportService _excelExportService;
 
-        public ReportsController(ApplicationDbContext context, ILogger<ReportsController> logger, IReportBuilderService reportService)
+        public ReportsController(
+            ApplicationDbContext context, 
+            ILogger<ReportsController> logger, 
+            IReportBuilderService reportService,
+            IPdfExportService pdfExportService,
+            IExcelExportService excelExportService)
         {
             _context = context;
             _logger = logger;
             _reportService = reportService;
+            _pdfExportService = pdfExportService;
+            _excelExportService = excelExportService;
         }
 
         private int GetUserId()
@@ -617,6 +627,236 @@ namespace CRM.Api.Controllers
             var result = await _reportService.DeleteSavedReportAsync(id, userId);
             if (!result) return NotFound(); // Or Forbidden, but service returns false for both currently
             return NoContent();
+        }
+
+        // =============================================
+        // PDF/EXCEL EXPORT ENDPOINTS
+        // =============================================
+
+        [HttpGet("export/contacts/pdf")]
+        public async Task<IActionResult> ExportContactsPdf()
+        {
+            var contacts = await _context.Contacts
+                .Include(c => c.Company)
+                .OrderBy(c => c.LastName)
+                .Select(c => new {
+                    c.FirstName,
+                    c.LastName,
+                    c.Email,
+                    c.Phone,
+                    c.JobTitle,
+                    Company = c.Company != null ? c.Company.Name : "",
+                    c.Status,
+                    CreatedAt = c.CreatedAt.ToString("yyyy-MM-dd")
+                })
+                .ToListAsync();
+
+            var report = new SavedReport 
+            { 
+                Name = "Contacts Report", 
+                Description = "List of all contacts in the system"
+            };
+
+            var pdfBytes = _pdfExportService.ExportReportToPdf(report, contacts);
+            return File(pdfBytes, "application/pdf", "contacts_report.pdf");
+        }
+
+        [HttpGet("export/contacts/excel")]
+        public async Task<IActionResult> ExportContactsExcel()
+        {
+            var contacts = await _context.Contacts
+                .Include(c => c.Company)
+                .OrderBy(c => c.LastName)
+                .Select(c => new {
+                    c.FirstName,
+                    c.LastName,
+                    c.Email,
+                    c.Phone,
+                    c.JobTitle,
+                    Company = c.Company != null ? c.Company.Name : "",
+                    c.Status,
+                    CreatedAt = c.CreatedAt.ToString("yyyy-MM-dd")
+                })
+                .ToListAsync();
+
+            var report = new SavedReport 
+            { 
+                Name = "Contacts Report", 
+                Description = "List of all contacts in the system"
+            };
+
+            var excelBytes = _excelExportService.ExportReportToExcel(report, contacts);
+            return File(excelBytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "contacts_report.xlsx");
+        }
+
+        [HttpGet("export/companies/pdf")]
+        public async Task<IActionResult> ExportCompaniesPdf()
+        {
+            var companies = await _context.Companies
+                .Include(c => c.Contacts)
+                .OrderBy(c => c.Name)
+                .Select(c => new {
+                    c.Name,
+                    c.Industry,
+                    c.Website,
+                    c.Phone,
+                    c.City,
+                    c.State,
+                    ContactCount = c.Contacts != null ? c.Contacts.Count : 0,
+                    CreatedAt = c.CreatedAt.ToString("yyyy-MM-dd")
+                })
+                .ToListAsync();
+
+            var report = new SavedReport 
+            { 
+                Name = "Companies Report", 
+                Description = "List of all companies in the system"
+            };
+
+            var pdfBytes = _pdfExportService.ExportReportToPdf(report, companies);
+            return File(pdfBytes, "application/pdf", "companies_report.pdf");
+        }
+
+        [HttpGet("export/companies/excel")]
+        public async Task<IActionResult> ExportCompaniesExcel()
+        {
+            var companies = await _context.Companies
+                .Include(c => c.Contacts)
+                .OrderBy(c => c.Name)
+                .Select(c => new {
+                    c.Name,
+                    c.Industry,
+                    c.Website,
+                    c.Phone,
+                    c.City,
+                    c.State,
+                    ContactCount = c.Contacts != null ? c.Contacts.Count : 0,
+                    CreatedAt = c.CreatedAt.ToString("yyyy-MM-dd")
+                })
+                .ToListAsync();
+
+            var report = new SavedReport 
+            { 
+                Name = "Companies Report", 
+                Description = "List of all companies in the system"
+            };
+
+            var excelBytes = _excelExportService.ExportReportToExcel(report, companies);
+            return File(excelBytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "companies_report.xlsx");
+        }
+
+        [HttpGet("export/opportunities/pdf")]
+        public async Task<IActionResult> ExportOpportunitiesPdf()
+        {
+            var opportunities = await _context.Opportunities
+                .Include(o => o.Contact)
+                .Include(o => o.Company)
+                .OrderByDescending(o => o.Amount)
+                .Select(o => new {
+                    o.Name,
+                    Amount = o.Amount,
+                    o.Stage,
+                    Probability = o.Probability,
+                    ExpectedClose = o.ExpectedCloseDate.ToString("yyyy-MM-dd"),
+                    Contact = o.Contact != null ? $"{o.Contact.FirstName} {o.Contact.LastName}" : "",
+                    Company = o.Company != null ? o.Company.Name : "",
+                    o.Source,
+                    o.Type
+                })
+                .ToListAsync();
+
+            var report = new SavedReport 
+            { 
+                Name = "Opportunities Report", 
+                Description = "List of all opportunities in the pipeline"
+            };
+
+            var pdfBytes = _pdfExportService.ExportReportToPdf(report, opportunities);
+            return File(pdfBytes, "application/pdf", "opportunities_report.pdf");
+        }
+
+        [HttpGet("export/opportunities/excel")]
+        public async Task<IActionResult> ExportOpportunitiesExcel()
+        {
+            var opportunities = await _context.Opportunities
+                .Include(o => o.Contact)
+                .Include(o => o.Company)
+                .OrderByDescending(o => o.Amount)
+                .Select(o => new {
+                    o.Name,
+                    Amount = o.Amount,
+                    o.Stage,
+                    Probability = o.Probability,
+                    ExpectedClose = o.ExpectedCloseDate.ToString("yyyy-MM-dd"),
+                    Contact = o.Contact != null ? $"{o.Contact.FirstName} {o.Contact.LastName}" : "",
+                    Company = o.Company != null ? o.Company.Name : "",
+                    o.Source,
+                    o.Type
+                })
+                .ToListAsync();
+
+            var report = new SavedReport 
+            { 
+                Name = "Opportunities Report", 
+                Description = "List of all opportunities in the pipeline"
+            };
+
+            var excelBytes = _excelExportService.ExportReportToExcel(report, opportunities);
+            return File(excelBytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "opportunities_report.xlsx");
+        }
+
+        [HttpGet("export/activities/pdf")]
+        public async Task<IActionResult> ExportActivitiesPdf()
+        {
+            var activities = await _context.Activities
+                .Include(a => a.Contact)
+                .OrderByDescending(a => a.StartTime)
+                .Select(a => new {
+                    a.Subject,
+                    a.Type,
+                    a.Category,
+                    StartTime = a.StartTime.ToString("yyyy-MM-dd HH:mm"),
+                    IsCompleted = a.IsCompleted ? "Yes" : "No",
+                    Contact = a.Contact != null ? $"{a.Contact.FirstName} {a.Contact.LastName}" : "",
+                    a.Notes
+                })
+                .ToListAsync();
+
+            var report = new SavedReport 
+            { 
+                Name = "Activities Report", 
+                Description = "List of all activities"
+            };
+
+            var pdfBytes = _pdfExportService.ExportReportToPdf(report, activities);
+            return File(pdfBytes, "application/pdf", "activities_report.pdf");
+        }
+
+        [HttpGet("export/activities/excel")]
+        public async Task<IActionResult> ExportActivitiesExcel()
+        {
+            var activities = await _context.Activities
+                .Include(a => a.Contact)
+                .OrderByDescending(a => a.StartTime)
+                .Select(a => new {
+                    a.Subject,
+                    a.Type,
+                    a.Category,
+                    StartTime = a.StartTime.ToString("yyyy-MM-dd HH:mm"),
+                    IsCompleted = a.IsCompleted ? "Yes" : "No",
+                    Contact = a.Contact != null ? $"{a.Contact.FirstName} {a.Contact.LastName}" : "",
+                    a.Notes
+                })
+                .ToListAsync();
+
+            var report = new SavedReport 
+            { 
+                Name = "Activities Report", 
+                Description = "List of all activities"
+            };
+
+            var excelBytes = _excelExportService.ExportReportToExcel(report, activities);
+            return File(excelBytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "activities_report.xlsx");
         }
     }
 }

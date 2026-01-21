@@ -1,40 +1,34 @@
 import { useState, useEffect } from 'react';
-import api from '../api/api';
-import { Plus, Trash2, Edit, Save, X, GripVertical, Check } from 'lucide-react';
+import { toast } from 'react-hot-toast'; // Ensure react-hot-toast is installed
+import { customFieldsApi } from '../api/customFieldsApi';
+import type { CustomField, CustomFieldType, CreateCustomFieldDto, UpdateCustomFieldDto, FieldOption } from '../types/CustomField.js';
+import { Plus, Trash2, Edit, Save, X, GripVertical } from 'lucide-react';
 
-// Models
-interface CustomFieldDefinition {
-    id: number;
-    entityType: string;
-    fieldName: string;
-    fieldKey: string;
-    fieldType: string; // Text, Number, Date, Bool, Select, MultiSelect
-    isRequired: boolean;
-    optionsJson?: string;
-    sortOrder: number;
-    isActive: boolean;
-}
-
-const fieldTypes = [
-    { value: 'Text', label: 'Text' },
+const fieldTypes: { value: CustomFieldType; label: string }[] = [
+    { value: 'Text', label: 'Single Line Text' },
+    { value: 'TextArea', label: 'Multi Line Text' },
     { value: 'Number', label: 'Number' },
+    { value: 'Decimal', label: 'Decimal' },
+    { value: 'Currency', label: 'Currency ($)' },
+    { value: 'Percentage', label: 'Percentage (%)' },
     { value: 'Date', label: 'Date' },
-    { value: 'Bool', label: 'Yes/No (Checkbox)' },
-    { value: 'Select', label: 'Dropdown' },
-    { value: 'MultiSelect', label: 'Multi-Select List' },
-    { value: 'URL', label: 'URL / Link' },
+    { value: 'DateTime', label: 'Date & Time' },
     { value: 'Email', label: 'Email Address' },
-    { value: 'Currency', label: 'Currency' },
+    { value: 'Phone', label: 'Phone Number' },
+    { value: 'URL', label: 'Website URL' },
+    { value: 'Checkbox', label: 'Yes/No (Checkbox)' },
+    { value: 'Select', label: 'Dropdown List' },
+    { value: 'MultiSelect', label: 'Multi-Select List' },
 ];
 
 const entityTypes = ['Contact', 'Company', 'Opportunity'];
 
 const CustomFieldsPage = () => {
     const [activeEntity, setActiveEntity] = useState('Contact');
-    const [fields, setFields] = useState<CustomFieldDefinition[]>([]);
+    const [fields, setFields] = useState<CustomField[]>([]);
     const [loading, setLoading] = useState(true);
     const [showModal, setShowModal] = useState(false);
-    const [editingField, setEditingField] = useState<CustomFieldDefinition | null>(null);
+    const [editingField, setEditingField] = useState<CustomField | null>(null);
 
     useEffect(() => {
         fetchFields();
@@ -43,23 +37,25 @@ const CustomFieldsPage = () => {
     const fetchFields = async () => {
         setLoading(true);
         try {
-            const response = await api.get(`/customfields/${activeEntity}`);
-            setFields(response.data);
+            const data = await customFieldsApi.getAll(activeEntity);
+            setFields(data);
         } catch (error) {
             console.error('Error fetching fields:', error);
+            toast.error('Failed to load custom fields');
         } finally {
             setLoading(false);
         }
     };
 
     const handleDelete = async (id: number) => {
-        if (!confirm('Are you sure you want to delete this field? Data stored in this field will be hidden.')) return;
+        if (!confirm('Are you sure you want to delete this field? Data stored in this field will be lost.')) return;
         try {
-            await api.delete(`/customfields/${id}`);
+            await customFieldsApi.delete(id);
+            toast.success('Field deleted successfully');
             fetchFields();
         } catch (error) {
             console.error(error);
-            alert('Failed to delete field');
+            toast.error('Failed to delete field');
         }
     };
 
@@ -106,7 +102,7 @@ const CustomFieldsPage = () => {
                 <table className="w-full text-left">
                     <thead className="bg-slate-50 border-b border-slate-200">
                         <tr>
-                            <th className="px-6 py-4 font-bold text-xs text-slate-500 uppercase">Label</th>
+                            <th className="px-6 py-4 font-bold text-xs text-slate-500 uppercase">Label / Key</th>
                             <th className="px-6 py-4 font-bold text-xs text-slate-500 uppercase">Type</th>
                             <th className="px-6 py-4 font-bold text-xs text-slate-500 uppercase">Details</th>
                             <th className="px-6 py-4 font-bold text-xs text-slate-500 uppercase text-right">Actions</th>
@@ -121,21 +117,28 @@ const CustomFieldsPage = () => {
                             fields.map(field => (
                                 <tr key={field.id} className="hover:bg-slate-50 transition-colors">
                                     <td className="px-6 py-4">
-                                        <div className="font-bold text-slate-900">{field.fieldName}</div>
-                                        <div className="text-xs font-mono text-slate-400">{field.fieldKey}</div>
+                                        <div className="font-bold text-slate-900">{field.displayName}</div>
+                                        <div className="text-xs font-mono text-slate-400">{field.fieldName}</div>
                                     </td>
                                     <td className="px-6 py-4">
                                         <span className="px-2 py-1 bg-slate-100 text-slate-600 rounded text-xs font-semibold">
-                                            {field.fieldType}
+                                            {fieldTypes.find(t => t.value === field.fieldType)?.label || field.fieldType}
                                         </span>
                                     </td>
                                     <td className="px-6 py-4 text-sm text-slate-600">
-                                        {field.isRequired && <span className="text-red-500 font-bold mr-2">Required</span>}
-                                        {field.optionsJson && (
-                                            <span title={field.optionsJson}>
-                                                Options: {JSON.parse(field.optionsJson).length} items
-                                            </span>
-                                        )}
+                                        <div className="flex flex-col gap-1">
+                                            {field.isRequired && <span className="text-red-600 text-xs font-bold bg-red-50 px-2 py-0.5 rounded w-fit">Required</span>}
+                                            {field.isActive ? (
+                                                <span className="text-green-600 text-xs font-bold bg-green-50 px-2 py-0.5 rounded w-fit">Active</span>
+                                            ) : (
+                                                <span className="text-slate-500 text-xs font-bold bg-slate-100 px-2 py-0.5 rounded w-fit">Inactive</span>
+                                            )}
+                                            {field.options && field.options.length > 0 && (
+                                                <span className="text-slate-500 text-xs">
+                                                    {field.options.length} Options
+                                                </span>
+                                            )}
+                                        </div>
                                     </td>
                                     <td className="px-6 py-4 text-right">
                                         <div className="flex items-center justify-end gap-2">
@@ -177,41 +180,87 @@ const CustomFieldsPage = () => {
     );
 };
 
-const FieldModal = ({ field, entityType, onClose, onSuccess }: any) => {
+interface FieldModalProps {
+    field: CustomField | null;
+    entityType: string;
+    onClose: () => void;
+    onSuccess: () => void;
+}
+
+const FieldModal = ({ field, entityType, onClose, onSuccess }: FieldModalProps) => {
     const [formData, setFormData] = useState({
+        displayName: field?.displayName || '',
         fieldName: field?.fieldName || '',
         fieldType: field?.fieldType || 'Text',
         isRequired: field?.isRequired || false,
-        optionsText: field?.optionsJson ? JSON.parse(field?.optionsJson).join('\n') : '',
+        isActive: field?.isActive !== undefined ? field.isActive : true,
+        optionsText: field?.options ? field.options.map(o => o.label).join('\n') : '',
+        sectionName: field?.sectionName || '',
+        helpText: field?.helpText || '',
+        defaultValue: field?.defaultValue || ''
     });
     const [loading, setLoading] = useState(false);
+
+    // Auto-generate key from label on creation
+    useEffect(() => {
+        if (!field && formData.displayName && !formData.fieldName) {
+            const genKey = formData.displayName.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+            setFormData(prev => ({ ...prev, fieldName: genKey }));
+        }
+    }, [formData.displayName, field]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
 
         try {
-            const payload = {
-                ...formData,
-                entityType: entityType,
-                fieldKey: field?.fieldKey || formData.fieldName.toLowerCase().trim().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, ''),
-                optionsJson: (formData.fieldType === 'Select' || formData.fieldType === 'MultiSelect')
-                    ? JSON.stringify(formData.optionsText.split('\n').filter((o: string) => o.trim()))
-                    : null
-            };
+            // Parse options
+            let options: FieldOption[] | undefined;
+            if (formData.fieldType === 'Select' || formData.fieldType === 'MultiSelect') {
+                options = formData.optionsText.split('\n')
+                    .filter(o => o.trim())
+                    .map(label => ({
+                        label: label.trim(),
+                        value: label.trim(),
+                        isDefault: false
+                    }));
+            }
 
             if (field) {
-                await api.put(`/customfields/${field.id}`, { ...payload, id: field.id });
+                // Update
+                const updatePayload: UpdateCustomFieldDto = {
+                    displayName: formData.displayName,
+                    isRequired: formData.isRequired,
+                    isActive: formData.isActive,
+                    options: options,
+                    displayOrder: field.displayOrder, // Preserve order
+                    sectionName: formData.sectionName,
+                    helpText: formData.helpText,
+                    defaultValue: formData.defaultValue || undefined
+                };
+                await customFieldsApi.update(field.id, updatePayload);
+                toast.success('Field updated successfully');
             } else {
-                await api.post('/customfields', payload);
+                // Create
+                const createPayload: CreateCustomFieldDto = {
+                    entityType: entityType,
+                    fieldName: formData.fieldName,
+                    displayName: formData.displayName,
+                    fieldType: formData.fieldType,
+                    isRequired: formData.isRequired,
+                    options: options,
+                    sectionName: formData.sectionName,
+                    helpText: formData.helpText,
+                    defaultValue: formData.defaultValue || undefined
+                };
+                await customFieldsApi.create(createPayload);
+                toast.success('Field created successfully');
             }
             onSuccess();
         } catch (error: any) {
             console.error(error);
-            const msg = error.response?.data?.errors
-                ? Object.values(error.response.data.errors).flat().join(', ')
-                : (error.response?.data?.title || error.message);
-            alert(`Error saving field: ${msg}`);
+            const msg = error.response?.data?.title || error.message || 'Unknown error';
+            toast.error(`Error saving field: ${msg}`);
         } finally {
             setLoading(false);
         }
@@ -219,35 +268,54 @@ const FieldModal = ({ field, entityType, onClose, onSuccess }: any) => {
 
     return (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden">
-                <div className="px-6 py-4 border-b border-slate-200 flex justify-between items-center">
+            <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden max-h-[90vh] overflow-y-auto">
+                <div className="px-6 py-4 border-b border-slate-200 flex justify-between items-center bg-slate-50">
                     <h3 className="font-bold text-lg text-slate-900">
                         {field ? 'Edit Field' : 'New Custom Field'}
                     </h3>
-                    <button onClick={onClose}><X size={20} className="text-slate-400" /></button>
+                    <button onClick={onClose}><X size={20} className="text-slate-400 hover:text-slate-600" /></button>
                 </div>
                 <form onSubmit={handleSubmit} className="p-6 space-y-4">
-                    <div>
-                        <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Field Label</label>
-                        <input
-                            type="text"
-                            required
-                            className="w-full px-3 py-2 border border-slate-200 rounded-lg font-medium"
-                            value={formData.fieldName}
-                            onChange={e => setFormData({ ...formData, fieldName: e.target.value })}
-                        />
-                    </div>
-                    <div>
-                        <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Data Type</label>
-                        <select
-                            className="w-full px-3 py-2 border border-slate-200 rounded-lg font-medium"
-                            value={formData.fieldType}
-                            onChange={e => setFormData({ ...formData, fieldType: e.target.value })}
-                        >
-                            {fieldTypes.map(t => (
-                                <option key={t.value} value={t.value}>{t.label}</option>
-                            ))}
-                        </select>
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="col-span-2">
+                            <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Field Label (Display Name)</label>
+                            <input
+                                type="text"
+                                required
+                                className="w-full px-3 py-2 border border-slate-200 rounded-lg font-medium focus:ring-2 focus:ring-indigo-500 outline-none"
+                                value={formData.displayName}
+                                onChange={e => setFormData({ ...formData, displayName: e.target.value })}
+                                placeholder="e.g. Favorite Color"
+                            />
+                        </div>
+
+                        <div className="col-span-2 sm:col-span-1">
+                            <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Field Key (Internal)</label>
+                            <input
+                                type="text"
+                                required
+                                disabled={!!field} // Disabled on Edit
+                                className={`w-full px-3 py-2 border border-slate-200 rounded-lg font-mono text-sm ${field ? 'bg-slate-100 text-slate-500' : 'bg-white font-medium'}`}
+                                value={formData.fieldName}
+                                onChange={e => setFormData({ ...formData, fieldName: e.target.value })}
+                                placeholder="e.g. favorite_color"
+                            />
+                            <p className="text-[10px] text-slate-400 mt-1">Unique key for API and database.</p>
+                        </div>
+
+                        <div className="col-span-2 sm:col-span-1">
+                            <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Data Type</label>
+                            <select
+                                className={`w-full px-3 py-2 border border-slate-200 rounded-lg font-medium ${field ? 'bg-slate-100 text-slate-500' : 'bg-white'}`}
+                                value={formData.fieldType}
+                                disabled={!!field} // Disabled on Edit
+                                onChange={e => setFormData({ ...formData, fieldType: e.target.value as CustomFieldType })}
+                            >
+                                {fieldTypes.map(t => (
+                                    <option key={t.value} value={t.value}>{t.label}</option>
+                                ))}
+                            </select>
+                        </div>
                     </div>
 
                     {(formData.fieldType === 'Select' || formData.fieldType === 'MultiSelect') && (
@@ -256,8 +324,7 @@ const FieldModal = ({ field, entityType, onClose, onSuccess }: any) => {
                                 Options (One per line)
                             </label>
                             <textarea
-                                className="w-full px-3 py-2 border border-slate-200 rounded-lg font-medium"
-                                rows={5}
+                                className="w-full px-3 py-2 border border-slate-200 rounded-lg font-medium min-h-[100px]"
                                 value={formData.optionsText}
                                 onChange={e => setFormData({ ...formData, optionsText: e.target.value })}
                                 placeholder="Option 1&#10;Option 2&#10;Option 3"
@@ -265,25 +332,72 @@ const FieldModal = ({ field, entityType, onClose, onSuccess }: any) => {
                         </div>
                     )}
 
-                    <div className="flex items-center gap-2 pt-2">
-                        <input
-                            type="checkbox"
-                            id="isRequired"
-                            className="w-4 h-4 text-indigo-600 rounded"
-                            checked={formData.isRequired}
-                            onChange={e => setFormData({ ...formData, isRequired: e.target.checked })}
-                        />
-                        <label htmlFor="isRequired" className="text-sm font-medium text-slate-700">Required Field</label>
+                    <div className="grid grid-cols-2 gap-4 pt-2">
+                        <div>
+                            <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Section Name (Optional)</label>
+                            <input
+                                type="text"
+                                className="w-full px-3 py-2 border border-slate-200 rounded-lg font-medium"
+                                value={formData.sectionName}
+                                onChange={e => setFormData({ ...formData, sectionName: e.target.value })}
+                                placeholder="e.g. General Info"
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Help Text (Optional)</label>
+                            <input
+                                type="text"
+                                className="w-full px-3 py-2 border border-slate-200 rounded-lg font-medium"
+                                value={formData.helpText}
+                                onChange={e => setFormData({ ...formData, helpText: e.target.value })}
+                                placeholder="Tooltip text for users"
+                            />
+                        </div>
                     </div>
 
-                    <div className="pt-4 flex justify-end gap-3">
+                    <div>
+                        <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Default Value (Optional)</label>
+                        <input
+                            type="text"
+                            className="w-full px-3 py-2 border border-slate-200 rounded-lg font-medium"
+                            value={formData.defaultValue}
+                            onChange={e => setFormData({ ...formData, defaultValue: e.target.value })}
+                            placeholder="Default value for new records"
+                        />
+                        <p className="text-[10px] text-slate-400 mt-1">This value will be pre-filled for new records.</p>
+                    </div>
+
+                    <div className="flex flex-col gap-3 pt-2 bg-slate-50 p-4 rounded-lg">
+                        <div className="flex items-center gap-2">
+                            <input
+                                type="checkbox"
+                                id="isRequired"
+                                className="w-4 h-4 text-indigo-600 rounded cursor-pointer"
+                                checked={formData.isRequired}
+                                onChange={e => setFormData({ ...formData, isRequired: e.target.checked })}
+                            />
+                            <label htmlFor="isRequired" className="text-sm font-bold text-slate-700 cursor-pointer">Required Field</label>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <input
+                                type="checkbox"
+                                id="isActive"
+                                className="w-4 h-4 text-green-600 rounded cursor-pointer"
+                                checked={formData.isActive}
+                                onChange={e => setFormData({ ...formData, isActive: e.target.checked })}
+                            />
+                            <label htmlFor="isActive" className="text-sm font-bold text-slate-700 cursor-pointer">Field is Active</label>
+                        </div>
+                    </div>
+
+                    <div className="pt-4 flex justify-end gap-3 border-t border-slate-100 mt-4">
                         <button type="button" onClick={onClose} className="px-4 py-2 text-slate-600 font-bold hover:bg-slate-50 rounded-lg">Cancel</button>
                         <button
                             type="submit"
                             disabled={loading}
-                            className="px-6 py-2 bg-indigo-600 text-white font-bold rounded-lg hover:bg-indigo-700 disabled:opacity-50"
+                            className="px-6 py-2 bg-indigo-600 text-white font-bold rounded-lg hover:bg-indigo-700 disabled:opacity-50 flex items-center gap-2"
                         >
-                            {loading ? 'Saving...' : 'Save Field'}
+                            {loading ? 'Saving...' : <><Save size={18} /> Save Field</>}
                         </button>
                     </div>
                 </form>

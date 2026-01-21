@@ -55,6 +55,55 @@ namespace CRM.Api.Services
             );
         }
 
+        /// <summary>
+        /// Trigger workflows when a form is submitted (e.g., landing page, contact form)
+        /// </summary>
+        public async Task TriggerOnFormSubmission(string formId, Dictionary<string, string> formData)
+        {
+            try
+            {
+                _logger.LogInformation("Form submission received: {FormId} with {FieldCount} fields", formId, formData.Count);
+
+                // Get all active workflows for form submission trigger
+                var workflows = await _context.WorkflowRules
+                    .Where(w => w.IsActive && w.TriggerType == WorkflowTriggerTypes.OnFormSubmission)
+                    .OrderBy(w => w.Priority)
+                    .ToListAsync();
+
+                _logger.LogInformation("Found {Count} workflows for form submission", workflows.Count);
+
+                foreach (var workflow in workflows)
+                {
+                    // Check if workflow matches this specific form (if formId is specified in conditions)
+                    if (!string.IsNullOrEmpty(workflow.TriggerConditions))
+                    {
+                        try
+                        {
+                            var conditions = JsonSerializer.Deserialize<Dictionary<string, string>>(workflow.TriggerConditions);
+                            if (conditions != null && conditions.ContainsKey("formId"))
+                            {
+                                if (conditions["formId"] != formId)
+                                {
+                                    continue; // Skip this workflow, it's for a different form
+                                }
+                            }
+                        }
+                        catch
+                        {
+                            // If conditions parsing fails, continue anyway
+                        }
+                    }
+
+                    // Execute workflow with form data
+                    await ExecuteWorkflow(workflow, 0, formData);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error executing workflows for form submission: {FormId}", formId);
+            }
+        }
+
         private async Task ExecuteMatchingWorkflows(string triggerType, string entityType, int entityId, object entityData)
         {
             try

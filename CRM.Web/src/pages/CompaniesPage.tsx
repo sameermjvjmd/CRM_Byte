@@ -11,6 +11,9 @@ import AdvancedSearch from '../components/AdvancedSearch';
 import type { SearchScope } from '../components/AdvancedSearch';
 import ColumnCustomizer from '../components/ColumnCustomizer';
 import type { Column } from '../components/ColumnCustomizer';
+import ExportMenu from '../components/common/ExportMenu';
+import { exportToPdf, exportToExcel } from '../utils/exportUtils';
+import { toast } from 'react-hot-toast';
 
 const CompaniesPage = () => {
     const navigate = useNavigate();
@@ -95,6 +98,27 @@ const CompaniesPage = () => {
         setShowAdvancedSearch(false);
     };
 
+    // Export Handlers
+    const handleExportPdf = async () => {
+        try {
+            await exportToPdf('/reports/export/companies/pdf', 'companies_report');
+            toast.success('Companies exported to PDF successfully!');
+        } catch (error) {
+            toast.error('Failed to export companies to PDF');
+            console.error('PDF export error:', error);
+        }
+    };
+
+    const handleExportExcel = async () => {
+        try {
+            await exportToExcel('/reports/export/companies/excel', 'companies_report');
+            toast.success('Companies exported to Excel successfully!');
+        } catch (error) {
+            toast.error('Failed to export companies to Excel');
+            console.error('Excel export error:', error);
+        }
+    };
+
     // Saved Views Logic
     const handleSaveView = (name: string, filters: any[], sortBy: string, isDefault: boolean) => {
         const newView: SavedView = {
@@ -159,6 +183,10 @@ const CompaniesPage = () => {
                         <Filter size={14} />
                         COLUMNS
                     </button>
+                    <ExportMenu
+                        onExportPdf={handleExportPdf}
+                        onExportExcel={handleExportExcel}
+                    />
                     <button
                         onClick={() => setIsModalOpen(true)}
                         className="bg-indigo-600 text-white px-4 py-1.5 rounded-lg text-xs font-black uppercase tracking-widest flex items-center gap-2 hover:bg-indigo-700 active:scale-95 transition-all shadow-md"

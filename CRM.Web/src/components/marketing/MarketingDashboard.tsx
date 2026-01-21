@@ -31,6 +31,9 @@ interface MarketingDashboardDto {
     totalRevenue: number;
     overallROI: number;
     recentCampaigns: CampaignDto[];
+    totalLandingPageViews: number;
+    totalLandingPageSubmissions: number;
+    landingPageConversionRate: number;
 }
 
 const MarketingDashboard: React.FC = () => {
@@ -77,9 +80,9 @@ const MarketingDashboard: React.FC = () => {
 
                 <StatCard
                     icon={<MousePointer2 size={20} className="text-white" />}
-                    label="Avg. Click Rate"
-                    value={`${data.avgClickRate.toFixed(1)}%`}
-                    trend={null}
+                    label="Page Conversion"
+                    value={`${(data.landingPageConversionRate || 0).toFixed(1)}%`}
+                    trend={`${data.totalLandingPageSubmissions || 0} total leads`}
                     color="bg-pink-500"
                 />
 
@@ -145,14 +148,14 @@ const MarketingDashboard: React.FC = () => {
                                         <h4 className="font-bold text-slate-900 text-lg hover:text-indigo-600 transition-colors">{camp.name}</h4>
                                         <div className="text-xs text-slate-500 flex flex-wrap items-center gap-2 mt-1">
                                             <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full border ${camp.status === 'Sent' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
-                                                    camp.status === 'Active' ? 'bg-blue-50 text-blue-700 border-blue-200' :
-                                                        camp.status === 'Scheduled' ? 'bg-amber-50 text-amber-700 border-amber-200' :
-                                                            'bg-slate-100 text-slate-600 border-slate-200'
+                                                camp.status === 'Active' ? 'bg-blue-50 text-blue-700 border-blue-200' :
+                                                    camp.status === 'Scheduled' ? 'bg-amber-50 text-amber-700 border-amber-200' :
+                                                        'bg-slate-100 text-slate-600 border-slate-200'
                                                 } font-bold uppercase text-[10px]`}>
                                                 <span className={`w-1.5 h-1.5 rounded-full ${camp.status === 'Sent' ? 'bg-emerald-500' :
-                                                        camp.status === 'Active' ? 'bg-blue-500' :
-                                                            camp.status === 'Scheduled' ? 'bg-amber-500' :
-                                                                'bg-slate-400'
+                                                    camp.status === 'Active' ? 'bg-blue-500' :
+                                                        camp.status === 'Scheduled' ? 'bg-amber-500' :
+                                                            'bg-slate-400'
                                                     }`}></span>
                                                 {camp.status}
                                             </span>

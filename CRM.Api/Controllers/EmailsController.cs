@@ -409,6 +409,217 @@ namespace CRM.Api.Controllers
         }
         
         // =============================================
+        // POST: api/emails/bulk
+        // =============================================
+        [HttpPost("bulk")]
+        public async Task<ActionResult<BulkEmailResponse>> SendBulkEmail(BulkEmailRequest request)
+        {
+            var response = new BulkEmailResponse
+            {
+                TotalAttempted = request.ContactIds.Count
+            };
+
+            try
+            {
+                var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                int userId = int.TryParse(userIdStr, out int uid) ? uid : 0;
+
+                // 1. Fetch all contacts
+                var contacts = await _context.Contacts
+                    .Include(c => c.Company)
+                    .Where(c => request.ContactIds.Contains(c.Id))
+                    .Select(c => new
+                    {
+                        c.Id,
+                        c.FirstName,
+                        c.LastName,
+                        c.Email,
+                        CompanyName = c.Company != null ? c.Company.Name : "",
+                        c.JobTitle,
+                        c.Phone
+                    })
+                    .ToListAsync();
+
+                if (contacts.Count == 0)
+                {
+                    return BadRequest(new { message = "No valid contacts found" });
+                }
+
+                // 2. Get template if specified
+                EmailTemplate? template = null;
+                if (request.TemplateId.HasValue)
+                {
+                    template = await _context.EmailTemplates.FindAsync(request.TemplateId.Value);
+                }
+
+                // 3. Prepare attachments
+                var attachmentPaths = new List<string>();
+                if (request.AttachmentIds?.Any() == true)
+                {
+                    var attachments = await _context.EmailAttachments
+                        .Where(a => request.AttachmentIds.Contains(a.Id))
+                        .ToListAsync();
+                    attachmentPaths = attachments
+                        .Where(a => !string.IsNullOrWhiteSpace(a.StoragePath))
+                        .Select(a => a.StoragePath!)
+                        .ToList();
+                }
+
+                // 4. Send email to each contact
+                foreach (var contact in contacts)
+                {
+                    var result = new BulkEmailResult
+                    {
+                        ContactId = contact.Id,
+                        ContactName = $"{contact.FirstName} {contact.LastName}".Trim(),
+                        EmailAddress = contact.Email ?? ""
+                    };
+
+                    try
+                    {
+                        // Skip if no email address
+                        if (string.IsNullOrWhiteSpace(contact.Email))
+                        {
+                            result.Success = false;
+                            result.ErrorMessage = "No email address";
+                            response.Failed++;
+                            response.Results.Add(result);
+                            continue;
+                        }
+
+                        // Prepare placeholders for this contact
+                        var placeholders = new Dictionary<string, string>
+                        {
+                            { "ContactName", $"{contact.FirstName} {contact.LastName}".Trim() },
+                            { "FirstName", contact.FirstName ?? "" },
+                            { "LastName", contact.LastName ?? "" },
+                            { "Email", contact.Email ?? "" },
+                            { "CompanyName", contact.CompanyName ?? "" },
+                            { "JobTitle", contact.JobTitle ?? "" },
+                            { "Phone", contact.Phone ?? "" }
+                        };
+
+                        // Prepare subject and body
+                        string subject = request.Subject ?? template?.Subject ?? "Message from CRM";
+                        string body = request.Body ?? template?.Body ?? "";
+
+                        // Replace placeholders
+                        subject = ReplacePlaceholders(subject, placeholders);
+                        body = ReplacePlaceholders(body, placeholders);
+
+                        // Handle scheduled emails
+                        if (request.ScheduledFor.HasValue && request.ScheduledFor.Value > DateTime.UtcNow)
+                        {
+                            var scheduledEmail = new ScheduledEmail
+                            {
+                                To = contact.Email,
+                                Bcc = request.Bcc,
+                                Subject = subject,
+                                Body = body,
+                                ContactId = contact.Id,
+                                TemplateId = request.TemplateId,
+                                CreatedByUserId = userId,
+                                ScheduledFor = request.ScheduledFor.Value,
+                                CreatedAt = DateTime.UtcNow,
+                                Status = "Pending",
+                                RequestReadReceipt = request.RequestReadReceipt,
+                                AttachmentsJson = request.AttachmentIds != null
+                                    ? JsonSerializer.Serialize(request.AttachmentIds)
+                                    : null
+                            };
+
+                            _context.ScheduledEmails.Add(scheduledEmail);
+                            await _context.SaveChangesAsync();
+
+                            result.Success = true;
+                            result.SentEmailId = scheduledEmail.Id;
+                            response.Scheduled++;
+                        }
+                        else
+                        {
+                            // Send immediately
+                            await _emailService.SendEmailAsync(
+                                contact.Email,
+                                subject,
+                                body,
+                                true,
+                                null,
+                                request.Bcc,
+                                attachmentPaths
+                            );
+
+                            // Record in DB
+                            var sentEmail = new SentEmail
+                            {
+                                To = contact.Email,
+                                Bcc = request.Bcc,
+                                Subject = subject,
+                                Body = body,
+                                SentAt = DateTime.UtcNow,
+                                CreatedAt = DateTime.UtcNow,
+                                SentByUserId = userId,
+                                Status = "Sent",
+                                ContactId = contact.Id,
+                                TemplateId = request.TemplateId,
+                                HasAttachments = attachmentPaths.Any(),
+                                AttachmentsJson = attachmentPaths.Any()
+                                    ? JsonSerializer.Serialize(attachmentPaths.Select(Path.GetFileName))
+                                    : null,
+                                RequestReadReceipt = request.RequestReadReceipt,
+                                Tracking = new EmailTracking()
+                            };
+
+                            await _emailService.RecordSentEmailAsync(sentEmail);
+
+                            // Link attachments
+                            if (request.AttachmentIds?.Any() == true)
+                            {
+                                var attachments = await _context.EmailAttachments
+                                    .Where(a => request.AttachmentIds.Contains(a.Id))
+                                    .ToListAsync();
+                                foreach (var att in attachments)
+                                {
+                                    // Create a copy link for each email
+                                    var newAtt = new EmailAttachment
+                                    {
+                                        FileName = att.FileName,
+                                        ContentType = att.ContentType,
+                                        FileSize = att.FileSize,
+                                        StoragePath = att.StoragePath,
+                                        StorageType = att.StorageType,
+                                        SentEmailId = sentEmail.Id,
+                                        UploadedAt = DateTime.UtcNow
+                                    };
+                                    _context.EmailAttachments.Add(newAtt);
+                                }
+                                await _context.SaveChangesAsync();
+                            }
+
+                            result.Success = true;
+                            result.SentEmailId = sentEmail.Id;
+                            response.SuccessfullySent++;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        result.Success = false;
+                        result.ErrorMessage = ex.Message;
+                        response.Failed++;
+                        response.Errors.Add($"Failed to send to {contact.Email}: {ex.Message}");
+                    }
+
+                    response.Results.Add(result);
+                }
+
+                return Ok(response);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Bulk email operation failed", details = ex.Message });
+            }
+        }
+
+        // =============================================
         // Helper Methods
         // =============================================
         private string ReplacePlaceholders(string text, Dictionary<string, string>? placeholders)

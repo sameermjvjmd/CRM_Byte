@@ -21,6 +21,10 @@ const MarketingLists: React.FC = () => {
     const [showAddMemberModal, setShowAddMemberModal] = useState(false);
     const [selectedListId, setSelectedListId] = useState<number | null>(null);
 
+    const [viewSubscribersModal, setViewSubscribersModal] = useState(false);
+    const [subscribers, setSubscribers] = useState<any[]>([]);
+    const [loadingSubscribers, setLoadingSubscribers] = useState(false);
+
     // Filter states
     const [filterType, setFilterType] = useState('All');
 
@@ -31,6 +35,25 @@ const MarketingLists: React.FC = () => {
     useEffect(() => {
         fetchLists();
     }, []);
+
+    useEffect(() => {
+        if (viewSubscribersModal && selectedListId) {
+            fetchSubscribers(selectedListId);
+        }
+    }, [viewSubscribersModal, selectedListId]);
+
+    const fetchSubscribers = async (listId: number) => {
+        setLoadingSubscribers(true);
+        try {
+            const res = await api.get(`/marketing/lists/${listId}/members`);
+            setSubscribers(res.data);
+        } catch (error) {
+            console.error(error);
+            toast.error('Failed to load subscribers');
+        } finally {
+            setLoadingSubscribers(false);
+        }
+    };
 
     const fetchLists = async () => {
         try {
@@ -175,6 +198,12 @@ const MarketingLists: React.FC = () => {
                                     <UserPlus size={14} /> Add User
                                 </button>
                             </div>
+                            <button
+                                onClick={() => { setSelectedListId(list.id); setViewSubscribersModal(true); }}
+                                className="w-full mt-4 py-2 text-xs font-bold text-slate-500 hover:text-indigo-600 hover:bg-slate-50 border border-slate-200 hover:border-indigo-200 rounded-lg transition-colors"
+                            >
+                                View Subscribers
+                            </button>
                         </div>
                     ))}
                 </div>
@@ -281,6 +310,78 @@ const MarketingLists: React.FC = () => {
                                 <button type="submit" className="px-6 py-2 text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-lg shadow-indigo-200 transition-all">Add Subscriber</button>
                             </div>
                         </form>
+                    </div>
+                </div>
+            )}
+
+            {/* View Subscribers Modal */}
+            {viewSubscribersModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
+                    <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200 flex flex-col max-h-[80vh]">
+                        <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-gray-50">
+                            <div>
+                                <h3 className="font-bold text-lg text-slate-800">List Subscribers</h3>
+                                <p className="text-xs text-slate-500">
+                                    {lists.find(l => l.id === selectedListId)?.name}
+                                </p>
+                            </div>
+                            <button onClick={() => setViewSubscribersModal(false)} className="text-slate-400 hover:text-slate-600">×</button>
+                        </div>
+                        <div className="p-0 overflow-y-auto flex-1">
+                            {loadingSubscribers ? (
+                                <div className="p-8 text-center text-slate-500">Loading subscribers...</div>
+                            ) : subscribers.length === 0 ? (
+                                <div className="p-12 text-center text-slate-500">
+                                    <Users size={32} className="mx-auto text-slate-300 mb-2" />
+                                    <p>No subscribers in this list yet.</p>
+                                </div>
+                            ) : (
+                                <table className="w-full text-left text-sm">
+                                    <thead className="bg-slate-50 text-slate-500 font-bold border-b border-slate-200">
+                                        <tr>
+                                            <th className="px-6 py-3">Email</th>
+                                            <th className="px-6 py-3">Name</th>
+                                            <th className="px-6 py-3">Status</th>
+                                            <th className="px-6 py-3">Joined</th>
+                                            <th className="px-6 py-3 text-right">Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-slate-100">
+                                        {subscribers.map((sub: any) => (
+                                            <tr key={sub.id} className="hover:bg-slate-50">
+                                                <td className="px-6 py-3 font-medium text-slate-900">{sub.email}</td>
+                                                <td className="px-6 py-3 text-slate-600">{sub.firstName} {sub.lastName}</td>
+                                                <td className="px-6 py-3">
+                                                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${sub.status === 'Subscribed' ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600'}`}>
+                                                        {sub.status}
+                                                    </span>
+                                                </td>
+                                                <td className="px-6 py-3 text-slate-400 text-xs">
+                                                    {new Date(sub.subscribedAt).toLocaleDateString()}
+                                                </td>
+                                                <td className="px-6 py-3 text-right">
+                                                    <button onClick={async () => {
+                                                        if (!window.confirm('Remove from list?')) return;
+                                                        try {
+                                                            await api.delete(`/marketing/lists/${selectedListId}/members/${sub.id}`);
+                                                            fetchSubscribers(selectedListId!);
+                                                            fetchLists();
+                                                        } catch (e) { toast.error('Failed to remove'); }
+                                                    }} className="text-red-400 hover:text-red-600">
+                                                        <Trash2 size={14} />
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            )}
+                        </div>
+                        <div className="p-4 border-t border-slate-100 bg-gray-50 flex justify-end">
+                            <button onClick={() => setViewSubscribersModal(false)} className="px-4 py-2 bg-white border border-slate-200 text-slate-600 font-bold rounded-lg hover:bg-slate-50 text-sm">
+                                Close
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}
