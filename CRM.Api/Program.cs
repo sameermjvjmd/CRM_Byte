@@ -67,6 +67,9 @@ builder.Services.AddScoped<CRM.Api.Services.Marketing.ICampaignExecutionService,
 builder.Services.AddScoped<CRM.Api.Services.Marketing.IDynamicListService, CRM.Api.Services.Marketing.DynamicListService>();
 builder.Services.AddHostedService<WorkflowBackgroundService>();
 
+// Email Scheduler (Background Service for Scheduled Emails)
+builder.Services.AddHostedService<EmailSchedulerBackgroundService>();
+
 // Reporting Services
 builder.Services.AddScoped<CRM.Api.Services.Reporting.IReportBuilderService, CRM.Api.Services.Reporting.ReportBuilderService>();
 builder.Services.AddScoped<CRM.Api.Services.Reporting.IPdfExportService, CRM.Api.Services.Reporting.PdfExportService>();

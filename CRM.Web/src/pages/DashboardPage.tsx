@@ -6,6 +6,7 @@ import ActivitySummaryWidget from '../components/widgets/ActivitySummaryWidget';
 import RecentContactsWidget from '../components/widgets/RecentContactsWidget';
 import UpcomingActivitiesWidget from '../components/widgets/UpcomingActivitiesWidget';
 import QuickActionsWidget from '../components/widgets/QuickActionsWidget';
+import OverdueNextStepsWidget from '../components/widgets/OverdueNextStepsWidget';
 
 const DashboardPage = () => {
     const [stats, setStats] = useState<any>(null);
@@ -66,6 +67,7 @@ const DashboardPage = () => {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* Column 1 */}
                 <div className="space-y-6">
+                    <OverdueNextStepsWidget />
                     <ActivitySummaryWidget />
                     <QuickActionsWidget />
                 </div>
