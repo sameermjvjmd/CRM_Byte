@@ -66,9 +66,9 @@ namespace CRM.Api.Services
                     opportunity.RiskFactors = string.Join(", ", riskFactors);
 
                     // Calculate days in current stage
-                    if (opportunity.StageChangedAt.HasValue)
+                    if (opportunity.LastStageChangeDate.HasValue)
                     {
-                        opportunity.DaysInCurrentStage = (int)(DateTime.UtcNow - opportunity.StageChangedAt.Value).TotalDays;
+                        opportunity.DaysInCurrentStage = (int)(DateTime.UtcNow - opportunity.LastStageChangeDate.Value).TotalDays;
                     }
                 }
                 catch (Exception ex)
@@ -94,15 +94,8 @@ namespace CRM.Api.Services
             else if (opportunity.Amount >= 10000) score += 5;
 
             // Factor 3: Engagement/Activity (0-15 points)
-            // If last activity is recent, add points
-            if (opportunity.LastActivityDate.HasValue)
-            {
-                var daysSinceActivity = (DateTime.UtcNow - opportunity.LastActivityDate.Value).TotalDays;
-                if (daysSinceActivity <= 3) score += 15;
-                else if (daysSinceActivity <= 7) score += 10;
-                else if (daysSinceActivity <= 14) score += 5;
-                else if (daysSinceActivity > 30) score -= 10; // Penalty for inactivity
-            }
+            // Note: LastActivityDate doesn't exist in model, skip this factor for now
+            // TODO: Add LastActivityDate field to Opportunity model or calculate from Activities
 
             // Factor 4: Next action defined (0-10 points)
             if (!string.IsNullOrEmpty(opportunity.NextAction))
@@ -125,30 +118,21 @@ namespace CRM.Api.Services
             }
 
             // Factor 5: Time in current stage (0-10 points or penalty)
-            if (opportunity.DaysInCurrentStage.HasValue)
-            {
-                // Penalty for being stuck too long
-                if (opportunity.DaysInCurrentStage > 60) score -= 15;
-                else if (opportunity.DaysInCurrentStage > 30) score -= 10;
-                else if (opportunity.DaysInCurrentStage > 14) score -= 5;
-            }
+            // Penalty for being stuck too long
+            if (opportunity.DaysInCurrentStage > 60) score -= 15;
+            else if (opportunity.DaysInCurrentStage > 30) score -= 10;
+            else if (opportunity.DaysInCurrentStage > 14) score -= 5;
 
             // Factor 6: Expected close date (0-10 points)
-            if (opportunity.ExpectedCloseDate.HasValue)
-            {
-                var daysToClose = (opportunity.ExpectedCloseDate.Value - DateTime.UtcNow).TotalDays;
-                if (daysToClose > 0 && daysToClose <= 30) score += 10; // Closing soon
-                else if (daysToClose > 30 && daysToClose <= 60) score += 5;
-                else if (daysToClose < 0) score -= 10; // Past expected close date
-            }
+            var daysToClose = (opportunity.ExpectedCloseDate - DateTime.UtcNow).TotalDays;
+            if (daysToClose > 0 && daysToClose <= 30) score += 10; // Closing soon
+            else if (daysToClose > 30 && daysToClose <= 60) score += 5;
+            else if (daysToClose < 0) score -= 10; // Past expected close date
 
             // Factor 7: Probability (0-10 points)
-            if (opportunity.Probability.HasValue)
-            {
-                if (opportunity.Probability >= 75) score += 10;
-                else if (opportunity.Probability >= 50) score += 5;
-                else if (opportunity.Probability < 25) score -= 5;
-            }
+            if (opportunity.Probability >= 75) score += 10;
+            else if (opportunity.Probability >= 50) score += 5;
+            else if (opportunity.Probability < 25) score -= 5;
 
             // Ensure score is between 0 and 100
             return Math.Clamp(score, 0, 100);
@@ -216,41 +200,28 @@ namespace CRM.Api.Services
             }
 
             // Risk: No recent activity
-            if (opportunity.LastActivityDate.HasValue)
-            {
-                var daysSinceActivity = (DateTime.UtcNow - opportunity.LastActivityDate.Value).TotalDays;
-                if (daysSinceActivity > 30)
-                {
-                    risks.Add("No activity in 30+ days");
-                }
-                else if (daysSinceActivity > 14)
-                {
-                    risks.Add("No activity in 14+ days");
-                }
-            }
+            // Note: LastActivityDate doesn't exist in model, skip this check
+            // TODO: Calculate from Activities table
 
             // Risk: Stuck in current stage
-            if (opportunity.DaysInCurrentStage.HasValue)
+            if (opportunity.DaysInCurrentStage > 60)
             {
-                if (opportunity.DaysInCurrentStage > 60)
-                {
-                    risks.Add("Stuck in stage (60+ days)");
-                }
-                else if (opportunity.DaysInCurrentStage > 30)
-                {
-                    risks.Add("Stuck in stage (30+ days)");
-                }
+                risks.Add("Stuck in stage (60+ days)");
+            }
+            else if (opportunity.DaysInCurrentStage > 30)
+            {
+                risks.Add("Stuck in stage (30+ days)");
             }
 
             // Risk: Past expected close date
-            if (opportunity.ExpectedCloseDate.HasValue && opportunity.ExpectedCloseDate.Value < DateTime.UtcNow)
+            if (opportunity.ExpectedCloseDate < DateTime.UtcNow)
             {
-                var daysPastDue = (DateTime.UtcNow - opportunity.ExpectedCloseDate.Value).TotalDays;
+                var daysPastDue = (DateTime.UtcNow - opportunity.ExpectedCloseDate).TotalDays;
                 risks.Add($"Past expected close date ({(int)daysPastDue} days)");
             }
 
             // Risk: Low probability
-            if (opportunity.Probability.HasValue && opportunity.Probability < 25)
+            if (opportunity.Probability < 25)
             {
                 risks.Add($"Low probability ({opportunity.Probability}%)");
             }

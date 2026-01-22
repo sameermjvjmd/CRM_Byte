@@ -1,0 +1,29 @@
+# Visual Studio
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Build results
+[Bb]in/
+[Oo]bj/
+CRM.Api/bin/
+CRM.Api/obj/
+CRM.Web/dist/
+CRM.Web/node_modules/
+CRM.Web/coverage/
+
+# Deployment Artifacts
+CRM_Artifacts/
+CRM_Deployment_Package.zip
+*_log.txt
+
+# Environment
+.env
+.env.local
+.DS_Store
+
+# Logs
+*.log
+logs/

@@ -105,8 +105,7 @@ namespace CRM.Api.Services
                         scheduledEmail.Body,
                         isHtml: true,
                         cc: scheduledEmail.Cc,
-                        bcc: scheduledEmail.Bcc,
-                        attachments: attachmentPaths
+                        bcc: scheduledEmail.Bcc
                     );
 
                     // Record in SentEmails

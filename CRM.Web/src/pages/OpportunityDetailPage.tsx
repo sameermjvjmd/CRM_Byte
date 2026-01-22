@@ -4,7 +4,7 @@ import api from '../api/api';
 import {
     ArrowLeft, DollarSign, TrendingUp, Calendar,
     FileText, Edit2, MoreVertical, Briefcase,
-    History, CheckCircle, XCircle, Phone, Users, Mail, CheckSquare, Package, Trash2
+    History, CheckCircle, XCircle, Phone, Users, Mail, CheckSquare, Package, Trash2, Plus
 } from 'lucide-react';
 import type { Opportunity } from '../types/opportunity';
 import UserFieldsTab from '../components/tabs/UserFieldsTab';
@@ -42,6 +42,16 @@ const OpportunityDetailPage = () => {
         };
         fetchOpportunity();
     }, [id]);
+    const handleUpdate = async (updates: Partial<Opportunity>) => {
+        if (!opportunity) return;
+        try {
+            const updated = { ...opportunity, ...updates };
+            await api.put(`/opportunities/${id}`, updated);
+            setOpportunity(updated);
+        } catch (error) {
+            console.error('Failed to update opportunity', error);
+        }
+    };
 
     const fetchActivities = async () => {
         if (!id) return;
@@ -290,9 +300,9 @@ const OpportunityDetailPage = () => {
                                         <div className="flex items-center justify-between mb-4">
                                             <h4 className="text-xs font-black uppercase text-slate-400 tracking-widest">Deal Health</h4>
                                             <span className={`px-3 py-1.5 rounded-lg text-xs font-black uppercase flex items-center gap-2 ${opportunity.dealHealth === 'Hot' ? 'bg-red-100 text-red-700 border border-red-200' :
-                                                    opportunity.dealHealth === 'At Risk' ? 'bg-orange-100 text-orange-700 border border-orange-200' :
-                                                        opportunity.dealHealth === 'Stalled' ? 'bg-gray-100 text-gray-700 border border-gray-200' :
-                                                            'bg-green-100 text-green-700 border border-green-200'
+                                                opportunity.dealHealth === 'At Risk' ? 'bg-orange-100 text-orange-700 border border-orange-200' :
+                                                    opportunity.dealHealth === 'Stalled' ? 'bg-gray-100 text-gray-700 border border-gray-200' :
+                                                        'bg-green-100 text-green-700 border border-green-200'
                                                 }`}>
                                                 {opportunity.dealHealth === 'Hot' && '🔥'}
                                                 {opportunity.dealHealth === 'At Risk' && '⚠️'}
@@ -311,9 +321,9 @@ const OpportunityDetailPage = () => {
                                                 <div className="w-full bg-slate-100 rounded-full h-3 overflow-hidden shadow-inner">
                                                     <div
                                                         className={`h-full rounded-full transition-all ${opportunity.dealScore >= 80 ? 'bg-gradient-to-r from-green-500 to-emerald-500' :
-                                                                opportunity.dealScore >= 60 ? 'bg-gradient-to-r from-yellow-500 to-amber-500' :
-                                                                    opportunity.dealScore >= 40 ? 'bg-gradient-to-r from-orange-500 to-red-500' :
-                                                                        'bg-gradient-to-r from-red-600 to-rose-600'
+                                                            opportunity.dealScore >= 60 ? 'bg-gradient-to-r from-yellow-500 to-amber-500' :
+                                                                opportunity.dealScore >= 40 ? 'bg-gradient-to-r from-orange-500 to-red-500' :
+                                                                    'bg-gradient-to-r from-red-600 to-rose-600'
                                                             }`}
                                                         style={{ width: `${opportunity.dealScore}%` }}
                                                     />
@@ -350,12 +360,111 @@ const OpportunityDetailPage = () => {
                                                 <div className="flex items-center justify-between text-xs">
                                                     <span className="font-medium text-slate-600">Days in {opportunity.stage}</span>
                                                     <span className={`font-black ${opportunity.daysInCurrentStage > 60 ? 'text-red-600' :
-                                                            opportunity.daysInCurrentStage > 30 ? 'text-orange-600' :
-                                                                'text-slate-900'
+                                                        opportunity.daysInCurrentStage > 30 ? 'text-orange-600' :
+                                                            'text-slate-900'
                                                         }`}>
                                                         {opportunity.daysInCurrentStage} days
                                                     </span>
                                                 </div>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {/* Competitors */}
+                                    <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm">
+                                        <div className="flex items-center justify-between mb-4">
+                                            <h4 className="text-xs font-black uppercase text-slate-400 tracking-widest">Competitive Landscape</h4>
+                                            <button
+                                                onClick={() => {
+                                                    const name = prompt('Competitor name:');
+                                                    if (name) {
+                                                        const strength = prompt('Their strength:') || '';
+                                                        const weakness = prompt('Their weakness:') || '';
+                                                        const competitors = opportunity.competitors ? JSON.parse(opportunity.competitors) : [];
+                                                        competitors.push({ name, strength, weakness });
+                                                        handleUpdate({ competitors: JSON.stringify(competitors) });
+                                                    }
+                                                }}
+                                                className="text-xs text-indigo-600 hover:text-indigo-700 font-bold flex items-center gap-1"
+                                            >
+                                                <Plus size={14} /> Add Competitor
+                                            </button>
+                                        </div>
+
+                                        {opportunity.competitors && JSON.parse(opportunity.competitors).length > 0 ? (
+                                            <div className="space-y-3">
+                                                {JSON.parse(opportunity.competitors).map((comp: any, idx: number) => (
+                                                    <div key={idx} className="border border-slate-200 rounded-lg p-4 hover:border-indigo-200 transition-colors">
+                                                        <div className="flex items-start justify-between mb-2">
+                                                            <div className="flex items-center gap-2">
+                                                                <h5 className="font-bold text-slate-900">{comp.name}</h5>
+                                                                {opportunity.primaryCompetitor === comp.name && (
+                                                                    <span className="px-2 py-0.5 bg-red-100 text-red-700 text-[10px] font-black uppercase rounded border border-red-200">
+                                                                        Primary
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                            <div className="flex items-center gap-1">
+                                                                {opportunity.primaryCompetitor !== comp.name && (
+                                                                    <button
+                                                                        onClick={() => handleUpdate({ primaryCompetitor: comp.name })}
+                                                                        className="text-xs text-slate-400 hover:text-red-600 transition-colors"
+                                                                        title="Set as primary"
+                                                                    >
+                                                                        ⭐
+                                                                    </button>
+                                                                )}
+                                                                <button
+                                                                    onClick={() => {
+                                                                        const competitors = JSON.parse(opportunity.competitors!);
+                                                                        competitors.splice(idx, 1);
+                                                                        handleUpdate({
+                                                                            competitors: JSON.stringify(competitors),
+                                                                            primaryCompetitor: opportunity.primaryCompetitor === comp.name ? (null as any) : opportunity.primaryCompetitor
+                                                                        });
+                                                                    }}
+                                                                    className="text-xs text-slate-400 hover:text-red-600 transition-colors"
+                                                                >
+                                                                    <Trash2 size={14} />
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                        {comp.strength && (
+                                                            <div className="text-xs mb-1">
+                                                                <span className="font-bold text-green-600">💪 Strength:</span>
+                                                                <span className="text-slate-600 ml-2">{comp.strength}</span>
+                                                            </div>
+                                                        )}
+                                                        {comp.weakness && (
+                                                            <div className="text-xs">
+                                                                <span className="font-bold text-orange-600">⚠️ Weakness:</span>
+                                                                <span className="text-slate-600 ml-2">{comp.weakness}</span>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                ))}
+
+                                                {/* Competitive Position */}
+                                                <div className="mt-4 pt-4 border-t border-slate-100">
+                                                    <div className="flex items-center justify-between">
+                                                        <span className="text-xs font-bold text-slate-600">Our Position:</span>
+                                                        <select
+                                                            value={opportunity.competitivePosition || 'Unknown'}
+                                                            onChange={(e) => handleUpdate({ competitivePosition: e.target.value as any })}
+                                                            className="text-xs font-bold px-2 py-1 rounded border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none"
+                                                        >
+                                                            <option value="Ahead">🏆 Ahead</option>
+                                                            <option value="Even">🤝 Even</option>
+                                                            <option value="Behind">📉 Behind</option>
+                                                            <option value="Unknown">❓ Unknown</option>
+                                                        </select>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <div className="text-center py-8 text-slate-400 text-sm">
+                                                <p>No competitors identified</p>
+                                                <p className="text-xs mt-1">Click "Add Competitor" to track competition</p>
                                             </div>
                                         )}
                                     </div>

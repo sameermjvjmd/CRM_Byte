@@ -54,9 +54,17 @@ import CustomFieldsPage from './pages/CustomFieldsPage';
 import LandingPageBuilder from './components/marketing/LandingPageBuilder';
 import QuoteTemplatesPage from './pages/admin/QuoteTemplatesPage';
 import PublicLandingPage from './pages/PublicLandingPage';
+import WinLossAnalysisPage from './pages/WinLossAnalysisPage';
+import DealVelocityPage from './pages/DealVelocityPage';
+import SalesLeaderboardPage from './pages/SalesLeaderboardPage';
+import LeadAssignmentRules from './pages/marketing/LeadAssignmentRules';
+import SavedSearchesPage from './pages/SavedSearchesPage';
+import GlobalSearch from './components/search/GlobalSearch';
+import { useGlobalSearch } from './hooks/useGlobalSearch';
 
 const AppContent = () => {
     const location = useLocation();
+    const { isOpen, closeSearch } = useGlobalSearch();
 
     const isPublicPage = location.pathname === '/login' ||
         location.pathname === '/register' ||
@@ -65,6 +73,9 @@ const AppContent = () => {
 
     return (
         <div className="flex flex-col h-screen w-full bg-[#f8fafc] overflow-hidden">
+            {/* Global Search Modal */}
+            <GlobalSearch isOpen={isOpen} onClose={closeSearch} />
+
             {!isPublicPage && (
                 <>
                     <TopNavigation />
@@ -101,6 +112,9 @@ const AppContent = () => {
                             <Route path="/opportunities/:id" element={<ProtectedRoute><OpportunityDetailPage /></ProtectedRoute>} />
                             <Route path="/opportunities/analytics" element={<ProtectedRoute><PipelineAnalyticsPage /></ProtectedRoute>} />
                             <Route path="/opportunities/forecast" element={<ProtectedRoute><SalesForecastPage /></ProtectedRoute>} />
+                            <Route path="/opportunities/win-loss" element={<ProtectedRoute><WinLossAnalysisPage /></ProtectedRoute>} />
+                            <Route path="/opportunities/velocity" element={<ProtectedRoute><DealVelocityPage /></ProtectedRoute>} />
+                            <Route path="/opportunities/leaderboard" element={<ProtectedRoute><SalesLeaderboardPage /></ProtectedRoute>} />
                             <Route path="/insights/forecast" element={<Navigate to="/opportunities/forecast" replace />} />
 
                             {/* Activities */}
@@ -114,10 +128,12 @@ const AppContent = () => {
                             <Route path="/sms" element={<ProtectedRoute><SMSPage /></ProtectedRoute>} />
                             <Route path="/reports" element={<ProtectedRoute><ReportsPage /></ProtectedRoute>} />
                             <Route path="/marketing" element={<ProtectedRoute><MarketingPage /></ProtectedRoute>} />
+                            <Route path="/marketing/lead-assignment" element={<ProtectedRoute><LeadAssignmentRules /></ProtectedRoute>} />
                             <Route path="/insight" element={<ProtectedRoute><InsightPage /></ProtectedRoute>} />
                             <Route path="/templates" element={<ProtectedRoute><EmailTemplatesPage /></ProtectedRoute>} />
                             <Route path="/signatures" element={<ProtectedRoute><EmailSignaturesPage /></ProtectedRoute>} />
                             <Route path="/sent-emails" element={<ProtectedRoute><SentEmailsPage /></ProtectedRoute>} />
+                            <Route path="/saved-searches" element={<ProtectedRoute><SavedSearchesPage /></ProtectedRoute>} />
 
                             <Route path="/tools" element={<ProtectedRoute><ToolsPage /></ProtectedRoute>} />
                             <Route path="/tools/import" element={<ProtectedRoute><ImportDataPage /></ProtectedRoute>} />

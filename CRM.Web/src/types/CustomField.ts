@@ -41,6 +41,8 @@ export interface CustomField {
     displayOrder: number;
     sectionName?: string;
     helpText?: string;
+    fieldKey?: string;
+    optionsJson?: string;
 }
 
 export interface CreateCustomFieldDto {

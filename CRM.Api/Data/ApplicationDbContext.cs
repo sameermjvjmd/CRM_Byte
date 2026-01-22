@@ -25,6 +25,11 @@ namespace CRM.Api.Data
         public DbSet<Document> Documents { get; set; }
         public DbSet<SavedSearch> SavedSearches { get; set; }
         
+        // Search & Filtering (Module 9)
+        public DbSet<Models.Search.SavedSearch> SearchSavedSearches { get; set; }
+        public DbSet<Models.Search.SearchHistory> SearchHistories { get; set; }
+        public DbSet<Models.Search.FilterPreset> FilterPresets { get; set; }
+        
         // Marketing Automation (Module 7)
         public DbSet<MarketingCampaign> MarketingCampaigns { get; set; }
         public DbSet<MarketingList> MarketingLists { get; set; }
@@ -34,6 +39,7 @@ namespace CRM.Api.Data
         public DbSet<CampaignStepExecutionLog> CampaignStepExecutionLogs { get; set; }
         public DbSet<SuppressionEntry> SuppressionEntries { get; set; }
         public DbSet<LeadScoringRule> LeadScoringRules { get; set; }
+        public DbSet<LeadAssignmentRule> LeadAssignmentRules { get; set; }
         
         // Landing Pages (Module 7.3)
         public DbSet<LandingPage> LandingPages { get; set; }

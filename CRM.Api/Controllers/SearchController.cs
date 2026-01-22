@@ -1,11 +1,8 @@
-using CRM.Api.DTOs.Search;
-using CRM.Api.DTOs;
-using CRM.Api.Services.Search;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using System.Collections.Generic;
+using Microsoft.AspNetCore.Authorization;
+using CRM.Api.Services.Search;
+using CRM.Api.DTOs.Search;
 using System.Security.Claims;
-using System.Threading.Tasks;
 
 namespace CRM.Api.Controllers
 {
@@ -15,115 +12,331 @@ namespace CRM.Api.Controllers
     public class SearchController : ControllerBase
     {
         private readonly ISearchService _searchService;
-        private readonly CRM.Api.Data.ApplicationDbContext _context;
+        private readonly ILogger<SearchController> _logger;
 
-        public SearchController(ISearchService searchService, CRM.Api.Data.ApplicationDbContext context)
+        public SearchController(ISearchService searchService, ILogger<SearchController> logger)
         {
             _searchService = searchService;
-            _context = context;
+            _logger = logger;
         }
 
-        [HttpGet]
-        public async Task<ActionResult<List<SearchResultDto>>> GlobalSearch([FromQuery] string query)
+        private int GetUserId()
         {
-            var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            int userId = 0;
-            if (int.TryParse(userIdString, out var parsedId))
+            var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            return int.TryParse(userIdStr, out int uid) ? uid : 0;
+        }
+
+        // =============================================
+        // ADVANCED QUERY
+        // =============================================
+
+        [HttpPost("query")]
+        public async Task<ActionResult<QueryResult>> ExecuteQuery([FromBody] QueryDefinition query)
+        {
+            try
             {
-                userId = parsedId;
+                var result = await _searchService.ExecuteQueryAsync(query);
+                
+                // Record search history
+                await _searchService.RecordSearchHistoryAsync(
+                    GetUserId(), 
+                    $"Advanced query on {query.EntityType}", 
+                    query.EntityType, 
+                    result.TotalCount
+                );
+
+                return Ok(result);
             }
-
-            var results = await _searchService.GlobalSearchAsync(query, userId);
-            return Ok(results);
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error executing query");
+                return BadRequest(new { error = ex.Message });
+            }
         }
 
-        // GET: api/search/saved
-        [HttpGet("saved")]
-        public async Task<ActionResult<IEnumerable<SavedSearchDto>>> GetSavedSearches()
+        // =============================================
+        // GLOBAL SEARCH
+        // =============================================
+
+        [HttpGet("global")]
+        public async Task<ActionResult<List<GlobalSearchResult>>> GlobalSearch(
+            [FromQuery] string q,
+            [FromQuery] string? scope = null,
+            [FromQuery] int maxResults = 20)
         {
-            var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            if (!int.TryParse(userIdString, out var userId)) return Unauthorized();
-
-            var savedSearches = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.ToListAsync(
-                System.Linq.Queryable.Where(_context.SavedSearches, s => s.UserId == userId || s.IsPublic)
-            );
-
-            var dtos = new List<SavedSearchDto>();
-            foreach (var s in savedSearches)
+            try
             {
-                var container = System.Text.Json.JsonSerializer.Deserialize<SavedSearchCriteriaContainer>(s.CriteriaJson);
-                dtos.Add(new SavedSearchDto
+                if (string.IsNullOrWhiteSpace(q))
                 {
-                    Id = s.Id,
-                    Name = s.Name,
-                    EntityType = s.EntityType,
-                    Description = s.Description,
-                    IsPublic = s.IsPublic,
-                    CreatedAt = s.CreatedAt,
-                    Criteria = container?.Criteria ?? new List<SearchCriteriaDto>(),
-                    MatchType = container?.MatchType ?? "All"
-                });
+                    return Ok(new List<GlobalSearchResult>());
+                }
+
+                var results = await _searchService.GlobalSearchAsync(q, scope, maxResults);
+
+                // Record search history
+                await _searchService.RecordSearchHistoryAsync(
+                    GetUserId(),
+                    q,
+                    scope,
+                    results.Count
+                );
+
+                return Ok(results);
             }
-
-            return Ok(dtos.OrderByDescending(d => d.CreatedAt));
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error performing global search");
+                return BadRequest(new { error = ex.Message });
+            }
         }
 
-        // POST: api/search/saved
-        [HttpPost("saved")]
-        public async Task<ActionResult<SavedSearchDto>> CreateSavedSearch(CreateSavedSearchDto dto)
+        // =============================================
+        // SAVED SEARCHES
+        // =============================================
+
+        [HttpGet("saved")]
+        public async Task<ActionResult<List<SavedSearchDto>>> GetSavedSearches(
+            [FromQuery] string? entityType = null)
         {
-            var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            if (!int.TryParse(userIdString, out var userId)) return Unauthorized();
-
-            var container = new SavedSearchCriteriaContainer
+            try
             {
-                Criteria = dto.Criteria,
-                MatchType = dto.MatchType
-            };
-
-            var savedSearch = new CRM.Api.Models.SavedSearch
+                var searches = await _searchService.GetSavedSearchesAsync(GetUserId(), entityType);
+                return Ok(searches);
+            }
+            catch (Exception ex)
             {
-                Name = dto.Name,
-                EntityType = dto.EntityType,
-                Description = dto.Description,
-                IsPublic = dto.IsPublic,
-                UserId = userId,
-                CreatedAt = DateTime.UtcNow,
-                CriteriaJson = System.Text.Json.JsonSerializer.Serialize(container)
-            };
-
-            _context.SavedSearches.Add(savedSearch);
-            await _context.SaveChangesAsync();
-
-            return CreatedAtAction(nameof(GetSavedSearches), new { id = savedSearch.Id }, new SavedSearchDto
-            {
-                Id = savedSearch.Id,
-                Name = savedSearch.Name,
-                EntityType = savedSearch.EntityType,
-                Description = savedSearch.Description,
-                IsPublic = savedSearch.IsPublic,
-                CreatedAt = savedSearch.CreatedAt,
-                Criteria = dto.Criteria,
-                MatchType = dto.MatchType
-            });
+                _logger.LogError(ex, "Error getting saved searches");
+                return BadRequest(new { error = ex.Message });
+            }
         }
 
-        // DELETE: api/search/saved/5
+        [HttpPost("saved")]
+        public async Task<ActionResult<SavedSearchDto>> SaveSearch([FromBody] SavedSearchDto dto)
+        {
+            try
+            {
+                var result = await _searchService.SaveSearchAsync(dto, GetUserId());
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error saving search");
+                return BadRequest(new { error = ex.Message });
+            }
+        }
+
+        [HttpPut("saved/{id}")]
+        public async Task<ActionResult<SavedSearchDto>> UpdateSavedSearch(int id, [FromBody] SavedSearchDto dto)
+        {
+            try
+            {
+                dto.Id = id;
+                var result = await _searchService.SaveSearchAsync(dto, GetUserId());
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error updating saved search");
+                return BadRequest(new { error = ex.Message });
+            }
+        }
+
         [HttpDelete("saved/{id}")]
         public async Task<IActionResult> DeleteSavedSearch(int id)
         {
-            var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            if (!int.TryParse(userIdString, out var userId)) return Unauthorized();
+            try
+            {
+                await _searchService.DeleteSavedSearchAsync(id, GetUserId());
+                return NoContent();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error deleting saved search");
+                return BadRequest(new { error = ex.Message });
+            }
+        }
 
-            var savedSearch = await _context.SavedSearches.FindAsync(id);
-            if (savedSearch == null) return NotFound();
+        // =============================================
+        // FILTER PRESETS
+        // =============================================
 
-            if (savedSearch.UserId != userId) return Forbid();
+        [HttpGet("presets")]
+        public async Task<ActionResult<List<FilterPresetDto>>> GetFilterPresets(
+            [FromQuery] string? entityType = null)
+        {
+            try
+            {
+                // Return predefined presets
+                var presets = GetPredefinedPresets(entityType);
+                return Ok(presets);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting filter presets");
+                return BadRequest(new { error = ex.Message });
+            }
+        }
 
-            _context.SavedSearches.Remove(savedSearch);
-            await _context.SaveChangesAsync();
+        private List<FilterPresetDto> GetPredefinedPresets(string? entityType)
+        {
+            var presets = new List<FilterPresetDto>();
 
-            return NoContent();
+            if (entityType == null || entityType == "Contact")
+            {
+                presets.AddRange(new[]
+                {
+                    new FilterPresetDto
+                    {
+                        Name = "Hot Leads",
+                        Description = "Contacts with lead score ≥ 70",
+                        EntityType = "Contact",
+                        IsSystem = true,
+                        Filter = new QueryDefinition
+                        {
+                            EntityType = "Contact",
+                            Conditions = new List<FilterCondition>
+                            {
+                                new FilterCondition
+                                {
+                                    Field = "LeadScore",
+                                    Operator = "greaterThanOrEqual",
+                                    Value = 70
+                                }
+                            }
+                        }
+                    },
+                    new FilterPresetDto
+                    {
+                        Name = "Recent Contacts",
+                        Description = "Contacts created in the last 30 days",
+                        EntityType = "Contact",
+                        IsSystem = true,
+                        Filter = new QueryDefinition
+                        {
+                            EntityType = "Contact",
+                            Conditions = new List<FilterCondition>
+                            {
+                                new FilterCondition
+                                {
+                                    Field = "CreatedAt",
+                                    Operator = "greaterThanOrEqual",
+                                    Value = DateTime.UtcNow.AddDays(-30)
+                                }
+                            }
+                        }
+                    },
+                    new FilterPresetDto
+                    {
+                        Name = "Active Contacts",
+                        Description = "Contacts with Active status",
+                        EntityType = "Contact",
+                        IsSystem = true,
+                        Filter = new QueryDefinition
+                        {
+                            EntityType = "Contact",
+                            Conditions = new List<FilterCondition>
+                            {
+                                new FilterCondition
+                                {
+                                    Field = "Status",
+                                    Operator = "equals",
+                                    Value = "Active"
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+
+            if (entityType == null || entityType == "Opportunity")
+            {
+                presets.AddRange(new[]
+                {
+                    new FilterPresetDto
+                    {
+                        Name = "High-Value Deals",
+                        Description = "Opportunities with amount ≥ $50,000",
+                        EntityType = "Opportunity",
+                        IsSystem = true,
+                        Filter = new QueryDefinition
+                        {
+                            EntityType = "Opportunity",
+                            Conditions = new List<FilterCondition>
+                            {
+                                new FilterCondition
+                                {
+                                    Field = "Amount",
+                                    Operator = "greaterThanOrEqual",
+                                    Value = 50000
+                                }
+                            }
+                        }
+                    },
+                    new FilterPresetDto
+                    {
+                        Name = "Closing This Month",
+                        Description = "Opportunities expected to close this month",
+                        EntityType = "Opportunity",
+                        IsSystem = true,
+                        Filter = new QueryDefinition
+                        {
+                            EntityType = "Opportunity",
+                            Conditions = new List<FilterCondition>
+                            {
+                                new FilterCondition
+                                {
+                                    Field = "ExpectedCloseDate",
+                                    Operator = "greaterThanOrEqual",
+                                    Value = new DateTime(DateTime.UtcNow.Year, DateTime.UtcNow.Month, 1)
+                                },
+                                new FilterCondition
+                                {
+                                    Field = "ExpectedCloseDate",
+                                    Operator = "lessThan",
+                                    Value = new DateTime(DateTime.UtcNow.Year, DateTime.UtcNow.Month, 1).AddMonths(1),
+                                    Logic = "AND"
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+
+            if (entityType == null || entityType == "Activity")
+            {
+                presets.AddRange(new[]
+                {
+                    new FilterPresetDto
+                    {
+                        Name = "Overdue Activities",
+                        Description = "Activities past their due date",
+                        EntityType = "Activity",
+                        IsSystem = true,
+                        Filter = new QueryDefinition
+                        {
+                            EntityType = "Activity",
+                            Conditions = new List<FilterCondition>
+                            {
+                                new FilterCondition
+                                {
+                                    Field = "EndTime",
+                                    Operator = "lessThan",
+                                    Value = DateTime.UtcNow
+                                },
+                                new FilterCondition
+                                {
+                                    Field = "IsCompleted",
+                                    Operator = "equals",
+                                    Value = false,
+                                    Logic = "AND"
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+
+            return presets;
         }
     }
 }

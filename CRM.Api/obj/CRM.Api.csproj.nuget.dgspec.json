@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "D:\\Project(s)\\CRM_ACT\\CRM.Api\\CRM.Api.csproj": {}
+    "d:\\Project(s)\\CRM_ACT\\CRM.Api\\CRM.Api.csproj": {}
   },
   "projects": {
-    "D:\\Project(s)\\CRM_ACT\\CRM.Api\\CRM.Api.csproj": {
+    "d:\\Project(s)\\CRM_ACT\\CRM.Api\\CRM.Api.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "D:\\Project(s)\\CRM_ACT\\CRM.Api\\CRM.Api.csproj",
+        "projectUniqueName": "d:\\Project(s)\\CRM_ACT\\CRM.Api\\CRM.Api.csproj",
         "projectName": "CRM.Api",
-        "projectPath": "D:\\Project(s)\\CRM_ACT\\CRM.Api\\CRM.Api.csproj",
+        "projectPath": "d:\\Project(s)\\CRM_ACT\\CRM.Api\\CRM.Api.csproj",
         "packagesPath": "C:\\Users\\SAMEER MJ\\.nuget\\packages\\",
-        "outputPath": "D:\\Project(s)\\CRM_ACT\\CRM.Api\\obj\\",
+        "outputPath": "d:\\Project(s)\\CRM_ACT\\CRM.Api\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files\\DevExpress 24.1\\Components\\Offline Packages",

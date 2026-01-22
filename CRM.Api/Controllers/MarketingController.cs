@@ -883,6 +883,80 @@ namespace CRM.Api.Controllers
         }
 
         // =============================================
+        // LEAD ASSIGNMENT RULES
+        // =============================================
+
+        [HttpGet("lead-assignment-rules")]
+        public async Task<ActionResult<IEnumerable<object>>> GetLeadAssignmentRules()
+        {
+            var rules = await _context.LeadAssignmentRules
+                .OrderBy(r => r.Priority)
+                .ToListAsync();
+
+            var result = new List<object>();
+            foreach (var rule in rules)
+            {
+                var userIds = JsonSerializer.Deserialize<List<int>>(rule.AssignToUserIds) ?? new List<int>();
+                var users = await _context.Users
+                    .Where(u => userIds.Contains(u.Id))
+                    .Select(u => u.FullName ?? u.Email)
+                    .ToListAsync();
+
+                result.Add(new
+                {
+                    rule.Id,
+                    rule.Name,
+                    rule.IsActive,
+                    rule.Priority,
+                    rule.AssignmentType,
+                    rule.Criteria,
+                    AssignToUserIds = userIds,
+                    AssignToUsers = users
+                });
+            }
+
+            return Ok(result);
+        }
+
+        [HttpPost("lead-assignment-rules")]
+        public async Task<ActionResult> CreateLeadAssignmentRule([FromBody] LeadAssignmentRule rule)
+        {
+            rule.CreatedAt = DateTime.UtcNow;
+            _context.LeadAssignmentRules.Add(rule);
+            await _context.SaveChangesAsync();
+            return Ok(rule);
+        }
+
+        [HttpPut("lead-assignment-rules/{id}")]
+        public async Task<IActionResult> UpdateLeadAssignmentRule(int id, [FromBody] LeadAssignmentRule rule)
+        {
+            var existing = await _context.LeadAssignmentRules.FindAsync(id);
+            if (existing == null) return NotFound();
+
+            existing.Name = rule.Name;
+            existing.IsActive = rule.IsActive;
+            existing.Priority = rule.Priority;
+            existing.AssignmentType = rule.AssignmentType;
+            existing.Criteria = rule.Criteria;
+            existing.AssignToUserIds = rule.AssignToUserIds;
+            existing.LastModifiedAt = DateTime.UtcNow;
+
+            await _context.SaveChangesAsync();
+            return NoContent();
+        }
+
+        [HttpDelete("lead-assignment-rules/{id}")]
+        public async Task<IActionResult> DeleteLeadAssignmentRule(int id)
+        {
+            var rule = await _context.LeadAssignmentRules.FindAsync(id);
+            if (rule == null) return NotFound();
+
+            _context.LeadAssignmentRules.Remove(rule);
+            await _context.SaveChangesAsync();
+            return NoContent();
+        }
+
+        // =============================================
         // HELPER METHODS
         // =============================================
 

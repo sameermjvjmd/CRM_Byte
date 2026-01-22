@@ -81,7 +81,7 @@ export default function CustomFieldsPage() {
             fieldName: field.fieldName,
             fieldType: field.fieldType,
             isRequired: field.isRequired,
-            options: field.optionsJson ? JSON.parse(field.optionsJson).join('\n') : ''
+            options: field.optionsJson ? JSON.parse(field.optionsJson as string).join('\n') : ''
         });
         setShowModal(true);
     };

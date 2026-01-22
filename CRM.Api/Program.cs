@@ -65,6 +65,7 @@ builder.Services.AddScoped<WorkflowExecutionService>();
 builder.Services.AddScoped<CRM.Api.Services.Marketing.ILeadScoringService, CRM.Api.Services.Marketing.LeadScoringService>();
 builder.Services.AddScoped<CRM.Api.Services.Marketing.ICampaignExecutionService, CRM.Api.Services.Marketing.CampaignExecutionService>();
 builder.Services.AddScoped<CRM.Api.Services.Marketing.IDynamicListService, CRM.Api.Services.Marketing.DynamicListService>();
+builder.Services.AddScoped<CRM.Api.Services.Marketing.LeadAssignmentService>();
 builder.Services.AddHostedService<WorkflowBackgroundService>();
 
 // Email Scheduler (Background Service for Scheduled Emails)
