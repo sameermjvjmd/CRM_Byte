@@ -158,13 +158,13 @@ namespace CRM.Api.Services.Import
 
         private async Task ImportContactsAsync(string path, string extension, ImportMappingRequest request, ImportResult result)
         {
-            var contactsToAdd = new List<Contact>();
+            var parsedContacts = new List<Contact>();
 
+            // 1. Parse File into Objects
             if (extension == ".csv")
             {
                 using var reader = new StreamReader(path);
                 using var csv = new CsvReader(reader, CultureInfo.InvariantCulture);
-                // We'll read manually to handle mapping
                 csv.Read();
                 csv.ReadHeader();
                 
@@ -174,12 +174,15 @@ namespace CRM.Api.Services.Import
                     {
                         var contact = new Contact { CreatedAt = DateTime.UtcNow, LastModifiedAt = DateTime.UtcNow };
                         MapRowToContact(contact, header => csv.GetField(header), request.FieldMapping);
-                        contactsToAdd.Add(contact);
+                        if (!string.IsNullOrEmpty(contact.FirstName) || !string.IsNullOrEmpty(contact.LastName) || !string.IsNullOrEmpty(contact.Email))
+                        {
+                            parsedContacts.Add(contact);
+                        }
                     }
                     catch (Exception ex)
                     {
                         result.ErrorCount++;
-                        result.Errors.Add($"Row error: {ex.Message}");
+                        result.Errors.Add($"Row parse error: {ex.Message}");
                     }
                 }
             }
@@ -187,80 +190,136 @@ namespace CRM.Api.Services.Import
             {
                 using var workbook = new XLWorkbook(path);
                 var worksheet = workbook.Worksheet(1);
-                var headers = worksheet.FirstRowUsed().CellsUsed().Select(c => c.GetString()).ToList();
+                var headerRow = worksheet.FirstRowUsed();
+                if (headerRow == null) return;
+
+                var headers = headerRow.CellsUsed().Select(c => c.GetString()).ToList();
 
                 foreach (var row in worksheet.RowsUsed().Skip(1))
                 {
                     try
                     {
                         var contact = new Contact { CreatedAt = DateTime.UtcNow, LastModifiedAt = DateTime.UtcNow };
-                        // Create a map helper
                         MapRowToContact(contact, header => {
-                            // Find index of header
                             var index = headers.IndexOf(header);
                             if (index == -1) return null;
                             return row.Cell(index + 1).GetString();
                         }, request.FieldMapping);
-                        contactsToAdd.Add(contact);
+
+                        if (!string.IsNullOrEmpty(contact.FirstName) || !string.IsNullOrEmpty(contact.LastName) || !string.IsNullOrEmpty(contact.Email))
+                        {
+                            parsedContacts.Add(contact);
+                        }
                     }
                     catch (Exception ex) 
                     {
                          result.ErrorCount++;
-                         result.Errors.Add($"Row error: {ex.Message}");
+                         result.Errors.Add($"Row parse error: {ex.Message}");
                     }
                 }
             }
 
-            // Batch Process and Save
-            // Look up companies if needed
-            var companyNames = contactsToAdd.Where(c => c.Company != null && !string.IsNullOrEmpty(c.Company.Name))
+            // 2. Pre-fetch existing data for verification
+            var emails = parsedContacts.Where(c => !string.IsNullOrEmpty(c.Email)).Select(c => c.Email).Distinct().ToList();
+            var existingContacts = new List<Contact>();
+            if (emails.Any())
+            {
+                existingContacts = await _context.Contacts
+                    .Where(c => emails.Contains(c.Email))
+                    .ToListAsync();
+            }
+
+            // Company Handling (Simple cache)
+            var companyNames = parsedContacts.Where(c => c.Company != null && !string.IsNullOrEmpty(c.Company.Name))
                                             .Select(c => c.Company.Name).Distinct().ToList();
-            
             var existingCompanies = await _context.Companies
                                                   .Where(c => companyNames.Contains(c.Name))
                                                   .ToListAsync();
 
-            foreach (var contact in contactsToAdd)
+            // 3. Process Logic
+            foreach (var incoming in parsedContacts)
             {
-                if (contact.Company != null)
+                // Company Linkage
+                if (incoming.Company != null)
                 {
-                    var existing = existingCompanies.FirstOrDefault(c => c.Name.Equals(contact.Company.Name, StringComparison.InvariantCultureIgnoreCase));
-                    if (existing != null)
+                    var existingComp = existingCompanies.FirstOrDefault(c => c.Name.Equals(incoming.Company.Name, StringComparison.OrdinalIgnoreCase));
+                    if (existingComp != null)
                     {
-                        contact.Company = null;
-                        contact.CompanyId = existing.Id;
+                        incoming.Company = null;
+                        incoming.CompanyId = existingComp.Id;
                     }
                     else
                     {
-                        // It will create new company because Contact.Company object is set
-                        // We might want to fix duplication if multiple contacts have same new company in this batch
-                        var newCompInBatch = existingCompanies.FirstOrDefault(c => c.Name == contact.Company.Name);
+                         var newCompInBatch = existingCompanies.FirstOrDefault(c => c.Name == incoming.Company.Name); // Check local cache
                          if (newCompInBatch == null) {
-                             // It's truly new
-                             contact.Company.CreatedAt = DateTime.UtcNow;
-                             contact.Company.LastModifiedAt = DateTime.UtcNow;
-                             // Add to local cache to prevent duplicates in batch
-                             existingCompanies.Add(contact.Company);
+                             incoming.Company.CreatedAt = DateTime.UtcNow;
+                             incoming.Company.LastModifiedAt = DateTime.UtcNow;
+                             existingCompanies.Add(incoming.Company); // Add to cache
                          } else {
-                             contact.Company = null;
-                             contact.CompanyId = newCompInBatch.Id;
+                             incoming.Company = null;
+                             incoming.CompanyId = newCompInBatch.Id;
                          }
                     }
                 }
-                
-                // Duplicate Email Check? 
-                if (!string.IsNullOrEmpty(contact.Email))
+
+                // Duplicate Check
+                Contact match = null;
+                if (!string.IsNullOrEmpty(incoming.Email))
                 {
-                     // For performance, checking one by one is slow. But for safety...
-                     // Ideally we pre-fetch emails or rely on DB constraint exceptions
+                    match = existingContacts.FirstOrDefault(c => c.Email.Equals(incoming.Email, StringComparison.OrdinalIgnoreCase));
                 }
 
-                _context.Contacts.Add(contact);
-                result.SuccessCount++;
+                if (match != null)
+                {
+                    if (request.UpdateExisting)
+                    {
+                        // Update Logic: Copy non-null fields from incoming to match
+                        UpdateContactProperties(match, incoming);
+                        match.LastModifiedAt = DateTime.UtcNow;
+                        result.SuccessCount++; // Counted as processed
+                    }
+                    else
+                    {
+                        result.Skipped.Add($"Skipped duplicate: {incoming.Email}");
+                    }
+                }
+                else
+                {
+                    _context.Contacts.Add(incoming);
+                    result.SuccessCount++;
+                }
             }
 
             await _context.SaveChangesAsync();
-            result.TotalProcessed = result.SuccessCount + result.ErrorCount;
+            result.TotalProcessed = parsedContacts.Count; // Total we tried to process
+        }
+
+        private void UpdateContactProperties(Contact target, Contact source)
+        {
+            // Simple reflection copy for non-null/non-empty fields
+            var props = typeof(Contact).GetProperties().Where(p => p.CanWrite && p.PropertyType == typeof(string));
+            foreach (var prop in props)
+            {
+                var val = prop.GetValue(source) as string;
+                if (!string.IsNullOrEmpty(val))
+                {
+                    prop.SetValue(target, val);
+                }
+            }
+            // Handle CompanyId update
+            if (source.CompanyId.HasValue && source.CompanyId != 0)
+            {
+                target.CompanyId = source.CompanyId;
+            }
+            if (source.Company != null)
+            {
+                // Complex case: switch company if source has new company object?
+                // For now simpler to respect CompanyId if resolved.
+                if (target.CompanyId == null && source.Company != null)
+                {
+                    target.Company = source.Company;
+                }
+            }
         }
 
         private void MapRowToContact(Contact contact, Func<string, string> getValue, Dictionary<string, string> mapping)

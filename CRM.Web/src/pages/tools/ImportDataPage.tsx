@@ -14,6 +14,7 @@ const ImportDataPage = () => {
 
     // Mapping Data
     const [mapping, setMapping] = useState<Record<string, string>>({});
+    const [updateExisting, setUpdateExisting] = useState(false);
 
     // Import Execution
     const [isImporting, setIsImporting] = useState(false);
@@ -65,7 +66,7 @@ const ImportDataPage = () => {
                 fileToken: previewData.fileToken,
                 entityType: importType,
                 fieldMapping: mapping,
-                updateExisting: false
+                updateExisting: updateExisting
             });
             setImportResult(result);
             setStep(3);
@@ -258,14 +259,25 @@ const ImportDataPage = () => {
                                 >
                                     Back
                                 </button>
-                                <button
-                                    onClick={handleExecuteImport}
-                                    disabled={Object.keys(mapping).length === 0 || isImporting}
-                                    className="px-8 py-3 bg-indigo-600 text-white rounded-lg font-black uppercase tracking-widest hover:bg-indigo-700 transition-all flex items-center gap-2 shadow-lg shadow-indigo-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                                >
-                                    {isImporting ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle size={16} />}
-                                    {isImporting ? 'Processing...' : 'Run Import'}
-                                </button>
+                                <div className="flex items-center gap-4">
+                                    <label className="flex items-center gap-2 cursor-pointer">
+                                        <input
+                                            type="checkbox"
+                                            checked={updateExisting}
+                                            onChange={(e) => setUpdateExisting(e.target.checked)}
+                                            className="w-4 h-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500"
+                                        />
+                                        <span className="text-sm font-bold text-slate-600">Update existing records</span>
+                                    </label>
+                                    <button
+                                        onClick={handleExecuteImport}
+                                        disabled={Object.keys(mapping).length === 0 || isImporting}
+                                        className="px-8 py-3 bg-indigo-600 text-white rounded-lg font-black uppercase tracking-widest hover:bg-indigo-700 transition-all flex items-center gap-2 shadow-lg shadow-indigo-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
+                                        {isImporting ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle size={16} />}
+                                        {isImporting ? 'Processing...' : 'Run Import'}
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     )}
@@ -342,7 +354,7 @@ const ImportDataPage = () => {
                     </div>
                 </div>
             </div>
-        </div>
+        </div >
     );
 };
 
