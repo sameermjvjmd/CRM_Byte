@@ -17,6 +17,7 @@ CRM.Web/coverage/
 # Deployment Artifacts
 CRM_Artifacts/
 CRM_Deployment_Package.zip
+CRM.Api/TempImports/
 *_log.txt
 
 # Environment
