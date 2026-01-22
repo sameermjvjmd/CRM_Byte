@@ -438,7 +438,7 @@
 | Feature | Status | Priority | Week |
 |---------|--------|----------|------|
 | Custom report builder | ✅ Done | High | 17 |
-| Drag-and-drop fields | 🟡 Basic (UI) | High | 17 |
+| Drag-and-drop fields | ✅ Done | High | 17 |
 | Filters and criteria | ✅ Done | High | 17 |
 | Grouping and sorting | ✅ Done | High | 17 |
 | Calculated fields | ❌ Missing | Medium | 17 |
@@ -449,8 +449,8 @@
 #### 8.3 Report Export
 | Feature | Status | Priority | Week |
 |---------|--------|----------|------|
-| Export to PDF | ❌ Missing | High | 17 |
-| Export to Excel | ❌ Missing | High | 17 |
+| Export to PDF | ✅ Done | High | 17 |
+| Export to Excel | ✅ Done | High | 17 |
 | Export to CSV | ✅ Done | High | 17 |
 | Scheduled reports (email) | ❌ Missing | Medium | 18 |
 | Report printing | ❌ Missing | Medium | 17 |
