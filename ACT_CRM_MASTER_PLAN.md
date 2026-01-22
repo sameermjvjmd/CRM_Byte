@@ -506,7 +506,7 @@
 | Import from vCard | ❌ Missing | Low | 20 |
 | Import from Outlook | ❌ Missing | Medium | 20 |
 | Field mapping wizard | ✅ Done | High | 20 |
-| Duplicate detection during import | ❌ Missing | High | 20 |
+| Duplicate detection during import | ✅ Done | High | 20 |
 | Import preview | ✅ Done | High | 20 |
 | Import undo/rollback | ❌ Missing | Medium | 20 |
 | Import history/log | ❌ Missing | Medium | 20 |

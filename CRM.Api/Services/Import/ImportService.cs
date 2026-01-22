@@ -236,29 +236,41 @@ namespace CRM.Api.Services.Import
                                                   .Where(c => companyNames.Contains(c.Name))
                                                   .ToListAsync();
 
-            // 3. Process Logic
+            // 3. Company Linkage (Pre-pass)
+            var namesToResolve = parsedContacts.Where(c => c.Company != null).Select(c => c.Company.Name).Distinct().ToList();
+            foreach (var name in namesToResolve)
+            {
+                if (!existingCompanies.Any(c => c.Name.Equals(name, StringComparison.OrdinalIgnoreCase)))
+                {
+                    var newComp = new Company { Name = name, CreatedAt = DateTime.UtcNow, LastModifiedAt = DateTime.UtcNow };
+                    _context.Companies.Add(newComp);
+                }
+            }
+            try 
+            {
+                await _context.SaveChangesAsync();
+            }
+            catch (Exception ex)
+            {
+                var msg = "Company Save Error: " + ex.Message;
+                if (ex.InnerException != null) msg += " Inner: " + ex.InnerException.Message;
+                result.Errors.Add(msg);
+                return; // Stop here if companies failed
+            }
+
+            // Re-fetch all relevant companies to get IDs
+            var allComps = await _context.Companies.Where(c => namesToResolve.Contains(c.Name)).ToListAsync();
+            var companyIdMap = allComps.ToDictionary(c => c.Name, c => c.Id, StringComparer.OrdinalIgnoreCase);
+
+            // 4. Process Contacts
             foreach (var incoming in parsedContacts)
             {
-                // Company Linkage
                 if (incoming.Company != null)
                 {
-                    var existingComp = existingCompanies.FirstOrDefault(c => c.Name.Equals(incoming.Company.Name, StringComparison.OrdinalIgnoreCase));
-                    if (existingComp != null)
+                    if (companyIdMap.TryGetValue(incoming.Company.Name, out var companyId))
                     {
+                        incoming.CompanyId = companyId;
                         incoming.Company = null;
-                        incoming.CompanyId = existingComp.Id;
-                    }
-                    else
-                    {
-                         var newCompInBatch = existingCompanies.FirstOrDefault(c => c.Name == incoming.Company.Name); // Check local cache
-                         if (newCompInBatch == null) {
-                             incoming.Company.CreatedAt = DateTime.UtcNow;
-                             incoming.Company.LastModifiedAt = DateTime.UtcNow;
-                             existingCompanies.Add(incoming.Company); // Add to cache
-                         } else {
-                             incoming.Company = null;
-                             incoming.CompanyId = newCompInBatch.Id;
-                         }
                     }
                 }
 
@@ -273,10 +285,9 @@ namespace CRM.Api.Services.Import
                 {
                     if (request.UpdateExisting)
                     {
-                        // Update Logic: Copy non-null fields from incoming to match
                         UpdateContactProperties(match, incoming);
                         match.LastModifiedAt = DateTime.UtcNow;
-                        result.SuccessCount++; // Counted as processed
+                        result.SuccessCount++; 
                     }
                     else
                     {
@@ -288,10 +299,22 @@ namespace CRM.Api.Services.Import
                     _context.Contacts.Add(incoming);
                     result.SuccessCount++;
                 }
-            }
 
-            await _context.SaveChangesAsync();
-            result.TotalProcessed = parsedContacts.Count; // Total we tried to process
+                try 
+                {
+                    await _context.SaveChangesAsync();
+                }
+                catch (Exception ex)
+                {
+                    result.SuccessCount--; // Revert count
+                    var msg = $"Error saving {incoming.Email}: " + ex.Message;
+                    if (ex.InnerException != null) msg += " Inner: " + ex.InnerException.Message;
+                    result.Errors.Add(msg);
+                    // Detach the failed entity to avoid block subsequent saves
+                    _context.Entry(incoming).State = EntityState.Detached;
+                }
+            }
+            result.TotalProcessed = parsedContacts.Count; 
         }
 
         private void UpdateContactProperties(Contact target, Contact source)

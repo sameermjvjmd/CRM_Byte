@@ -1,0 +1,3 @@
+FirstName,LastName,Email,Company,JobTitle
+ImportTest,User1,import1@test.com,Acme Corp,Manager
+ImportTest,User2,import2@test.com,Acme Corp,Developer
