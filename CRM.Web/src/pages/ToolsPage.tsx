@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import {
     Users, UserCheck, ShieldCheck, Settings, Mail,
-    Download, Search, Copy, Activity, Trash2, RefreshCw, Printer,
+    Download, Upload, Search, Copy, Activity, Trash2, RefreshCw, Printer,
     Database, Layout, FileText, Briefcase
 } from 'lucide-react';
 
@@ -13,32 +13,22 @@ const ToolsPage = () => {
             title: "Account Tools",
             items: [
                 { icon: <Users size={24} />, name: "Manage Users", desc: "Add or edit user access", route: "/users" },
-                { icon: <UserCheck size={24} />, name: "Manage Teams", desc: "Organize users into teams", route: "/tools/teams" },
+                { icon: <ShieldCheck size={24} />, name: "Manage Roles", desc: "Configure role permissions", route: "/settings/roles" },
                 { icon: <Mail size={24} />, name: "Email Configuration", desc: "Configure SMTP settings", route: "/settings/email" },
-                { icon: <ShieldCheck size={24} />, name: "Password Policy", desc: "Set security requirements", route: "/tools/password-policy" },
-                { icon: <Settings size={24} />, name: "Admin Preferences", desc: "System-wide settings", route: "/tools/preferences" },
             ]
         },
         {
             title: "Database Tools",
             items: [
-                { icon: <Download size={24} />, name: "Import", desc: "Bring data from CSV/Excel", route: "/tools/import" },
-                { icon: <Search size={24} />, name: "Scan for Duplicates", desc: "Identify redundant records", route: "/tools/duplicates" },
-                { icon: <Copy size={24} />, name: "Move Contact Data", desc: "Reassign records in bulk", route: "/tools/move-data" },
-                { icon: <Activity size={24} />, name: "Check and Repair", desc: "Maintain data integrity", route: "/tools/repair" },
-                { icon: <Trash2 size={24} />, name: "Remove Old Data", desc: "Cleanup outdated records", route: "/tools/cleanup" },
-                { icon: <RefreshCw size={24} />, name: "Remote DB Sync", desc: "Sync with offline databases", route: "/tools/sync" },
-                { icon: <Printer size={24} />, name: "Print", desc: "Print current data view", route: "/tools/print" },
+                { icon: <Download size={24} />, name: "Import Data", desc: "Import from CSV/Excel", route: "/tools/import" },
+                { icon: <Upload size={24} />, name: "Export Data", desc: "Export to CSV/Excel", route: "/tools/export" },
+                { icon: <Search size={24} />, name: "Scan for Duplicates", desc: "Find and merge duplicates", route: "/tools/duplicates" },
             ]
         },
         {
-            title: "Design Tools",
+            title: "Customization",
             items: [
-                { icon: <Database size={24} />, name: "Define Fields", desc: "Create custom fields", route: "/tools/define-fields" },
-                { icon: <Layout size={24} />, name: "Design Contact Layout", desc: "Customize contact pages", route: "/tools/layout-contact" },
-                { icon: <FileText size={24} />, name: "Design Company Layout", desc: "Customize company pages", route: "/tools/layout-company" },
-                { icon: <Users size={24} />, name: "Design Group Layout", desc: "Customize group pages", route: "/tools/layout-group" },
-                { icon: <Briefcase size={24} />, name: "Design Opportunity Layout", desc: "Customize deal pages", route: "/tools/layout-opportunity" },
+                { icon: <Database size={24} />, name: "Custom Fields", desc: "Define custom fields", route: "/admin/custom-fields" },
             ]
         }
     ];

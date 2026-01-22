@@ -88,6 +88,24 @@ const ImportDataPage = () => {
         setImportResult(null);
     };
 
+    const downloadTemplate = () => {
+        const csvContent = `FirstName,LastName,Email,Phone,MobilePhone,Company,JobTitle,Department,LeadSource,Status,Address1,City,State,Zip,Country,Website,Notes
+John,Doe,john.doe@acmecorp.com,555-0101,555-0102,Acme Corporation,Sales Manager,Sales,Website,Active,123 Main St,New York,NY,10001,USA,https://acmecorp.com,Key decision maker for enterprise deals
+Jane,Smith,jane.smith@techsolutions.com,555-0201,555-0202,Tech Solutions Inc,CTO,Engineering,Referral,Active,456 Tech Ave,San Francisco,CA,94105,USA,https://techsolutions.com,Interested in automation features
+Michael,Johnson,michael.j@globalinc.com,555-0301,555-0302,Global Industries,VP Marketing,Marketing,Trade Show,Active,789 Business Blvd,Chicago,IL,60601,USA,https://globalinc.com,Met at CRM Summit 2026`;
+
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        const url = URL.createObjectURL(blob);
+        link.setAttribute('href', url);
+        link.setAttribute('download', 'contact_import_template.csv');
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        toast.success('Template downloaded successfully!');
+    };
+
     return (
         <div className="p-8 max-w-7xl mx-auto space-y-8">
             {/* Header */}
@@ -177,6 +195,17 @@ const ImportDataPage = () => {
                                             <p className="text-slate-400 text-sm font-medium max-w-xs mx-auto">Supports CSV and Excel files. Maximum 10MB.</p>
                                         </>
                                     )}
+                                </div>
+
+                                {/* Download Template Button */}
+                                <div className="flex justify-center">
+                                    <button
+                                        onClick={downloadTemplate}
+                                        className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-indigo-50 to-purple-50 border-2 border-indigo-200 rounded-lg text-indigo-700 font-bold hover:from-indigo-100 hover:to-purple-100 hover:border-indigo-300 transition-all shadow-sm hover:shadow-md"
+                                    >
+                                        <Download size={18} />
+                                        Download Sample Template
+                                    </button>
                                 </div>
 
                                 {selectedFile && previewData && (

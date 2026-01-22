@@ -1,0 +1,11 @@
+FirstName,LastName,Email,Phone,MobilePhone,Company,JobTitle,Department,LeadSource,Status,Address1,City,State,Zip,Country,Website,Notes
+John,Doe,john.doe@acmecorp.com,555-0101,555-0102,Acme Corporation,Sales Manager,Sales,Website,Active,123 Main St,New York,NY,10001,USA,https://acmecorp.com,Key decision maker for enterprise deals
+Jane,Smith,jane.smith@techsolutions.com,555-0201,555-0202,Tech Solutions Inc,CTO,Engineering,Referral,Active,456 Tech Ave,San Francisco,CA,94105,USA,https://techsolutions.com,Interested in automation features
+Michael,Johnson,michael.j@globalinc.com,555-0301,555-0302,Global Industries,VP Marketing,Marketing,Trade Show,Active,789 Business Blvd,Chicago,IL,60601,USA,https://globalinc.com,Met at CRM Summit 2026
+Sarah,Williams,sarah.w@innovate.io,555-0401,555-0402,Innovate Labs,Product Manager,Product,LinkedIn,Prospect,321 Innovation Dr,Austin,TX,78701,USA,https://innovate.io,Evaluating CRM solutions
+David,Brown,david.brown@enterprise.com,555-0501,555-0502,Enterprise Corp,Director of Sales,Sales,Cold Call,Lead,654 Corporate Way,Boston,MA,02101,USA,https://enterprise.com,Requested demo for Q1 2026
+Emily,Davis,emily.davis@startup.co,555-0601,555-0602,Startup Co,Founder & CEO,Executive,Partner,Active,987 Startup Lane,Seattle,WA,98101,USA,https://startup.co,Growing fast - needs scalable solution
+Robert,Miller,robert.m@consulting.com,555-0701,555-0702,Miller Consulting,Senior Consultant,Consulting,Email Campaign,Prospect,147 Advisor St,Denver,CO,80201,USA,https://consulting.com,Looking for integration capabilities
+Lisa,Wilson,lisa.wilson@retail.com,555-0801,555-0802,Retail Solutions,Operations Manager,Operations,Webinar,Lead,258 Commerce Rd,Miami,FL,33101,USA,https://retail.com,Attended our webinar on automation
+James,Moore,james.moore@finance.com,555-0901,555-0902,Finance Group,CFO,Finance,Referral,Active,369 Money St,Charlotte,NC,28201,USA,https://finance.com,Budget approved for CRM implementation
+Jennifer,Taylor,jennifer.t@healthcare.org,555-1001,555-1002,Healthcare Systems,IT Director,IT,Conference,Prospect,741 Medical Dr,Phoenix,AZ,85001,USA,https://healthcare.org,Compliance requirements are critical

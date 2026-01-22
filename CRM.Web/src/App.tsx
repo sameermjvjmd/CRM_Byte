@@ -36,6 +36,7 @@ import InsightPage from './pages/InsightPage';
 import CustomTablesPage from './pages/CustomTablesPage';
 import AccountingPage from './pages/AccountingPage';
 import ImportDataPage from './pages/tools/ImportDataPage';
+import ExportDataPage from './pages/tools/ExportDataPage';
 import DuplicateScanPage from './pages/tools/DuplicateScanPage';
 import DefineFieldsPage from './pages/tools/DefineFieldsPage';
 import ActivityDemoPage from './pages/ActivityDemoPage';
@@ -137,6 +138,7 @@ const AppContent = () => {
 
                             <Route path="/tools" element={<ProtectedRoute><ToolsPage /></ProtectedRoute>} />
                             <Route path="/tools/import" element={<ProtectedRoute><ImportDataPage /></ProtectedRoute>} />
+                            <Route path="/tools/export" element={<ProtectedRoute><ExportDataPage /></ProtectedRoute>} />
                             <Route path="/tools/duplicates" element={<ProtectedRoute><DuplicateScanPage /></ProtectedRoute>} />
                             <Route path="/tools/define-fields" element={<ProtectedRoute><DefineFieldsPage /></ProtectedRoute>} />
 

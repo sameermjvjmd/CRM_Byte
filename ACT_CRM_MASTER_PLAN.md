@@ -515,10 +515,10 @@
 #### 10.2 Export
 | Feature | Status | Priority | Week |
 |---------|--------|----------|------|
-| Export to CSV | ❌ Missing | High | 20 |
-| Export to Excel | ❌ Missing | High | 20 |
-| Export contacts/companies | ❌ Missing | High | 20 |
-| Export with field selection | ❌ Missing | High | 20 |
+| Export to CSV | ✅ Done | High | 20 |
+| Export to Excel | ✅ Done | High | 20 |
+| Export contacts/companies | ✅ Done | High | 20 |
+| Export with field selection | ✅ Done | High | 20 |
 | Bulk export | ❌ Missing | Medium | 20 |
 | Export history | ❌ Missing | Low | 20 |
 
