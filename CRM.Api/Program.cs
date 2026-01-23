@@ -436,6 +436,9 @@ using (var scope = app.Services.CreateScope())
         }
 
         DbInitializer.Initialize(context);
+        
+        // UNCOMMENT THIS LINE TO TRUNCATE CUSTOM FIELDS TABLES (USE WITH CAUTION!)
+        // DbInitializer.TruncateCustomFieldsTables(context);
     }
     catch (Exception ex)
     {

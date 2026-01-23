@@ -60,6 +60,7 @@ import DealVelocityPage from './pages/DealVelocityPage';
 import SalesLeaderboardPage from './pages/SalesLeaderboardPage';
 import LeadAssignmentRules from './pages/marketing/LeadAssignmentRules';
 import SavedSearchesPage from './pages/SavedSearchesPage';
+import UserGuidePage from './pages/UserGuidePage';
 import GlobalSearch from './components/search/GlobalSearch';
 import { useGlobalSearch } from './hooks/useGlobalSearch';
 
@@ -211,6 +212,8 @@ const AppContent = () => {
                                     <EmailSettingsPage />
                                 </ProtectedRoute>
                             } />
+
+                            <Route path="/user-guide" element={<ProtectedRoute><UserGuidePage /></ProtectedRoute>} />
 
                             <Route path="/activity-demo" element={<ProtectedRoute><ActivityDemoPage /></ProtectedRoute>} />
                         </Routes>

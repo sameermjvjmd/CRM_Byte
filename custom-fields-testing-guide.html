@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Custom Fields Testing Guide</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+
+        .content {
+            padding: 40px;
+        }
+
+        .test-section {
+            margin-bottom: 40px;
+            border-left: 4px solid #667eea;
+            padding-left: 20px;
+        }
+
+        .test-section h2 {
+            color: #667eea;
+            margin-bottom: 15px;
+            font-size: 1.8em;
+        }
+
+        .test-step {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 15px;
+            border: 2px solid #e9ecef;
+            transition: all 0.3s ease;
+        }
+
+        .test-step:hover {
+            border-color: #667eea;
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.2);
+        }
+
+        .test-step h3 {
+            color: #495057;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .step-number {
+            background: #667eea;
+            color: white;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+        }
+
+        .test-step ul {
+            margin-left: 20px;
+            margin-top: 10px;
+        }
+
+        .test-step li {
+            margin-bottom: 8px;
+            line-height: 1.6;
+        }
+
+        .expected {
+            background: #d4edda;
+            border-left: 4px solid #28a745;
+            padding: 10px 15px;
+            margin-top: 10px;
+            border-radius: 5px;
+        }
+
+        .expected strong {
+            color: #155724;
+        }
+
+        .action-button {
+            display: inline-block;
+            background: #667eea;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: bold;
+            margin: 10px 10px 10px 0;
+            transition: all 0.3s ease;
+            border: none;
+            cursor: pointer;
+            font-size: 1em;
+        }
+
+        .action-button:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .warning {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 5px;
+        }
+
+        .success {
+            background: #d4edda;
+            border-left: 4px solid #28a745;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 5px;
+        }
+
+        .code {
+            background: #2d2d2d;
+            color: #f8f8f2;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            overflow-x: auto;
+            margin: 10px 0;
+        }
+
+        .checklist {
+            list-style: none;
+        }
+
+        .checklist li {
+            padding: 8px 0;
+        }
+
+        .checklist li:before {
+            content: "☐ ";
+            color: #667eea;
+            font-weight: bold;
+            margin-right: 8px;
+        }
+
+        .footer {
+            background: #f8f9fa;
+            padding: 30px;
+            text-align: center;
+            color: #6c757d;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🧪 Custom Fields Testing Guide</h1>
+            <p>Comprehensive step-by-step testing for the Custom Fields system</p>
+        </div>
+
+        <div class="content">
+            <div class="success">
+                <strong>✅ Tables Truncated!</strong> You're starting with a clean slate. Follow the steps below to test
+                all functionality.
+            </div>
+
+            <!-- Quick Links -->
+            <div class="test-section">
+                <h2>🚀 Quick Links</h2>
+                <a href="http://localhost:3001/admin/custom-fields" class="action-button" target="_blank">Open Admin
+                    Panel</a>
+                <a href="http://localhost:3001/contacts" class="action-button" target="_blank">Open Contacts Page</a>
+                <a href="http://localhost:5000/scalar/v1" class="action-button" target="_blank">API Documentation</a>
+            </div>
+
+            <!-- Test 1 -->
+            <div class="test-section">
+                <h2>Test 1: Create Custom Fields</h2>
+
+                <div class="test-step">
+                    <h3><span class="step-number">1</span> Create Currency Field</h3>
+                    <ul>
+                        <li>Click <a href="http://localhost:3001/admin/custom-fields" target="_blank">Admin → Custom
+                                Fields</a></li>
+                        <li>Click <strong>"Add Field"</strong> button</li>
+                        <li>Fill in:
+                            <div class="code">
+                                Field Name: Annual Budget
+                                Field Type: Currency (from dropdown)
+                                Entity Type: Contact
+                                Required: ✓ (checked)
+                            </div>
+                        </li>
+                        <li>Click <strong>"Save"</strong></li>
+                    </ul>
+                    <div class="expected">
+                        <strong>✅ Expected:</strong> Field appears in table with label "Currency" (NOT "12")
+                    </div>
+                </div>
+
+                <div class="test-step">
+                    <h3><span class="step-number">2</span> Create Percentage Field</h3>
+                    <ul>
+                        <li>Click <strong>"Add Field"</strong> again</li>
+                        <li>Fill in:
+                            <div class="code">
+                                Field Name: Discount Rate
+                                Field Type: Percentage
+                                Entity Type: Contact
+                                Required: ☐ (unchecked)
+                            </div>
+                        </li>
+                        <li>Click <strong>"Save"</strong></li>
+                    </ul>
+                    <div class="expected">
+                        <strong>✅ Expected:</strong> Field appears with label "Percentage" (NOT "13")
+                    </div>
+                </div>
+
+                <div class="test-step">
+                    <h3><span class="step-number">3</span> Create Dropdown Field</h3>
+                    <ul>
+                        <li>Click <strong>"Add Field"</strong> again</li>
+                        <li>Fill in:
+                            <div class="code">
+                                Field Name: Customer Tier
+                                Field Type: Select (or Dropdown)
+                                Entity Type: Contact
+                                Options (one per line):
+                                Bronze
+                                Silver
+                                Gold
+                                Platinum
+                            </div>
+                        </li>
+                        <li>Click <strong>"Save"</strong></li>
+                    </ul>
+                    <div class="expected">
+                        <strong>✅ Expected:</strong> Field appears with label "Select" or "Dropdown"
+                    </div>
+                </div>
+            </div>
+
+            <!-- Test 2 -->
+            <div class="test-section">
+                <h2>Test 2: Edit Field Persistence</h2>
+
+                <div class="test-step">
+                    <h3><span class="step-number">4</span> Edit Currency Field</h3>
+                    <ul>
+                        <li>Click <strong>"Edit"</strong> button on "Annual Budget"</li>
+                        <li>Verify the Field Type dropdown shows <strong>"Currency"</strong> selected</li>
+                        <li>Change "Required" to unchecked</li>
+                        <li>Click <strong>"Save"</strong></li>
+                    </ul>
+                    <div class="expected">
+                        <strong>✅ Expected:</strong> Changes save successfully, field type doesn't reset to "Text"
+                    </div>
+                </div>
+            </div>
+
+            <!-- Test 3 -->
+            <div class="test-section">
+                <h2>Test 3: Create Contact with Custom Fields</h2>
+
+                <div class="test-step">
+                    <h3><span class="step-number">5</span> Create New Contact</h3>
+                    <ul>
+                        <li>Go to <a href="http://localhost:3001/contacts" target="_blank">Contacts page</a></li>
+                        <li>Click <strong>"New Contact"</strong> button</li>
+                        <li>Fill basic info:
+                            <div class="code">
+                                First Name: Test
+                                Last Name: CustomFields
+                                Email: test.cf@example.com
+                            </div>
+                        </li>
+                        <li>Scroll down to <strong>"Additional Details"</strong> section</li>
+                        <li>Verify all 3 custom fields are visible</li>
+                        <li>Fill custom fields:
+                            <div class="code">
+                                Annual Budget: 50000
+                                Discount Rate: 15
+                                Customer Tier: Gold (select from dropdown)
+                            </div>
+                        </li>
+                        <li>Click <strong>"Save"</strong></li>
+                    </ul>
+                    <div class="expected">
+                        <strong>✅ Expected:</strong> Contact created successfully, redirects to contact detail page
+                    </div>
+                </div>
+            </div>
+
+            <!-- Test 4 -->
+            <div class="test-section">
+                <h2>Test 4: Contact Detail Sidebar</h2>
+
+                <div class="test-step">
+                    <h3><span class="step-number">6</span> Verify Extended Profile Section</h3>
+                    <ul>
+                        <li>On the contact detail page, look at the <strong>right sidebar</strong></li>
+                        <li>Find the <strong>"Extended Profile"</strong> section</li>
+                        <li>Verify all 3 custom fields are displayed</li>
+                        <li>Check formatting:
+                            <div class="code">
+                                Annual Budget: $50,000.00 (with $ and commas)
+                                Discount Rate: 15% (with % symbol)
+                                Customer Tier: Gold (plain text)
+                            </div>
+                        </li>
+                    </ul>
+                    <div class="expected">
+                        <strong>✅ Expected:</strong> All fields visible with correct formatting
+                    </div>
+                </div>
+            </div>
+
+            <!-- Test 5 -->
+            <div class="test-section">
+                <h2>Test 5: Edit Modal</h2>
+
+                <div class="test-step">
+                    <h3><span class="step-number">7</span> Update Custom Fields</h3>
+                    <ul>
+                        <li>Click the <strong>"Edit"</strong> button on the contact</li>
+                        <li>Scroll down in the modal to <strong>"Custom Fields"</strong> section</li>
+                        <li>Verify all fields are editable</li>
+                        <li>Change values:
+                            <div class="code">
+                                Annual Budget: 75000
+                                Discount Rate: 20
+                                Customer Tier: Platinum
+                            </div>
+                        </li>
+                        <li>Click <strong>"Save Changes"</strong></li>
+                    </ul>
+                    <div class="expected">
+                        <strong>✅ Expected:</strong>
+                        <ul class="checklist">
+                            <li>Success toast appears</li>
+                            <li>Modal closes</li>
+                            <li>Sidebar updates immediately with new values</li>
+                            <li>New formatting: $75,000.00, 20%, Platinum</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Test 6 -->
+            <div class="test-section">
+                <h2>Test 6: Custom Fields Tab</h2>
+
+                <div class="test-step">
+                    <h3><span class="step-number">8</span> Verify Tab Functionality</h3>
+                    <ul>
+                        <li>Click the <strong>"Custom Fields"</strong> tab</li>
+                        <li>Verify the same 3 fields appear</li>
+                        <li>Try editing a value and saving</li>
+                        <li>Verify changes persist</li>
+                    </ul>
+                    <div class="expected">
+                        <strong>✅ Expected:</strong> Tab shows fields, edits work, data syncs with sidebar
+                    </div>
+                </div>
+            </div>
+
+            <!-- Test 7 -->
+            <div class="test-section">
+                <h2>Test 7: Browser Console Check</h2>
+
+                <div class="test-step">
+                    <h3><span class="step-number">9</span> Check for Errors</h3>
+                    <ul>
+                        <li>Press <strong>F12</strong> to open Developer Tools</li>
+                        <li>Go to <strong>Console</strong> tab</li>
+                        <li>Look for any red error messages</li>
+                    </ul>
+                    <div class="expected">
+                        <strong>✅ Expected:</strong> No errors related to custom fields, customFieldId, or table
+                        mismatches
+                    </div>
+                </div>
+            </div>
+
+            <!-- Summary -->
+            <div class="test-section">
+                <h2>📊 Testing Checklist</h2>
+                <ul class="checklist">
+                    <li>Currency field created with correct label</li>
+                    <li>Percentage field created with correct label</li>
+                    <li>Dropdown field created with options</li>
+                    <li>Field type persists when editing</li>
+                    <li>Create modal shows "Additional Details"</li>
+                    <li>Contact created with custom field values</li>
+                    <li>Sidebar shows "Extended Profile" section</li>
+                    <li>Currency displays as $50,000.00</li>
+                    <li>Percentage displays as 15%</li>
+                    <li>Dropdown value displays correctly</li>
+                    <li>Edit modal shows custom fields section</li>
+                    <li>Custom fields are editable in modal</li>
+                    <li>Changes save successfully</li>
+                    <li>Sidebar updates immediately after save</li>
+                    <li>Custom Fields tab shows all fields</li>
+                    <li>No console errors</li>
+                </ul>
+            </div>
+
+            <div class="warning">
+                <strong>⚠️ If you encounter issues:</strong>
+                <ul>
+                    <li>Check browser console (F12) for errors</li>
+                    <li>Verify both servers are running (npm run dev & dotnet run)</li>
+                    <li>Try refreshing the page</li>
+                    <li>Check that tables were properly truncated</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="footer">
+            <p><strong>Custom Fields System Testing Guide</strong></p>
+            <p>Follow each step carefully and verify the expected results</p>
+        </div>
+    </div>
+</body>
+
+</html>

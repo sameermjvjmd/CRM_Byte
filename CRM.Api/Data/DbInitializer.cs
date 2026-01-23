@@ -158,12 +158,56 @@ namespace CRM.Api.Data
                         );
                     END
 
-                    IF NOT EXISTS(SELECT * FROM sys.columns WHERE Name = N'Stage' AND Object_ID = Object_ID(N'Opportunities'))
+                         IF NOT EXISTS(SELECT * FROM sys.columns WHERE Name = N'Stage' AND Object_ID = Object_ID(N'Opportunities'))
                     BEGIN
-                         -- Assuming Opportunities table exists, if not EnsureCreated handles it.
-                         -- If Stage was added or modified.
-                         -- Just in case.
                          SELECT 1; 
+                    END
+
+                    -- MANUAL SEEDING FOR EXISTING DATABASES
+                    -- 1. Ensure Roles Exist
+                    IF EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[Roles]') AND type in (N'U'))
+                    BEGIN
+                        IF NOT EXISTS (SELECT * FROM [dbo].[Roles] WHERE Name = 'Admin')
+                        BEGIN
+                             SET IDENTITY_INSERT [dbo].[Roles] ON;
+                             INSERT INTO [dbo].[Roles] (Id, Name, Description, IsSystemRole, CreatedAt)
+                             VALUES (1, 'Admin', 'Full system access', 1, GETUTCDATE());
+                             INSERT INTO [dbo].[Roles] (Id, Name, Description, IsSystemRole, CreatedAt)
+                             VALUES (2, 'Manager', 'Can manage users', 1, GETUTCDATE());
+                             INSERT INTO [dbo].[Roles] (Id, Name, Description, IsSystemRole, CreatedAt)
+                             VALUES (3, 'User', 'Standard user', 1, GETUTCDATE());
+                             SET IDENTITY_INSERT [dbo].[Roles] OFF;
+                        END
+                    END
+
+                    -- 2. Ensure Admin User Exists
+                    IF EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[TenantUsers]') AND type in (N'U'))
+                    BEGIN
+                        IF NOT EXISTS (SELECT * FROM [dbo].[TenantUsers] WHERE Email = 'admin@demo.com')
+                        BEGIN
+                            INSERT INTO [dbo].[TenantUsers] (
+                                [Email], [PasswordHash], [FullName], [FirstName], [LastName], 
+                                [IsActive], [EmailVerified], [CreatedAt]
+                            ) VALUES (
+                                'admin@demo.com', 
+                                '$2a$11$rBNPU0G4vPCn7e2RP9vy0OoEFq9X6p5Yb5U3HYvWkPr4D7o6eYZOa', 
+                                'Demo Admin', 'Demo', 'Admin', 
+                                1, 1, GETUTCDATE()
+                            );
+                            
+                            DECLARE @NewUserId INT = (SELECT Id FROM [dbo].[TenantUsers] WHERE Email = 'admin@demo.com');
+                            
+                            -- Assign Admin Role
+                            IF EXISTS (SELECT * FROM [dbo].[Roles] WHERE Name = 'Admin')
+                            BEGIN
+                                DECLARE @AdminRoleId INT = (SELECT Id FROM [dbo].[Roles] WHERE Name = 'Admin');
+                                IF NOT EXISTS (SELECT * FROM [dbo].[UserRoles] WHERE UserId = @NewUserId AND RoleId = @AdminRoleId)
+                                BEGIN
+                                    INSERT INTO [dbo].[UserRoles] ([UserId], [RoleId], [AssignedAt])
+                                    VALUES (@NewUserId, @AdminRoleId, GETUTCDATE());
+                                END
+                            END
+                        END
                     END
                     ";
                     command.ExecuteNonQuery();
@@ -173,6 +217,41 @@ namespace CRM.Api.Data
             {
                 // Log or ignore if it fails (e.g. table doesn't exist yet, which EnsureCreated should handle)
                 Console.WriteLine($"DB Update Error: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Truncates custom fields tables - USE WITH CAUTION! This deletes all custom field data.
+        /// Call this method from Program.cs when you want to reset custom fields for testing.
+        /// </summary>
+        public static void TruncateCustomFieldsTables(ApplicationDbContext context)
+        {
+            try
+            {
+                var connection = context.Database.GetDbConnection();
+                connection.Open();
+
+                using (var command = connection.CreateCommand())
+                {
+                    command.CommandText = @"
+                    -- Delete all custom field values first (child table)
+                    DELETE FROM AppCustomFieldValues;
+                    
+                    -- Delete all custom field definitions (parent table)
+                    DELETE FROM AppCustomFields;
+                    
+                    -- Reset identity seeds to start from 1
+                    DBCC CHECKIDENT ('AppCustomFieldValues', RESEED, 0);
+                    DBCC CHECKIDENT ('AppCustomFields', RESEED, 0);
+                    ";
+                    command.ExecuteNonQuery();
+                }
+
+                Console.WriteLine("✅ Custom fields tables truncated successfully!");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"❌ Error truncating custom fields tables: {ex.Message}");
             }
         }
     }

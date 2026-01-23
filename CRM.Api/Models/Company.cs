@@ -130,7 +130,7 @@ namespace CRM.Api.Models
         public int ContactCount => Contacts?.Count ?? 0;
         
         [NotMapped]
-        public IEnumerable<CustomFieldValue>? CustomValues { get; set; }
+        public IEnumerable<CustomFields.CustomFieldValue>? CustomValues { get; set; }
 
         [NotMapped]
         public int OpportunityCount => Opportunities?.Count ?? 0;

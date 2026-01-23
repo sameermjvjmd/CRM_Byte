@@ -2,7 +2,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import {
     Home, Users, Building2, UsersRound, Briefcase, CheckSquare, History,
     BarChart3, Megaphone, Lightbulb, TrendingUp, Calendar, Search, Mail,
-    Settings, Table, MessageSquare, Calculator, FileText, Cloud, Package, Zap, Layout
+    Settings, Table, MessageSquare, Calculator, FileText, Cloud, Package, Zap, Layout, BookOpen
 } from 'lucide-react';
 
 const Sidebar = () => {
@@ -52,6 +52,10 @@ const Sidebar = () => {
         { path: '/admin/custom-fields', icon: Layout, label: 'Custom Fields' },
         { path: '/admin/quote-templates', icon: FileText, label: 'Quote Templates' },
         { path: '/accounting', icon: Calculator, label: 'Accounting' },
+    ];
+
+    const helpItems = [
+        { path: '/user-guide', icon: BookOpen, label: 'User Guide' },
     ];
 
     return (
@@ -123,6 +127,18 @@ const Sidebar = () => {
                 </div>
                 <div className="space-y-1">
                     {adminItems.map((item) => (
+                        <MenuItem key={item.path} item={item} isActive={location.pathname === item.path} onClick={() => navigate(item.path)} />
+                    ))}
+                </div>
+            </div>
+
+            {/* Help & Support Section */}
+            <div className="p-4 border-b border-[#34495E]">
+                <div className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-400 mb-3">
+                    Help & Support
+                </div>
+                <div className="space-y-1">
+                    {helpItems.map((item) => (
                         <MenuItem key={item.path} item={item} isActive={location.pathname === item.path} onClick={() => navigate(item.path)} />
                     ))}
                 </div>

@@ -1,6 +1,7 @@
 ﻿import { useState, useEffect } from 'react';
 import { X, Mail, Building2, Users, Bell, Clock, Search, Repeat, UserCircle, Plus, Calendar as CalendarIcon } from 'lucide-react';
 import api from '../api/api';
+import { customFieldsApi } from '../api/customFieldsApi';
 import { advancedSearchApi, type SavedSearch } from '../api/advancedSearchApi';
 import { CustomFieldRenderer, type CustomFieldValue, type CustomFieldDefinition } from './common/CustomFieldRenderer';
 
@@ -71,8 +72,7 @@ const CreateModal = ({ isOpen, onClose, onSuccess, title, initialType = 'Contact
 
     useEffect(() => {
         if (isOpen && ['Contact', 'Company', 'Opportunity'].includes(type) && type !== 'Group') {
-            api.get(`/customfields/${type}`).then(res => setCustomFields(res.data)).catch(() => setCustomFields([]));
-            setCustomFields([]);
+            customFieldsApi.getAll(type).then(data => setCustomFields(data)).catch(() => setCustomFields([]));
         }
 
         if (isOpen && type === 'Group') {
@@ -117,7 +117,8 @@ const CreateModal = ({ isOpen, onClose, onSuccess, title, initialType = 'Contact
                         city: formData.city || null,
                         state: formData.state || null,
                         zip: formData.zip || null,
-                        country: formData.country || null
+                        country: formData.country || null,
+                        customValues: customValues
                     };
                     break;
                 case 'Company':
@@ -126,7 +127,8 @@ const CreateModal = ({ isOpen, onClose, onSuccess, title, initialType = 'Contact
                         name: formData.name,
                         industry: formData.industry,
                         website: formData.website,
-                        description: formData.description
+                        description: formData.description,
+                        customValues: customValues
                     };
                     break;
                 case 'Group':
@@ -156,7 +158,8 @@ const CreateModal = ({ isOpen, onClose, onSuccess, title, initialType = 'Contact
                         stage: formData.stage,
                         probability: Number(formData.probability), // Ensure number
                         expectedCloseDate: formData.expectedCloseDate,
-                        contactId: formData.contactId ? Number(formData.contactId) : null
+                        contactId: formData.contactId ? Number(formData.contactId) : null,
+                        customValues: customValues
                     };
                     break;
                 case 'Activity':
@@ -218,7 +221,16 @@ const CreateModal = ({ isOpen, onClose, onSuccess, title, initialType = 'Contact
 
             // Attach custom values if any
             if (customValues.length > 0) {
-                payload.customValues = customValues;
+                const validValues = customValues.filter((cv: any) => cv.customFieldId && !isNaN(Number(cv.customFieldId)));
+                if (validValues.length > 0) {
+                    // Try PascalCase for Collection and Items (Strict Binding Check)
+                    payload['CustomValues'] = validValues.map((cv: any) => ({
+                        CustomFieldId: Number(cv.customFieldId),
+                        EntityId: 0,
+                        EntityType: 'Contact',
+                        Value: String(cv.value)
+                    }));
+                }
             }
 
             await api.post(endpoint, payload);
@@ -238,15 +250,7 @@ const CreateModal = ({ isOpen, onClose, onSuccess, title, initialType = 'Contact
         } catch (error: any) {
             console.error('Error creating:', error);
             const data = error.response?.data;
-            let details = '';
-
-            if (data?.errors) {
-                details = '\nDetails:\n' + Object.entries(data.errors)
-                    .map(([key, val]) => `${key}: ${(val as any[]).join(', ')}`)
-                    .join('\n');
-            }
-
-            const msg = (data?.title || data?.message || error.message) + details;
+            const msg = data?.title || data?.message || error.message || 'Unknown error';
             alert(`Failed to create record: ${msg}`);
         } finally {
             setLoading(false);
@@ -294,6 +298,7 @@ const CreateModal = ({ isOpen, onClose, onSuccess, title, initialType = 'Contact
                                 </div>
                             </div>
                         )}
+
 
                         <form onSubmit={handleSubmit} className="space-y-6">
                             {type === 'Contact' && (

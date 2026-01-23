@@ -61,7 +61,7 @@ namespace CRM.Api.Models
         
         // Custom Fields (Runtime only)
         [NotMapped]
-        public IEnumerable<CustomFieldValue>? CustomValues { get; set; }
+        public IEnumerable<CustomFields.CustomFieldValue>? CustomValues { get; set; }
         
         [StringLength(50)]
         public string? Country { get; set; }

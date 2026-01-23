@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import {
     FileText, Download, Trash2, Upload, File, Eye, History,
     Tag, FolderOpen, Search, X, Edit2, Clock, Image as ImageIcon,
-    FileSpreadsheet, FilePdf, Filter
+    FileSpreadsheet, Filter
 } from 'lucide-react';
 import api from '../api/api';
 import toast from 'react-hot-toast';
@@ -10,6 +10,7 @@ import toast from 'react-hot-toast';
 interface DocumentsTabProps {
     entityType: 'Contact' | 'Company' | 'Group' | 'Opportunity';
     entityId: number;
+    onEdit?: (doc: any) => void;
 }
 
 interface Document {
@@ -49,7 +50,7 @@ const CATEGORIES = [
     'Meeting Notes', 'Other'
 ];
 
-const DocumentsTab = ({ entityType, entityId }: DocumentsTabProps) => {
+const DocumentsTab = ({ entityType, entityId, onEdit }: DocumentsTabProps) => {
     const [documents, setDocuments] = useState<Document[]>([]);
     const [loading, setLoading] = useState(true);
     const [uploading, setUploading] = useState(false);
@@ -224,7 +225,7 @@ const DocumentsTab = ({ entityType, entityId }: DocumentsTabProps) => {
 
     const getFileIcon = (doc: Document) => {
         if (doc.isImage) return <ImageIcon size={20} />;
-        if (doc.isPdf) return <FilePdf size={20} />;
+        if (doc.isPdf) return <FileText size={20} />;
         if (doc.isOfficeDoc) return <FileSpreadsheet size={20} />;
         return <File size={20} />;
     };
@@ -371,6 +372,15 @@ const DocumentsTab = ({ entityType, entityId }: DocumentsTabProps) => {
                                         title="Version History"
                                     >
                                         <History size={16} />
+                                    </button>
+                                )}
+                                {onEdit && (
+                                    <button
+                                        onClick={() => onEdit(doc)}
+                                        className="p-2 text-slate-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                                        title="Edit Content"
+                                    >
+                                        <FileText size={16} />
                                     </button>
                                 )}
                                 <button

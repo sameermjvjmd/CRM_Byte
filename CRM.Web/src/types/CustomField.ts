@@ -32,7 +32,7 @@ export interface CustomField {
     entityType: string;
     fieldName: string;
     displayName: string;
-    fieldType: CustomFieldType;
+    fieldType: number; // 0=Text, 1=Textarea, 2=Number, 3=Decimal, 4=Date, 5=DateTime, 6=Dropdown, 7=MultiSelect, 8=Checkbox, 9=URL, 10=Email, 11=Phone, 12=Currency, 13=Percentage
     isRequired: boolean;
     isActive: boolean;
     defaultValue?: string;

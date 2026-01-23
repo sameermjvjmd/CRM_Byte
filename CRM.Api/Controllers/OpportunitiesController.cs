@@ -85,8 +85,8 @@ namespace CRM.Api.Controllers
             }
 
             // Populate Custom Fields
-            opportunity.CustomValues = await _context.CustomFieldValues
-                .Include(v => v.CustomFieldDefinition)
+            opportunity.CustomValues = await _context.AppCustomFieldValues
+                .Include(v => v.CustomField)
                 .Where(v => v.EntityId == id && v.EntityType == "Opportunity")
                 .ToListAsync();
 
@@ -223,9 +223,10 @@ namespace CRM.Api.Controllers
                 {
                     field.EntityId = opportunity.Id;
                     field.EntityType = "Opportunity";
+                    field.CreatedAt = DateTime.UtcNow;
                     field.UpdatedAt = DateTime.UtcNow;
-                    field.CustomFieldDefinition = null; 
-                    _context.CustomFieldValues.Add(field);
+                    field.CustomField = null; 
+                    _context.AppCustomFieldValues.Add(field);
                 }
                 await _context.SaveChangesAsync();
             }
@@ -314,8 +315,8 @@ namespace CRM.Api.Controllers
             {
                 foreach (var val in opportunity.CustomValues)
                 {
-                    var existing = await _context.CustomFieldValues
-                        .FirstOrDefaultAsync(v => v.EntityId == id && v.EntityType == "Opportunity" && v.CustomFieldDefinitionId == val.CustomFieldDefinitionId);
+                    var existing = await _context.AppCustomFieldValues
+                        .FirstOrDefaultAsync(v => v.EntityId == id && v.EntityType == "Opportunity" && v.CustomFieldId == val.CustomFieldId);
                         
                     if (existing != null)
                     {
@@ -327,9 +328,10 @@ namespace CRM.Api.Controllers
                     {
                         val.EntityId = id;
                         val.EntityType = "Opportunity";
+                        val.CreatedAt = DateTime.UtcNow;
                         val.UpdatedAt = DateTime.UtcNow;
-                        val.CustomFieldDefinition = null!;
-                        _context.CustomFieldValues.Add(val);
+                        val.CustomField = null!;
+                        _context.AppCustomFieldValues.Add(val);
                     }
                 }
             }

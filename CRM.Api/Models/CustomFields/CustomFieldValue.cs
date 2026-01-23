@@ -18,5 +18,13 @@ namespace CRM.Api.Models.CustomFields
 
         // Navigation
         public CustomField? CustomField { get; set; }
+
+        // Computed property for unified access
+        [System.ComponentModel.DataAnnotations.Schema.NotMapped]
+        public string? Value
+        {
+            get => TextValue ?? NumberValue?.ToString() ?? DateValue?.ToString() ?? BooleanValue?.ToString();
+            set => TextValue = value;
+        }
     }
 }

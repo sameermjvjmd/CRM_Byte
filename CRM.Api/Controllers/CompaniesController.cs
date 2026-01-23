@@ -52,8 +52,8 @@ namespace CRM.Api.Controllers
             if (company == null) return NotFound();
 
             // Populate Custom Fields
-            company.CustomValues = await _context.CustomFieldValues
-                .Include(v => v.CustomFieldDefinition)
+            company.CustomValues = await _context.AppCustomFieldValues
+                .Include(v => v.CustomField)
                 .Where(v => v.EntityId == id && v.EntityType == "Company")
                 .ToListAsync();
 
@@ -165,16 +165,16 @@ namespace CRM.Api.Controllers
             _context.Companies.Add(company);
             await _context.SaveChangesAsync();
             
-            // Handle Custom Values for Create
              if (company.CustomValues != null && company.CustomValues.Any())
             {
                 foreach (var field in company.CustomValues)
                 {
                     field.EntityId = company.Id;
                     field.EntityType = "Company";
+                    field.CreatedAt = DateTime.UtcNow;
                     field.UpdatedAt = DateTime.UtcNow;
-                    field.CustomFieldDefinition = null; 
-                    _context.CustomFieldValues.Add(field);
+                    field.CustomField = null; 
+                    _context.AppCustomFieldValues.Add(field);
                 }
                 await _context.SaveChangesAsync();
             }
@@ -202,8 +202,8 @@ namespace CRM.Api.Controllers
             {
                 foreach (var val in company.CustomValues)
                 {
-                    var existing = await _context.CustomFieldValues
-                        .FirstOrDefaultAsync(v => v.EntityId == id && v.EntityType == "Company" && v.CustomFieldDefinitionId == val.CustomFieldDefinitionId);
+                    var existing = await _context.AppCustomFieldValues
+                        .FirstOrDefaultAsync(v => v.EntityId == id && v.EntityType == "Company" && v.CustomFieldId == val.CustomFieldId);
                         
                     if (existing != null)
                     {
@@ -215,9 +215,10 @@ namespace CRM.Api.Controllers
                     {
                         val.EntityId = id;
                         val.EntityType = "Company";
+                        val.CreatedAt = DateTime.UtcNow;
                         val.UpdatedAt = DateTime.UtcNow;
-                        val.CustomFieldDefinition = null!;
-                        _context.CustomFieldValues.Add(val);
+                        val.CustomField = null!;
+                        _context.AppCustomFieldValues.Add(val);
                     }
                 }
             }

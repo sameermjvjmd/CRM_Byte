@@ -1,21 +1,28 @@
 import React, { useState, useEffect } from 'react';
 import api from '../../api/api';
+import { customFieldsApi } from '../../api/customFieldsApi';
 import toast from 'react-hot-toast';
 import { Plus, Trash2, Edit2, Check, X, Move } from 'lucide-react';
 import { type CustomFieldDefinition } from '../../components/common/CustomFieldRenderer';
 
 const ENTITY_TYPES = ['Contact', 'Company', 'Opportunity', 'Activity'];
 const FIELD_TYPES = [
-    { value: 'Text', label: 'Text' },
-    { value: 'Number', label: 'Number' },
-    { value: 'Date', label: 'Date' },
-    { value: 'Boolean', label: 'Yes/No' },
-    { value: 'Select', label: 'Dropdown' },
-    { value: 'MultiSelect', label: 'Multi-Select' },
-    { value: 'URL', label: 'URL' },
-    { value: 'Email', label: 'Email' },
-    { value: 'Currency', label: 'Currency' }
+    { value: 0, label: 'Text', name: 'Text' },
+    { value: 1, label: 'Text Area', name: 'Textarea' },
+    { value: 2, label: 'Number', name: 'Number' },
+    { value: 3, label: 'Decimal', name: 'Decimal' },
+    { value: 4, label: 'Date', name: 'Date' },
+    { value: 5, label: 'Date & Time', name: 'DateTime' },
+    { value: 6, label: 'Dropdown List', name: 'Dropdown' },
+    { value: 7, label: 'Multi-Select', name: 'MultiSelect' },
+    { value: 8, label: 'Checkbox', name: 'Checkbox' },
+    { value: 9, label: 'URL', name: 'URL' },
+    { value: 10, label: 'Email', name: 'Email' },
+    { value: 11, label: 'Phone', name: 'Phone' },
+    { value: 12, label: 'Currency', name: 'Currency' },
+    { value: 13, label: 'Percentage', name: 'Percentage' }
 ];
+
 
 export default function CustomFieldsPage() {
     const [activeTab, setActiveTab] = useState('Contact');
@@ -27,7 +34,7 @@ export default function CustomFieldsPage() {
     // Form State
     const [formData, setFormData] = useState({
         fieldName: '',
-        fieldType: 'Text',
+        fieldType: 0, // Text
         isRequired: false,
         options: ''
     });
@@ -39,7 +46,7 @@ export default function CustomFieldsPage() {
     const fetchFields = async () => {
         setLoading(true);
         try {
-            const { data } = await api.get(`/CustomFields/${activeTab}`);
+            const data = await customFieldsApi.getAll(activeTab);
             setFields(data);
         } catch (error) {
             toast.error('Failed to load fields');
@@ -48,15 +55,48 @@ export default function CustomFieldsPage() {
         }
     };
 
+    // Helper to convert field type string to enum number
+    const fieldTypeToNumber = (fieldType: string | number): number => {
+        if (fieldType === null || fieldType === undefined) return 0;
+        if (typeof fieldType === 'number') return fieldType;
+        if (typeof fieldType === 'string' && !isNaN(Number(fieldType)) && fieldType.trim() !== '') return Number(fieldType);
+        const found = FIELD_TYPES.find(t => t.name.toLowerCase() === String(fieldType).toLowerCase());
+        return found ? found.value : 0;
+    };
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         try {
+            // Get user ID from localStorage - fallback chain (nexus_user -> user)
+            const nexusUserStr = localStorage.getItem('nexus_user');
+            const userStr = localStorage.getItem('user');
+
+            let userId = 1; // Default fallback
+            try {
+                if (nexusUserStr) {
+                    userId = JSON.parse(nexusUserStr).id;
+                } else if (userStr) {
+                    userId = JSON.parse(userStr).id;
+                }
+            } catch (e) {
+                console.warn('Failed to parse user from localStorage', e);
+            }
+
             const payload = {
-                ...formData,
-                entityType: activeTab,
-                optionsJson: formData.options ? JSON.stringify(formData.options.split('\n').filter(o => o.trim())) : null,
-                isActive: true
+                DisplayName: formData.fieldName,
+                FieldName: formData.fieldName.toLowerCase().replace(/\s+/g, '_'),
+                FieldType: Number(formData.fieldType),
+                EntityType: activeTab,
+                Options: formData.options
+                    ? JSON.stringify(formData.options.split('\n').filter(o => o.trim()))
+                    : null,
+                IsRequired: formData.isRequired,
+                IsActive: true,
+                CreatedBy: Number(userId) || 1, // Ensure valid integer
+                DisplayOrder: fields.length
             };
+
+            console.log('📤 Sending payload:', payload);
 
             if (editingField) {
                 await api.put(`/CustomFields/${editingField.id}`, { ...editingField, ...payload });
@@ -68,10 +108,12 @@ export default function CustomFieldsPage() {
 
             setShowModal(false);
             setEditingField(null);
-            setFormData({ fieldName: '', fieldType: 'Text', isRequired: false, options: '' });
+            setFormData({ fieldName: '', fieldType: 0, isRequired: false, options: '' });
             fetchFields();
-        } catch (error) {
-            toast.error('Failed to save field');
+        } catch (error: any) {
+            console.error('❌ Error saving field:', error);
+            console.error('❌ Error response:', error.response?.data);
+            toast.error(error.response?.data?.detail || error.response?.data?.title || 'Failed to save field');
         }
     };
 
@@ -79,7 +121,7 @@ export default function CustomFieldsPage() {
         setEditingField(field);
         setFormData({
             fieldName: field.fieldName,
-            fieldType: field.fieldType,
+            fieldType: fieldTypeToNumber(field.fieldType),
             isRequired: field.isRequired,
             options: field.optionsJson ? JSON.parse(field.optionsJson as string).join('\n') : ''
         });
@@ -107,7 +149,7 @@ export default function CustomFieldsPage() {
                 <button
                     onClick={() => {
                         setEditingField(null);
-                        setFormData({ fieldName: '', fieldType: 'Text', isRequired: false, options: '' });
+                        setFormData({ fieldName: '', fieldType: 0, isRequired: false, options: '' });
                         setShowModal(true);
                     }}
                     className="flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
@@ -160,7 +202,9 @@ export default function CustomFieldsPage() {
                                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{field.fieldName}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-mono">{field.fieldKey}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                        <span className="px-2 py-1 bg-gray-100 rounded text-xs">{field.fieldType}</span>
+                                        <span className="px-2 py-1 bg-indigo-50 text-indigo-700 rounded text-xs font-bold">
+                                            {FIELD_TYPES.find(t => String(t.value) === String(field.fieldType).trim() || t.name.toLowerCase() === String(field.fieldType).trim().toLowerCase())?.label || field.fieldType}
+                                        </span>
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-center">
                                         {field.isRequired && <Check className="w-4 h-4 text-green-500 mx-auto" />}
@@ -212,7 +256,7 @@ export default function CustomFieldsPage() {
                                 <label className="block text-sm font-medium text-gray-700 mb-1">Field Type</label>
                                 <select
                                     value={formData.fieldType}
-                                    onChange={e => setFormData({ ...formData, fieldType: e.target.value })}
+                                    onChange={e => setFormData({ ...formData, fieldType: parseInt(e.target.value) })}
                                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                                     disabled={!!editingField} // Don't ensure Type change to avoid data loss issues for now
                                 >
@@ -222,7 +266,7 @@ export default function CustomFieldsPage() {
                                 </select>
                             </div>
 
-                            {(formData.fieldType === 'Select' || formData.fieldType === 'MultiSelect') && (
+                            {(formData.fieldType === 6 || formData.fieldType === 7) && (
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1">
                                         Options <span className="text-gray-400 font-normal">(One per line)</span>

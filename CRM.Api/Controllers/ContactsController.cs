@@ -57,8 +57,8 @@ namespace CRM.Api.Controllers
             }
 
             // Populate Custom Fields
-            contact.CustomValues = await _context.CustomFieldValues
-                .Include(v => v.CustomFieldDefinition)
+            contact.CustomValues = await _context.AppCustomFieldValues
+                .Include(v => v.CustomField)
                 .Where(v => v.EntityId == id && v.EntityType == "Contact")
                 .ToListAsync();
 
@@ -75,16 +75,17 @@ namespace CRM.Api.Controllers
             await _context.SaveChangesAsync();
             
             // Handle Custom Values for Create
-             if (contact.CustomValues != null && contact.CustomValues.Any())
+            if (contact.CustomValues != null && contact.CustomValues.Any())
             {
                 foreach (var field in contact.CustomValues)
                 {
                     field.EntityId = contact.Id;
                     field.EntityType = "Contact";
+                    field.CreatedAt = DateTime.UtcNow;
                     field.UpdatedAt = DateTime.UtcNow;
-                    // Ensure Definition is not treated as new entity
-                    field.CustomFieldDefinition = null; 
-                    _context.CustomFieldValues.Add(field);
+                    // Ensure Navigation is not treated as new entity
+                    field.CustomField = null; 
+                    _context.AppCustomFieldValues.Add(field);
                 }
                 await _context.SaveChangesAsync();
             }
@@ -107,14 +108,10 @@ namespace CRM.Api.Controllers
             // Handle Custom Values Update
             if (contact.CustomValues != null)
             {
-                // Remove existing inputs for this entity to allow clean overwrite (simplest strategy for standard fields)
-                // Or upsert. Upsert is better to preserve history if we added auditing later.
-                // For now, simple Upsert.
-                
                 foreach (var val in contact.CustomValues)
                 {
-                    var existing = await _context.CustomFieldValues
-                        .FirstOrDefaultAsync(v => v.EntityId == id && v.EntityType == "Contact" && v.CustomFieldDefinitionId == val.CustomFieldDefinitionId);
+                    var existing = await _context.AppCustomFieldValues
+                        .FirstOrDefaultAsync(v => v.EntityId == id && v.EntityType == "Contact" && v.CustomFieldId == val.CustomFieldId);
                         
                     if (existing != null)
                     {
@@ -126,9 +123,10 @@ namespace CRM.Api.Controllers
                     {
                         val.EntityId = id;
                         val.EntityType = "Contact";
+                        val.CreatedAt = DateTime.UtcNow;
                         val.UpdatedAt = DateTime.UtcNow;
-                        val.CustomFieldDefinition = null!; // Prevent nav prop issues
-                        _context.CustomFieldValues.Add(val);
+                        val.CustomField = null!; // Prevent nav prop issues
+                        _context.AppCustomFieldValues.Add(val);
                     }
                 }
             }
@@ -166,6 +164,38 @@ namespace CRM.Api.Controllers
             await _context.SaveChangesAsync();
 
             return NoContent();
+        }
+
+        // GET: api/contacts/5/related
+        [HttpGet("{id}/related")]
+        public async Task<ActionResult<IEnumerable<Contact>>> GetRelatedContacts(int id)
+        {
+            var contact = await _context.Contacts.FindAsync(id);
+            if (contact == null) return NotFound();
+
+            var related = new List<Contact>();
+
+            // 1. Same Company
+            if (contact.CompanyId.HasValue)
+            {
+                var companyContacts = await _context.Contacts
+                    .Where(c => c.CompanyId == contact.CompanyId && c.Id != id)
+                    .Take(5)
+                    .ToListAsync();
+                related.AddRange(companyContacts);
+            }
+
+            // 2. Same Last Name (Simple heuristic if no company)
+            if (!contact.CompanyId.HasValue && !string.IsNullOrEmpty(contact.LastName))
+            {
+                 var nameContacts = await _context.Contacts
+                    .Where(c => c.LastName == contact.LastName && c.Id != id)
+                    .Take(3)
+                    .ToListAsync();
+                 related.AddRange(nameContacts);
+            }
+
+            return related.DistinctBy(c => c.Id).ToList();
         }
 
         // POST: api/contacts/search

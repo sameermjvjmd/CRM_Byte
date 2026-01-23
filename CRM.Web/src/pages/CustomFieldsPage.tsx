@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { toast } from 'react-hot-toast'; // Ensure react-hot-toast is installed
+import api from '../api/api';
 import { customFieldsApi } from '../api/customFieldsApi';
 import type { CustomField, CustomFieldType, CreateCustomFieldDto, UpdateCustomFieldDto, FieldOption } from '../types/CustomField.js';
 import { Plus, Trash2, Edit, Save, X, GripVertical } from 'lucide-react';
@@ -44,6 +45,26 @@ const CustomFieldsPage = () => {
             toast.error('Failed to load custom fields');
         } finally {
             setLoading(false);
+        }
+    };
+
+    const getFieldTypeLabel = (typeId: number) => {
+        switch (typeId) {
+            case 0: return 'Single Line Text';
+            case 1: return 'Multi Line Text';
+            case 2: return 'Number';
+            case 3: return 'Decimal';
+            case 4: return 'Date';
+            case 5: return 'Date & Time';
+            case 6: return 'Dropdown List';
+            case 7: return 'Multi-Select List';
+            case 8: return 'Yes/No (Checkbox)';
+            case 9: return 'Website URL';
+            case 10: return 'Email Address';
+            case 11: return 'Phone Number';
+            case 12: return 'Currency ($)';
+            case 13: return 'Percentage (%)';
+            default: return String(typeId);
         }
     };
 
@@ -122,7 +143,7 @@ const CustomFieldsPage = () => {
                                     </td>
                                     <td className="px-6 py-4">
                                         <span className="px-2 py-1 bg-slate-100 text-slate-600 rounded text-xs font-semibold">
-                                            {fieldTypes.find(t => t.value === field.fieldType)?.label || field.fieldType}
+                                            {getFieldTypeLabel(field.fieldType)}
                                         </span>
                                     </td>
                                     <td className="px-6 py-4 text-sm text-slate-600">
@@ -209,57 +230,93 @@ const FieldModal = ({ field, entityType, onClose, onSuccess }: FieldModalProps) 
         }
     }, [formData.displayName, field]);
 
+    // Helper to convert field type string to enum number
+    const fieldTypeToNumber = (fieldType: string | number): number => {
+        if (fieldType === null || fieldType === undefined) return 0;
+        if (typeof fieldType === 'number') return fieldType;
+        const found = fieldTypes.find(t => t.value === fieldType);
+        // Map string types to enum integers based on index or explicit mapping if needed
+        // Since the backend enum matches the order of some types, we need to be careful.
+        // Let's use a explicit map based on the backend enum:
+        /*
+        Text = 0, Textarea = 1, Number = 2, Decimal = 3, Date = 4, DateTime = 5,
+        Dropdown = 6, MultiSelect = 7, Checkbox = 8, URL = 9, Email = 10, Phone = 11,
+        Currency = 12, Percentage = 13
+        */
+        switch (fieldType) {
+            case 'Text': return 0;
+            case 'TextArea': return 1;
+            case 'Number': return 2;
+            case 'Decimal': return 3;
+            case 'Date': return 4;
+            case 'DateTime': return 5;
+            case 'Select': return 6;
+            case 'MultiSelect': return 7;
+            case 'Checkbox': return 8;
+            case 'URL': return 9;
+            case 'Email': return 10;
+            case 'Phone': return 11;
+            case 'Currency': return 12;
+            case 'Percentage': return 13;
+            default: return 0;
+        }
+    };
+
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
 
         try {
+            // Get user ID
+            let userId = 1;
+            try {
+                const nexusUserStr = localStorage.getItem('nexus_user');
+                const userStr = localStorage.getItem('user');
+                if (nexusUserStr) userId = JSON.parse(nexusUserStr).id;
+                else if (userStr) userId = JSON.parse(userStr).id;
+            } catch (e) { console.warn('User ID parse failed', e); }
+
             // Parse options
-            let options: FieldOption[] | undefined;
+            let optionsJson: string | null = null;
             if (formData.fieldType === 'Select' || formData.fieldType === 'MultiSelect') {
-                options = formData.optionsText.split('\n')
+                const opts = formData.optionsText.split('\n')
                     .filter(o => o.trim())
-                    .map(label => ({
-                        label: label.trim(),
-                        value: label.trim(),
-                        isDefault: false
-                    }));
+                    .map(label => label.trim());
+                if (opts.length > 0) optionsJson = JSON.stringify(opts);
             }
+
+            const payload = {
+                DisplayName: formData.displayName,
+                FieldName: formData.fieldName,
+                FieldType: fieldTypeToNumber(formData.fieldType),
+                EntityType: entityType,
+                Options: optionsJson,
+                IsRequired: formData.isRequired,
+                IsActive: formData.isActive,
+                SectionName: formData.sectionName,
+                HelpText: formData.helpText,
+                DefaultValue: formData.defaultValue,
+                CreatedBy: Number(userId) || 1,
+                DisplayOrder: field ? field.displayOrder : 0
+            };
+
+            console.log('📤 Sending payload:', payload);
 
             if (field) {
                 // Update
-                const updatePayload: UpdateCustomFieldDto = {
-                    displayName: formData.displayName,
-                    isRequired: formData.isRequired,
-                    isActive: formData.isActive,
-                    options: options,
-                    displayOrder: field.displayOrder, // Preserve order
-                    sectionName: formData.sectionName,
-                    helpText: formData.helpText,
-                    defaultValue: formData.defaultValue || undefined
-                };
-                await customFieldsApi.update(field.id, updatePayload);
+                await api.put(`/CustomFields/${field.id}`, { ...field, ...payload });
                 toast.success('Field updated successfully');
             } else {
                 // Create
-                const createPayload: CreateCustomFieldDto = {
-                    entityType: entityType,
-                    fieldName: formData.fieldName,
-                    displayName: formData.displayName,
-                    fieldType: formData.fieldType,
-                    isRequired: formData.isRequired,
-                    options: options,
-                    sectionName: formData.sectionName,
-                    helpText: formData.helpText,
-                    defaultValue: formData.defaultValue || undefined
-                };
-                await customFieldsApi.create(createPayload);
+                await api.post('/CustomFields', payload);
                 toast.success('Field created successfully');
             }
             onSuccess();
         } catch (error: any) {
-            console.error(error);
-            const msg = error.response?.data?.title || error.message || 'Unknown error';
+            console.error('❌ Error saving field:', error);
+            console.error('❌ Error response:', error.response?.data);
+            const msg = error.response?.data?.detail || error.response?.data?.title || error.message || 'Unknown error';
             toast.error(`Error saving field: ${msg}`);
         } finally {
             setLoading(false);

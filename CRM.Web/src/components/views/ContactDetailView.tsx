@@ -21,6 +21,10 @@ import EmailComposer from '../email/EmailComposer';
 import EmailHistoryTab from '../email/EmailHistoryTab';
 import DocumentEditor from '../documents/DocumentEditor';
 import Pagination from '../Pagination';
+import { toast } from 'react-hot-toast';
+import { customFieldsApi } from '../../api/customFieldsApi';
+import { CustomFieldRenderer } from '../common/CustomFieldRenderer';
+import type { CustomFieldDefinition, CustomFieldValue } from '../common/CustomFieldRenderer';
 
 interface ContactDetailViewProps {
     contactId: number;
@@ -62,6 +66,10 @@ const ContactDetailView = ({ contactId, navigation }: ContactDetailViewProps) =>
     const [isEmailComposerOpen, setIsEmailComposerOpen] = useState(false);
     const [isDocEditorOpen, setIsDocEditorOpen] = useState(false);
     const [selectedDocument, setSelectedDocument] = useState<any>(null);
+    const [relatedContacts, setRelatedContacts] = useState<Contact[]>([]);
+    const [cfDefinitions, setCfDefinitions] = useState<CustomFieldDefinition[]>([]);
+    const [cfValues, setCfValues] = useState<CustomFieldValue[]>([]);
+    const [editCfValues, setEditCfValues] = useState<CustomFieldValue[]>([]);
 
     // Pagination state
     const [historyPage, setHistoryPage] = useState(1);
@@ -89,15 +97,30 @@ const ContactDetailView = ({ contactId, navigation }: ContactDetailViewProps) =>
                 // Fetch extended data (Week 7-8 features)
                 // We wrap these in try-catch blocks individually or together so one failure doesn't break the page
                 try {
-                    const [groupsRes, personalRes, webRes] = await Promise.all([
+                    const [groupsRes, personalRes, webRes, relatedRes] = await Promise.all([
                         api.get(`/groups/contact/${contactId}`),
                         api.get(`/contacts/${contactId}/personalinfo`),
-                        api.get(`/contacts/${contactId}/webinfo`)
+                        api.get(`/contacts/${contactId}/webinfo`),
+                        api.get(`/contacts/${contactId}/related`)
                     ]);
 
                     setGroups(groupsRes.data || []);
                     setPersonalInfo(personalRes.data || {});
                     setWebInfo(webRes.data || { customLinks: [] });
+                    setRelatedContacts(relatedRes.data || []);
+
+                    // Fetch and merge custom fields
+                    const [defs, vals] = await Promise.all([
+                        customFieldsApi.getAll('Contact'),
+                        customFieldsApi.getEntityValues('Contact', contactId)
+                    ]);
+                    setCfDefinitions(defs);
+                    const merged = vals.map((v: any) => {
+                        const d = defs.find(def => def.id === v.customFieldId || def.fieldName === v.fieldName);
+                        return { ...v, fieldName: d?.fieldName || '', displayName: d?.displayName, fieldType: d?.fieldType };
+                    });
+                    setCfValues(merged);
+
                 } catch (extError) {
                     console.error('Error fetching extended data:', extError);
                 }
@@ -125,16 +148,29 @@ const ContactDetailView = ({ contactId, navigation }: ContactDetailViewProps) =>
 
     const handleEditContact = () => {
         setEditFormData({ ...contact });
+        setEditCfValues([...cfValues]);
         setIsEditModalOpen(true);
     };
 
     const handleSaveEdit = async () => {
         try {
-            await api.put(`/contacts/${contactId}`, editFormData);
+            const validCfValues = editCfValues.filter((cv: any) => cv.customFieldId && !isNaN(Number(cv.customFieldId)));
+            const payload = {
+                ...editFormData,
+                customValues: validCfValues.map((cv: any) => ({
+                    customFieldId: Number(cv.customFieldId),
+                    value: String(cv.value)
+                }))
+            };
+            await api.put(`/contacts/${contactId}`, payload);
             setContact(editFormData);
+            // Refresh custom values from the edited values (merged form)
+            setCfValues(editCfValues);
             setIsEditModalOpen(false);
+            toast.success('Contact record updated');
         } catch (error) {
             console.error('Error updating contact:', error);
+            toast.error('Failed to update contact');
         }
     };
 
@@ -264,6 +300,39 @@ const ContactDetailView = ({ contactId, navigation }: ContactDetailViewProps) =>
         setIsDocEditorOpen(true);
     };
 
+    const handleQuickCall = async (contactArg: Contact) => {
+        if (!contactArg.phone) {
+            toast.error('No phone number for this contact');
+            return;
+        }
+
+        try {
+            const newActivity = {
+                subject: 'Quick Call',
+                type: 'Call',
+                date: new Date().toISOString(),
+                startTime: new Date().toISOString(),
+                endTime: new Date().toISOString(),
+                contactId: contactArg.id,
+                details: 'Quick call logged via one-click action from Detail View.',
+                status: 'Completed',
+                priority: 'Normal'
+            };
+            await api.post('/activities', newActivity);
+            toast.success('Quick Call logged successfully!');
+            // Refresh history/activities
+            const [activitiesRes, historyRes] = await Promise.all([
+                api.get(`/activities/contact/${contactId}`),
+                api.get(`/history/contact/${contactId}`)
+            ]);
+            setActivities(activitiesRes.data);
+            setHistory(historyRes.data);
+        } catch (error) {
+            console.error('Error logging quick call:', error);
+            toast.error('Failed to log call');
+        }
+    };
+
 
     if (loading) return (
         <div className="p-12 flex flex-col items-center justify-center gap-4 text-slate-400 min-h-screen bg-slate-50">
@@ -318,6 +387,15 @@ const ContactDetailView = ({ contactId, navigation }: ContactDetailViewProps) =>
                     </div>
                 </div>
                 <div className="flex gap-2">
+                    {contact.phone && (
+                        <button
+                            onClick={() => handleQuickCall(contact)}
+                            className="bg-indigo-50 text-indigo-600 px-3 rounded border border-indigo-100 hover:bg-indigo-600 hover:text-white transition-all shadow-sm flex items-center justify-center"
+                            title={`Quick Call: ${contact.phone}`}
+                        >
+                            <Phone size={16} />
+                        </button>
+                    )}
                     <button
                         onClick={() => {
                             setModalType('Activity');
@@ -445,6 +523,19 @@ const ContactDetailView = ({ contactId, navigation }: ContactDetailViewProps) =>
                         )}
                     </div>
 
+                    {/* Custom Fields Sidebar (Read-only) */}
+                    {cfDefinitions.length > 0 && (
+                        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+                            <h4 className="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em] mb-4">Extended Profile</h4>
+                            <CustomFieldRenderer
+                                fields={cfDefinitions}
+                                values={cfValues}
+                                mode="view"
+                                onChange={() => { }}
+                            />
+                        </div>
+                    )}
+
                     {/* Notes Section */}
                     <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
                         <div className="flex justify-between items-center mb-4">
@@ -468,6 +559,31 @@ const ContactDetailView = ({ contactId, navigation }: ContactDetailViewProps) =>
                             </p>
                         )}
                     </div>
+
+
+                    {/* Related Contacts Widget */}
+                    {relatedContacts.length > 0 && (
+                        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+                            <h4 className="text-xs font-black uppercase text-slate-400 tracking-wider mb-4">Related Contacts</h4>
+                            <div className="space-y-3">
+                                {relatedContacts.map(rc => (
+                                    <div
+                                        key={rc.id}
+                                        className="flex items-center gap-3 p-2 hover:bg-slate-50 rounded-lg cursor-pointer transition-colors"
+                                        onClick={() => navigate(`/contacts/${rc.id}`)}
+                                    >
+                                        <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-xs font-bold text-slate-500 border border-slate-200">
+                                            {rc.firstName[0]}{rc.lastName[0]}
+                                        </div>
+                                        <div>
+                                            <div className="text-xs font-bold text-slate-900">{rc.firstName} {rc.lastName}</div>
+                                            <div className="text-[10px] text-slate-400 font-bold uppercase">{rc.jobTitle || 'No Title'}</div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
 
                     {/* Latest Activities Widget */}
                     <LatestActivitiesWidget
@@ -1085,6 +1201,19 @@ const ContactDetailView = ({ contactId, navigation }: ContactDetailViewProps) =>
                                         />
                                     </div>
                                 </div>
+
+                                {/* Custom Fields Section */}
+                                {cfDefinitions.length > 0 && (
+                                    <div className="pt-6 border-t border-slate-100">
+                                        <h3 className="text-xs font-black uppercase text-slate-500 tracking-wider mb-4">Custom Fields</h3>
+                                        <CustomFieldRenderer
+                                            fields={cfDefinitions}
+                                            values={editCfValues}
+                                            onChange={setEditCfValues}
+                                            mode="edit"
+                                        />
+                                    </div>
+                                )}
                             </div>
                             <div className="p-6 border-t border-slate-200 flex justify-end gap-3">
                                 <button

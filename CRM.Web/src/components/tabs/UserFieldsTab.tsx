@@ -28,7 +28,19 @@ const UserFieldsTab = ({ entityId, entityType, customValues, onUpdate }: UserFie
                 // Fetch current values for this entity
                 try {
                     const vals = await customFieldsApi.getEntityValues(entityType, entityId);
-                    setValues(vals);
+
+                    // Merge API values with Definitions to get fieldNames
+                    const mergedValues: CustomFieldValue[] = vals.map((v: any) => {
+                        const def = defs.find(d => d.id === v.customFieldId) || defs.find(d => d.fieldName === v.fieldName);
+                        return {
+                            customFieldId: v.customFieldId,
+                            fieldName: def?.fieldName || '', // Critical for matching
+                            displayName: def?.displayName,
+                            fieldType: def?.fieldType,
+                            value: v.value
+                        };
+                    });
+                    setValues(mergedValues);
                 } catch (valError) {
                     console.log('No existing values for this entity');
                     setValues([]);
@@ -54,7 +66,8 @@ const UserFieldsTab = ({ entityId, entityType, customValues, onUpdate }: UserFie
 
         definitions.forEach(field => {
             if (field.isRequired) {
-                const value = values.find(v => v.fieldName === field.fieldName)?.value;
+                const valueEntry = values.find(v => v.fieldName === field.fieldName);
+                const value = valueEntry?.value;
                 if (!value && value !== 0 && value !== false) {
                     errors[field.fieldName] = 'This field is required';
                     missingFields.push(field.displayName);
@@ -79,13 +92,21 @@ const UserFieldsTab = ({ entityId, entityType, customValues, onUpdate }: UserFie
 
         setSaving(true);
         try {
-            // Convert values array to Record<string, any> format expected by API
-            const valuesMap: Record<string, any> = {};
+            // Convert values to Dictionary<int, string> format expected by API { FieldId: Value }
+            const payload: Record<number, string> = {};
+
             values.forEach(v => {
-                valuesMap[v.fieldName] = v.value;
+                // Find ID if missing (from definitions)
+                const def = definitions.find(d => d.fieldName === v.fieldName);
+                const id = v.customFieldId || def?.id;
+
+                if (id) {
+                    payload[id] = String(v.value); // Backend expects string values
+                }
             });
 
-            await customFieldsApi.saveEntityValues(entityType, entityId, { values: valuesMap });
+            // Send payload directly (not wrapped in 'values' key)
+            await customFieldsApi.saveEntityValues(entityType, entityId, payload as any);
             toast.success('Custom fields saved successfully!');
             setValidationErrors({});
 

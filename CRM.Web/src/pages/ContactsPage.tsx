@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import api from '../api/api';
 import type { Contact } from '../types/contact';
-import { MoreVertical, Mail, Building2, Filter, ChevronRight, Search, Plus, LayoutList, Columns, X } from 'lucide-react';
+import { MoreVertical, Mail, Building2, Filter, ChevronRight, Search, Plus, LayoutList, LayoutGrid, Columns, X, Phone } from 'lucide-react';
 import ContactDetailView from '../components/views/ContactDetailView';
 import CreateModal from '../components/CreateModal';
 import BulkActionsToolbar from '../components/BulkActionsToolbar';
@@ -22,7 +22,9 @@ const ContactsPage = () => {
     const location = useLocation();
     const [contacts, setContacts] = useState<Contact[]>([]);
     const [loading, setLoading] = useState(true);
-    const [viewMode, setViewMode] = useState<'list' | 'detail'>('list');
+    const [viewMode, setViewMode] = useState<'list' | 'detail' | 'grid'>(
+        (localStorage.getItem('act_contact_view_mode') as any) || 'list'
+    );
     const [activeContactId, setActiveContactId] = useState<number | null>(null);
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
     const [showBulkEmail, setShowBulkEmail] = useState(false);
@@ -57,10 +59,13 @@ const ContactsPage = () => {
         setSavedViews(loadedViews);
     }, [location.state]);
 
+    useEffect(() => {
+        localStorage.setItem('act_contact_view_mode', viewMode);
+    }, [viewMode]);
+
     const fetchContacts = async () => {
         setLoading(true);
         try {
-            // Apply advanced search if passed from nav state
             // Apply advanced search if passed from nav state
             if (location.state?.lookupActive && location.state?.lookupResults) {
                 setContacts(location.state.lookupResults);
@@ -139,6 +144,33 @@ const ContactsPage = () => {
             fetchContacts(); // Revert on error
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleQuickCall = async (e: React.MouseEvent, contact: Contact) => {
+        e.stopPropagation();
+        if (!contact.phone) {
+            toast.error('No phone number for this contact');
+            return;
+        }
+
+        try {
+            const newActivity = {
+                subject: 'Quick Call',
+                type: 'Call',
+                date: new Date().toISOString(),
+                startTime: new Date().toISOString(),
+                endTime: new Date().toISOString(),
+                contactId: contact.id,
+                details: 'Quick call logged via one-click action.',
+                status: 'Completed',
+                priority: 'Normal'
+            };
+            await api.post('/activities', newActivity);
+            toast.success('Call logged successfully!');
+        } catch (error) {
+            console.error('Error logging quick call:', error);
+            toast.error('Failed to log call');
         }
     };
 
@@ -221,6 +253,13 @@ const ContactsPage = () => {
                             title="List View"
                         >
                             <LayoutList size={16} />
+                        </button>
+                        <button
+                            onClick={() => setViewMode('grid')}
+                            className={`p-1.5 rounded transition-all ${viewMode === 'grid' ? 'bg-white shadow text-indigo-600' : 'text-slate-400 hover:text-slate-600'}`}
+                            title="Grid View (Cards)"
+                        >
+                            <LayoutGrid size={16} />
                         </button>
                         <button
                             onClick={() => setViewMode('detail')}
@@ -435,6 +474,77 @@ const ContactsPage = () => {
                         </div>
                     </div>
                 </>
+            ) : viewMode === 'grid' ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 overflow-y-auto custom-scrollbar p-1">
+                    {contacts.map(contact => (
+                        <div
+                            key={contact.id}
+                            onClick={() => navigate(`/contacts/${contact.id}`)}
+                            className={`bg-white rounded-xl border border-slate-200 p-5 shadow-sm hover:shadow-md hover:border-indigo-200 transition-all cursor-pointer group flex flex-col relative ${selectedIds.has(contact.id) ? 'ring-2 ring-indigo-500 bg-indigo-50/10' : ''}`}
+                        >
+                            <div className="absolute top-4 right-4 z-10" onClick={e => e.stopPropagation()}>
+                                <input
+                                    type="checkbox"
+                                    className="rounded border-slate-300 text-[#6366F1] focus:ring-[#6366F1]"
+                                    checked={selectedIds.has(contact.id)}
+                                    onChange={() => handleSelectRow(contact.id)}
+                                />
+                            </div>
+
+                            <div className="flex items-center gap-4 mb-4">
+                                <div className="w-12 h-12 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center font-bold text-lg group-hover:bg-indigo-50 group-hover:text-indigo-600 transition-colors">
+                                    {contact.firstName[0]}{contact.lastName[0]}
+                                </div>
+                                <div className="min-w-0">
+                                    <h3 className="font-bold text-slate-900 truncate text-base group-hover:text-indigo-600 transition-colors">
+                                        {contact.firstName} {contact.lastName}
+                                    </h3>
+                                    <p className="text-xs font-bold text-slate-400 uppercase tracking-wide truncate">
+                                        {contact.jobTitle || 'No Title'}
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div className="space-y-2 mb-4 flex-1">
+                                <div className="flex items-center gap-2 text-xs text-slate-600">
+                                    <Building2 size={12} className="text-slate-400 shrink-0" />
+                                    <span className="truncate font-medium">{typeof contact.company === 'string' ? contact.company : contact.company?.name || 'No Company'}</span>
+                                </div>
+                                <div className="flex items-center gap-2 text-xs text-slate-600">
+                                    <Mail size={12} className="text-slate-400 shrink-0" />
+                                    <span className="truncate">{contact.email}</span>
+                                </div>
+                                {contact.phone && (
+                                    <div className="flex items-center gap-2 text-xs text-slate-600">
+                                        <div className="w-3 flex justify-center"><span className="text-slate-400 text-[10px]">📞</span></div>
+                                        <span className="truncate">{contact.phone}</span>
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="pt-4 border-t border-slate-100 flex justify-between items-center">
+                                <div className="flex items-center gap-2">
+                                    <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-widest border ${contact.status === 'Active' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-slate-50 text-slate-400 border-slate-100'
+                                        }`}>
+                                        {contact.status}
+                                    </span>
+                                    {contact.phone && (
+                                        <button
+                                            onClick={(e) => handleQuickCall(e, contact)}
+                                            className="w-6 h-6 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center hover:bg-indigo-600 hover:text-white transition-all shadow-sm"
+                                            title={`Quick Call: ${contact.phone}`}
+                                        >
+                                            <Phone size={10} strokeWidth={3} />
+                                        </button>
+                                    )}
+                                </div>
+                                <div className="text-[10px] font-bold text-slate-400 uppercase">
+                                    Added {new Date(contact.createdAt!).toLocaleDateString()}
+                                </div>
+                            </div>
+                        </div>
+                    ))}
+                </div>
             ) : (
                 <div className="flex gap-6 h-[calc(100vh-180px)] overflow-hidden">
                     {/* Left Pane: Compact List */}

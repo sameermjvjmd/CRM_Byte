@@ -9,9 +9,44 @@ export interface CustomFieldValue {
     customFieldId?: number;
     fieldName: string;
     displayName?: string;
-    fieldType?: string;
+    fieldType?: string | number;
     value: any;
 }
+
+// Helper to map numeric field types to string types
+const getFieldTypeString = (fieldType: number | string): string => {
+    // Handle specific string aliases that might differ from switch cases
+    if (String(fieldType) === 'Dropdown') return 'Select';
+
+    let numericType = -1;
+
+    if (typeof fieldType === 'number') {
+        numericType = fieldType;
+    } else if (typeof fieldType === 'string' && !isNaN(Number(fieldType)) && fieldType.trim() !== '') {
+        numericType = Number(fieldType);
+    } else {
+        return String(fieldType);
+    }
+
+    const typeMap: Record<number, string> = {
+        0: 'Text',
+        1: 'TextArea',
+        2: 'Number',
+        3: 'Decimal',
+        4: 'Date',
+        5: 'DateTime',
+        6: 'Select',
+        7: 'MultiSelect',
+        8: 'Checkbox',
+        9: 'URL',
+        10: 'Email',
+        11: 'Phone',
+        12: 'Currency',
+        13: 'Percentage'
+    };
+
+    return typeMap[numericType] || 'Text';
+};
 
 interface CustomFieldRendererProps {
     fields: CustomField[];
@@ -147,27 +182,36 @@ export const CustomFieldRenderer: React.FC<CustomFieldRendererProps> = ({
                                                     {field.displayName}
                                                 </dt>
                                                 <dd className="text-sm text-slate-900 font-medium">
-                                                    {field.fieldType === 'Checkbox' || field.fieldType === 'Boolean' ? (
-                                                        val ? 'Yes' : 'No'
-                                                    ) : field.fieldType === 'URL' ? (
-                                                        <a href={val} target="_blank" rel="noreferrer" className="text-indigo-600 hover:underline flex items-center gap-1">
-                                                            {val} <ExternalLink size={12} />
-                                                        </a>
-                                                    ) : field.fieldType === 'Email' ? (
-                                                        <a href={`mailto:${val}`} className="text-indigo-600 hover:underline flex items-center gap-1">
-                                                            {val} <Mail size={12} />
-                                                        </a>
-                                                    ) : field.fieldType === 'Phone' ? (
-                                                        <a href={`tel:${val}`} className="text-indigo-600 hover:underline flex items-center gap-1">
-                                                            {val} <PhoneIcon size={12} />
-                                                        </a>
-                                                    ) : field.fieldType === 'Currency' ? (
-                                                        formatCurrency(val)
-                                                    ) : field.fieldType === 'Percentage' ? (
-                                                        formatPercentage(val)
-                                                    ) : (
-                                                        String(val)
-                                                    )}
+                                                    {(() => {
+                                                        const fieldTypeStr = getFieldTypeString(field.fieldType);
+                                                        if (fieldTypeStr === 'Checkbox' || fieldTypeStr === 'Boolean') {
+                                                            return val ? 'Yes' : 'No';
+                                                        } else if (fieldTypeStr === 'URL') {
+                                                            return (
+                                                                <a href={val} target="_blank" rel="noreferrer" className="text-indigo-600 hover:underline flex items-center gap-1">
+                                                                    {val} <ExternalLink size={12} />
+                                                                </a>
+                                                            );
+                                                        } else if (fieldTypeStr === 'Email') {
+                                                            return (
+                                                                <a href={`mailto:${val}`} className="text-indigo-600 hover:underline flex items-center gap-1">
+                                                                    {val} <Mail size={12} />
+                                                                </a>
+                                                            );
+                                                        } else if (fieldTypeStr === 'Phone') {
+                                                            return (
+                                                                <a href={`tel:${val}`} className="text-indigo-600 hover:underline flex items-center gap-1">
+                                                                    {val} <PhoneIcon size={12} />
+                                                                </a>
+                                                            );
+                                                        } else if (fieldTypeStr === 'Currency') {
+                                                            return formatCurrency(val);
+                                                        } else if (fieldTypeStr === 'Percentage') {
+                                                            return formatPercentage(val);
+                                                        } else {
+                                                            return String(val);
+                                                        }
+                                                    })()}
                                                 </dd>
                                             </div>
                                         );
@@ -190,7 +234,8 @@ export const CustomFieldRenderer: React.FC<CustomFieldRendererProps> = ({
 
     // Render a single field input
     const renderFieldInput = (field: CustomField) => {
-        switch (field.fieldType) {
+        const fieldTypeStr = getFieldTypeString(field.fieldType);
+        switch (fieldTypeStr) {
             case 'Text':
                 return (
                     <input
