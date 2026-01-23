@@ -5,7 +5,7 @@ import type { Contact } from '../../types/contact';
 import type { Activity } from '../../types/activity';
 import type { Opportunity } from '../../types/opportunity';
 import type { HistoryItem } from '../../types/history';
-import { ArrowLeft, Mail, Phone, Building2, Settings, History, Calendar, Briefcase, Plus, Users, MapPin, StickyNote, FileText, Globe, MoreVertical, User, Sliders, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ArrowLeft, Mail, Phone, Building2, Settings, History, Calendar, Briefcase, Plus, Users, MapPin, StickyNote, FileText, Globe, MoreVertical, User, Sliders, ChevronLeft, ChevronRight, Link as LinkIcon, Bell } from 'lucide-react';
 import CreateModal from '../CreateModal';
 import DocumentsTab from '../DocumentsTab';
 import QuickActionsMenu from '../QuickActionsMenu';
@@ -25,6 +25,12 @@ import { toast } from 'react-hot-toast';
 import { customFieldsApi } from '../../api/customFieldsApi';
 import { CustomFieldRenderer } from '../common/CustomFieldRenderer';
 import type { CustomFieldDefinition, CustomFieldValue } from '../common/CustomFieldRenderer';
+import SecondaryContactsTab from '../tabs/SecondaryContactsTab';
+import type { SecondaryContact } from '../tabs/SecondaryContactsTab';
+import RelationshipsTab from '../tabs/RelationshipsTab';
+import type { ContactRelationship } from '../tabs/RelationshipsTab';
+import ContactRemindersTab from '../tabs/ContactRemindersTab';
+import type { ContactReminder } from '../tabs/ContactRemindersTab';
 
 interface ContactDetailViewProps {
     contactId: number;
@@ -46,7 +52,7 @@ const ContactDetailView = ({ contactId, navigation }: ContactDetailViewProps) =>
     const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
     const [history, setHistory] = useState<HistoryItem[]>([]);
     const [loading, setLoading] = useState(true);
-    const [activeTab, setActiveTab] = useState<'Activities' | 'Opportunities' | 'History' | 'Groups' | 'Notes' | 'Documents' | 'Companies' | 'Personal' | 'WebInfo' | 'CustomFields' | 'Emails' | 'EmailAddresses' | 'Addresses'>('History');
+    const [activeTab, setActiveTab] = useState<'Activities' | 'Opportunities' | 'History' | 'Groups' | 'Notes' | 'Documents' | 'Companies' | 'Personal' | 'WebInfo' | 'CustomFields' | 'Emails' | 'EmailAddresses' | 'Addresses' | 'SecondaryContacts' | 'Relationships' | 'Reminders'>('History');
     const [editingNotes, setEditingNotes] = useState(false);
     const [noteText, setNoteText] = useState('');
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -56,6 +62,9 @@ const ContactDetailView = ({ contactId, navigation }: ContactDetailViewProps) =>
     const [companies, setCompanies] = useState<any[]>([]);
     const [personalInfo, setPersonalInfo] = useState<any>({});
     const [webInfo, setWebInfo] = useState<any>({ customLinks: [] });
+    const [secondaryContacts, setSecondaryContacts] = useState<SecondaryContact[]>([]);
+    const [relationships, setRelationships] = useState<ContactRelationship[]>([]);
+    const [reminders, setReminders] = useState<ContactReminder[]>([]);
 
     const [modalType, setModalType] = useState<'Activity' | 'Note' | 'Contact' | 'Company' | 'Opportunity' | 'Group'>('Activity');
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -107,7 +116,19 @@ const ContactDetailView = ({ contactId, navigation }: ContactDetailViewProps) =>
                     setGroups(groupsRes.data || []);
                     setPersonalInfo(personalRes.data || {});
                     setWebInfo(webRes.data || { customLinks: [] });
-                    setRelatedContacts(relatedRes.data || []);
+                    setWebInfo(webRes.data || { customLinks: [] });
+                    setRelatedContacts(relatedRes.data || []); // This likely refers to the OLD logic if it existed, or maybe I should rename my new state. "relatedContacts" existed in line 69. 
+                    // Let's check line 69. It was initialized as [].
+                    // I will override or use my new state variables for clarity.
+                    // Actually, let's fetch my new endpoints here.
+                    const [secConRes, relRes, remRes] = await Promise.all([
+                        api.get(`/SecondaryContacts/Contact/${contactId}`),
+                        api.get(`/ContactRelationships/Contact/${contactId}`),
+                        api.get(`/ContactReminders/Contact/${contactId}`)
+                    ]);
+                    setSecondaryContacts(secConRes.data || []);
+                    setRelationships(relRes.data || []);
+                    setReminders(remRes.data || []);
 
                     // Fetch and merge custom fields
                     const [defs, vals] = await Promise.all([
@@ -150,6 +171,56 @@ const ContactDetailView = ({ contactId, navigation }: ContactDetailViewProps) =>
         setEditFormData({ ...contact });
         setEditCfValues([...cfValues]);
         setIsEditModalOpen(true);
+    };
+
+    // Secondary Contact Handlers
+    const handleAddSecondaryContact = async (data: Omit<SecondaryContact, 'id'>) => {
+        const res = await api.post('/SecondaryContacts', { ...data, primaryContactId: contactId, tenantId: (contact as any)?.tenantId || 1 });
+        setSecondaryContacts([...secondaryContacts, res.data]);
+    };
+
+    const handleEditSecondaryContact = async (id: number, data: Omit<SecondaryContact, 'id'>) => {
+        await api.put(`/SecondaryContacts/${id}`, { ...data, id, primaryContactId: contactId });
+        setSecondaryContacts(secondaryContacts.map(c => c.id === id ? { ...c, ...data, id } : c));
+    };
+
+    const handleDeleteSecondaryContact = async (id: number) => {
+        await api.delete(`/SecondaryContacts/${id}`);
+        setSecondaryContacts(secondaryContacts.filter(c => c.id !== id));
+    };
+
+    // Relationship Handlers
+    const handleAddRelationship = async (data: Omit<ContactRelationship, 'id' | 'relatedContact'>) => {
+        const res = await api.post('/ContactRelationships', { ...data, contactId: contactId, tenantId: (contact as any)?.tenantId || 1 });
+        const refreshed = await api.get(`/ContactRelationships/Contact/${contactId}`);
+        setRelationships(refreshed.data);
+    };
+
+    const handleEditRelationship = async (id: number, data: Partial<ContactRelationship>) => {
+        await api.put(`/ContactRelationships/${id}`, { ...data, id, contactId: relationships.find(r => r.id === id)?.contactId, relatedContactId: relationships.find(r => r.id === id)?.relatedContactId });
+        const refreshed = await api.get(`/ContactRelationships/Contact/${contactId}`);
+        setRelationships(refreshed.data);
+    };
+
+    const handleDeleteRelationship = async (id: number) => {
+        await api.delete(`/ContactRelationships/${id}`);
+        setRelationships(relationships.filter(r => r.id !== id));
+    };
+
+    // Reminder Handlers
+    const handleAddReminder = async (data: Omit<ContactReminder, 'id'>) => {
+        const res = await api.post('/ContactReminders', { ...data, contactId: contactId, tenantId: (contact as any)?.tenantId || 1 });
+        setReminders([...reminders, res.data]);
+    };
+
+    const handleEditReminder = async (id: number, data: Partial<ContactReminder>) => {
+        await api.put(`/ContactReminders/${id}`, { ...data, id, contactId: contactId });
+        setReminders(reminders.map(r => r.id === id ? { ...r, ...data, id } : r));
+    };
+
+    const handleDeleteReminder = async (id: number) => {
+        await api.delete(`/ContactReminders/${id}`);
+        setReminders(reminders.filter(r => r.id !== id));
     };
 
     const handleSaveEdit = async () => {
@@ -635,6 +706,9 @@ const ContactDetailView = ({ contactId, navigation }: ContactDetailViewProps) =>
                             <TabItem id="EmailAddresses" label="Emails" icon={<Mail size={16} />} active={activeTab === 'EmailAddresses'} onClick={() => setActiveTab('EmailAddresses')} />
                             <TabItem id="Addresses" icon={<MapPin size={16} />} active={activeTab === 'Addresses'} onClick={() => setActiveTab('Addresses')} />
                             <TabItem id="Emails" label="Correspondence" icon={<Mail size={16} />} active={activeTab === 'Emails'} onClick={() => setActiveTab('Emails')} />
+                            <TabItem id="SecondaryContacts" label="Secondary Contacts" icon={<Users size={16} />} active={activeTab === 'SecondaryContacts'} onClick={() => setActiveTab('SecondaryContacts')} />
+                            <TabItem id="Relationships" label="Relationships" icon={<LinkIcon size={16} />} active={activeTab === 'Relationships'} onClick={() => setActiveTab('Relationships')} />
+                            <TabItem id="Reminders" label="Reminders" icon={<Bell size={16} />} active={activeTab === 'Reminders'} onClick={() => setActiveTab('Reminders')} />
                         </div>
 
                         <div className="flex-1 p-8 overflow-y-auto custom-scrollbar">
@@ -955,6 +1029,34 @@ const ContactDetailView = ({ contactId, navigation }: ContactDetailViewProps) =>
                                     }}
                                 />
                             )}
+
+                            {activeTab === 'SecondaryContacts' && (
+                                <SecondaryContactsTab
+                                    contacts={secondaryContacts}
+                                    onAdd={handleAddSecondaryContact}
+                                    onEdit={handleEditSecondaryContact}
+                                    onDelete={handleDeleteSecondaryContact}
+                                />
+                            )}
+
+                            {activeTab === 'Relationships' && (
+                                <RelationshipsTab
+                                    relationships={relationships}
+                                    onAdd={handleAddRelationship}
+                                    onEdit={handleEditRelationship}
+                                    onDelete={handleDeleteRelationship}
+                                />
+                            )}
+
+                            {activeTab === 'Reminders' && (
+                                <ContactRemindersTab
+                                    reminders={reminders}
+                                    onAdd={handleAddReminder}
+                                    onEdit={handleEditReminder}
+                                    onDelete={handleDeleteReminder}
+                                />
+                            )}
+
                         </div>
                     </div>
                 </div>

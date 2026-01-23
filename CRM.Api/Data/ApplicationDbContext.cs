@@ -60,6 +60,12 @@ namespace CRM.Api.Data
         public DbSet<ContactEmail> ContactEmails { get; set; }
         public DbSet<ContactAddress> ContactAddresses { get; set; }
 
+        // Week 4: Relationships & Secondary Contacts
+        public DbSet<ContactRelationship> ContactRelationships { get; set; }
+        public DbSet<SecondaryContact> SecondaryContacts { get; set; }
+        public DbSet<ContactReminder> ContactReminders { get; set; }
+
+
         // Email-related entities (Week 11-12)
         public DbSet<EmailTemplate> EmailTemplates { get; set; }
         public DbSet<EmailSignature> EmailSignatures { get; set; }
@@ -148,6 +154,33 @@ namespace CRM.Api.Data
                 .HasOne(f => f.Contact)
                 .WithMany()
                 .HasForeignKey(f => f.ContactId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // Week 4: Contact Relationships Configuration
+            modelBuilder.Entity<ContactRelationship>()
+                .HasOne(r => r.Contact)
+                .WithMany()
+                .HasForeignKey(r => r.ContactId)
+                .OnDelete(DeleteBehavior.Restrict); // Prevent cascade to avoid cycles
+
+            modelBuilder.Entity<ContactRelationship>()
+                .HasOne(r => r.RelatedContact)
+                .WithMany()
+                .HasForeignKey(r => r.RelatedContactId)
+                .OnDelete(DeleteBehavior.Restrict); // Prevent cascade to avoid cycles
+
+            // Secondary Contacts - Cascade is fine here as it is a direct child
+            modelBuilder.Entity<SecondaryContact>()
+                .HasOne(s => s.PrimaryContact)
+                .WithMany()
+                .HasForeignKey(s => s.PrimaryContactId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // Contact Reminders - Cascade is fine
+            modelBuilder.Entity<ContactReminder>()
+                .HasOne(r => r.Contact)
+                .WithMany()
+                .HasForeignKey(r => r.ContactId)
                 .OnDelete(DeleteBehavior.Cascade);
 
             // ========== SEED DATA ==========
