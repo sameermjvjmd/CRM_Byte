@@ -34,6 +34,7 @@ export interface SendEmailRequest {
     placeholders?: Record<string, string>;
     contactId?: number;
     attachmentIds?: number[];
+    scheduledFor?: string; // ISO Date String
 }
 
 export interface SentEmail {

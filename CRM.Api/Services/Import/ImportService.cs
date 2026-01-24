@@ -81,12 +81,11 @@ namespace CRM.Api.Services.Import
                 if (request.EntityType == "Contact")
                 {
                     await ImportContactsAsync(filePath, extension, request, result);
-                }
-                else
-                {
-                    result.ErrorCount++;
-                    result.Errors.Add("Unsupported entity type for import");
-                }
+            }
+            else if (request.EntityType == "Company")
+            {
+               await ImportCompaniesAsync(filePath, extension, request, result);
+            }
             }
             catch (Exception ex)
             {
@@ -371,6 +370,144 @@ namespace CRM.Api.Services.Import
                         }
                         // Add more type conversions if needed (e.g. Phone, Date)
                     }
+                }
+            }
+        }
+
+        private async Task ImportCompaniesAsync(string path, string extension, ImportMappingRequest request, ImportResult result)
+        {
+            var parsedCompanies = new List<Company>();
+
+            // 1. Parse File
+            if (extension == ".csv")
+            {
+                using var reader = new StreamReader(path);
+                using var csv = new CsvReader(reader, CultureInfo.InvariantCulture);
+                csv.Read();
+                csv.ReadHeader();
+                
+                while (csv.Read())
+                {
+                    try
+                    {
+                        var company = new Company { CreatedAt = DateTime.UtcNow, LastModifiedAt = DateTime.UtcNow };
+                        MapRowToCompany(company, header => csv.GetField(header), request.FieldMapping);
+                        if (!string.IsNullOrEmpty(company.Name))
+                        {
+                            parsedCompanies.Add(company);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        result.ErrorCount++;
+                        result.Errors.Add($"Row parse error: {ex.Message}");
+                    }
+                }
+            }
+            else if (extension == ".xlsx")
+            {
+                using var workbook = new XLWorkbook(path);
+                var worksheet = workbook.Worksheet(1);
+                var headerRow = worksheet.FirstRowUsed();
+                if (headerRow == null) return;
+
+                var headers = headerRow.CellsUsed().Select(c => c.GetString()).ToList();
+
+                foreach (var row in worksheet.RowsUsed().Skip(1))
+                {
+                    try
+                    {
+                        var company = new Company { CreatedAt = DateTime.UtcNow, LastModifiedAt = DateTime.UtcNow };
+                        MapRowToCompany(company, header => {
+                            var index = headers.IndexOf(header);
+                            if (index == -1) return null;
+                            return row.Cell(index + 1).GetString();
+                        }, request.FieldMapping);
+
+                        if (!string.IsNullOrEmpty(company.Name))
+                        {
+                            parsedCompanies.Add(company);
+                        }
+                    }
+                    catch (Exception ex) 
+                    {
+                         result.ErrorCount++;
+                         result.Errors.Add($"Row parse error: {ex.Message}");
+                    }
+                }
+            }
+
+            // 2. Processing
+            var names = parsedCompanies.Select(c => c.Name).Distinct().ToList();
+            var existingCompanies = await _context.Companies
+                .Where(c => names.Contains(c.Name))
+                .ToListAsync();
+
+            foreach (var incoming in parsedCompanies)
+            {
+                var match = existingCompanies.FirstOrDefault(c => c.Name.Equals(incoming.Name, StringComparison.OrdinalIgnoreCase));
+                
+                if (match != null)
+                {
+                    if (request.UpdateExisting)
+                    {
+                        UpdateCompanyProperties(match, incoming);
+                        match.LastModifiedAt = DateTime.UtcNow;
+                        result.SuccessCount++; 
+                    }
+                    else
+                    {
+                        result.Skipped.Add($"Skipped duplicate: {incoming.Name}");
+                    }
+                }
+                else
+                {
+                    _context.Companies.Add(incoming);
+                    result.SuccessCount++;
+                }
+
+                try 
+                {
+                    await _context.SaveChangesAsync();
+                }
+                catch (Exception ex)
+                {
+                    result.SuccessCount--; 
+                    var msg = $"Error saving {incoming.Name}: " + ex.Message;
+                    result.Errors.Add(msg);
+                    _context.Entry(incoming).State = EntityState.Detached;
+                }
+            }
+            result.TotalProcessed = parsedCompanies.Count; 
+        }
+
+        private void UpdateCompanyProperties(Company target, Company source)
+        {
+            var props = typeof(Company).GetProperties().Where(p => p.CanWrite && p.PropertyType == typeof(string));
+            foreach (var prop in props)
+            {
+                var val = prop.GetValue(source) as string;
+                if (!string.IsNullOrEmpty(val))
+                {
+                    prop.SetValue(target, val);
+                }
+            }
+        }
+
+        private void MapRowToCompany(Company company, Func<string, string> getValue, Dictionary<string, string> mapping)
+        {
+            foreach (var map in mapping)
+            {
+                var header = map.Key;
+                var propName = map.Value;
+                var value = getValue(header);
+
+                if (string.IsNullOrWhiteSpace(value)) continue;
+
+                var prop = typeof(Company).GetProperty(propName);
+                if (prop != null && prop.CanWrite && prop.PropertyType == typeof(string))
+                {
+                    prop.SetValue(company, value);
                 }
             }
         }

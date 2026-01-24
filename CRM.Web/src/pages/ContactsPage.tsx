@@ -16,6 +16,7 @@ import BulkEmailComposer from '../components/email/BulkEmailComposer';
 import ExportMenu from '../components/common/ExportMenu';
 import { exportToPdf, exportToExcel } from '../utils/exportUtils';
 import { toast } from 'react-hot-toast';
+import MergeContactsModal from '../components/modals/MergeContactsModal';
 
 const ContactsPage = () => {
     const navigate = useNavigate();
@@ -28,6 +29,7 @@ const ContactsPage = () => {
     const [activeContactId, setActiveContactId] = useState<number | null>(null);
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
     const [showBulkEmail, setShowBulkEmail] = useState(false);
+    const [showMergeModal, setShowMergeModal] = useState(false);
 
     // Selection State
     const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
@@ -330,6 +332,13 @@ const ContactsPage = () => {
                 recordType="contacts"
                 onBulkEmail={() => setShowBulkEmail(true)}
                 onBulkAddTag={() => alert('Bulk Tag')}
+                onBulkMerge={() => {
+                    if (selectedIds.size < 2) {
+                        toast.error("Select at least 2 contacts to merge");
+                        return;
+                    }
+                    setShowMergeModal(true);
+                }}
             />
 
             {/* Main Content Area */}
@@ -615,6 +624,16 @@ const ContactsPage = () => {
                 onSent={() => {
                     setSelectedIds(new Set());
                     setShowBulkEmail(false);
+                }}
+            />
+
+            <MergeContactsModal
+                isOpen={showMergeModal}
+                onClose={() => setShowMergeModal(false)}
+                contacts={contacts.filter(c => selectedIds.has(c.id))}
+                onSuccess={() => {
+                    setSelectedIds(new Set());
+                    fetchContacts();
                 }}
             />
         </div>

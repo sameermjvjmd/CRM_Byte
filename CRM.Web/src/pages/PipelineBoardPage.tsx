@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { DragDropContext, type DropResult } from '@hello-pangea/dnd';
-import { Plus, Download, Search, LayoutGrid, List as ListIcon } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Plus, Download, Search, LayoutGrid, List as ListIcon, PieChart, Activity, Trophy } from 'lucide-react';
 import StageColumn from '../components/pipeline/StageColumn';
 import AddOpportunityModal from '../components/pipeline/AddOpportunityModal';
 import CloseReasonModal from '../components/pipeline/CloseReasonModal';
@@ -19,6 +20,7 @@ const PIPELINE_STAGES = [
 ];
 
 const PipelineBoardPage = () => {
+    const navigate = useNavigate();
     const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
     const [loading, setLoading] = useState(true);
     const [viewMode, setViewMode] = useState<'board' | 'list'>('board');
@@ -203,7 +205,29 @@ const PipelineBoardPage = () => {
                             Total Pipeline Value: <span className="text-emerald-600 font-bold">{new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(getTotalPipelineValue())}</span>
                         </p>
                     </div>
-                    <div className="flex gap-3">
+                    <div className="flex gap-2">
+                        <button
+                            onClick={() => navigate('/opportunities/win-loss')}
+                            className="p-2 bg-white border border-slate-200 text-slate-600 rounded-lg hover:bg-slate-50 hover:text-indigo-600 transition-colors shadow-sm"
+                            title="Win/Loss Analysis"
+                        >
+                            <PieChart size={18} />
+                        </button>
+                        <button
+                            onClick={() => navigate('/opportunities/velocity')}
+                            className="p-2 bg-white border border-slate-200 text-slate-600 rounded-lg hover:bg-slate-50 hover:text-indigo-600 transition-colors shadow-sm"
+                            title="Deal Velocity"
+                        >
+                            <Activity size={18} />
+                        </button>
+                        <button
+                            onClick={() => navigate('/opportunities/leaderboard')}
+                            className="p-2 bg-white border border-slate-200 text-slate-600 rounded-lg hover:bg-slate-50 hover:text-indigo-600 transition-colors shadow-sm"
+                            title="Sales Leaderboard"
+                        >
+                            <Trophy size={18} />
+                        </button>
+                        <div className="w-px h-8 bg-slate-200 mx-1"></div>
                         <button className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 text-slate-700 font-bold rounded-lg hover:bg-slate-50 transition-colors shadow-sm">
                             <Download size={18} />
                             <span className="text-xs uppercase tracking-wider">Export</span>

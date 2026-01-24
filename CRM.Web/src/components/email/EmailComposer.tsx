@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Send, FileText, Eye, EyeOff, Pen, Paperclip, Trash2 } from 'lucide-react';
+import { X, Send, FileText, Eye, EyeOff, Pen, Paperclip, Trash2, Calendar, Clock } from 'lucide-react';
 import { emailApi, type SendEmailRequest, type EmailTemplate, type EmailSignature, type EmailAttachment } from '../../api/emailApi';
 import { toast } from 'react-hot-toast';
 
@@ -33,6 +33,8 @@ const EmailComposer: React.FC<EmailComposerProps> = ({
     const [showPreview, setShowPreview] = useState(false);
     const [attachments, setAttachments] = useState<EmailAttachment[]>([]);
     const [isUploading, setIsUploading] = useState(false);
+    const [scheduledFor, setScheduledFor] = useState('');
+    const [showScheduleInput, setShowScheduleInput] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     // Placeholder values for template replacement
@@ -172,10 +174,11 @@ const EmailComposer: React.FC<EmailComposerProps> = ({
                 contactId: defaultContactId,
                 placeholders,
                 attachmentIds: attachments.map(a => a.id),
+                scheduledFor: scheduledFor ? new Date(scheduledFor).toISOString() : undefined,
             };
 
             await emailApi.sendEmail(request);
-            toast.success('Email sent successfully!');
+            toast.success(scheduledFor ? 'Email scheduled successfully!' : 'Email sent successfully!');
             onClose();
             onSent?.();
 
@@ -197,6 +200,8 @@ const EmailComposer: React.FC<EmailComposerProps> = ({
         setSubject('');
         setBody('');
         setAttachments([]);
+        setScheduledFor('');
+        setShowScheduleInput(false);
         setPlaceholders({
             ContactName: defaultContactName,
             CompanyName: '',
@@ -448,6 +453,52 @@ const EmailComposer: React.FC<EmailComposerProps> = ({
                                 />
                             </div>
                         )}
+
+                    </div>
+
+                    {/* Scheduling */}
+                    <div className="pt-4 border-t border-gray-100 dark:border-gray-700">
+                        <div className="flex items-center gap-2 mb-2">
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    if (showScheduleInput) {
+                                        setScheduledFor('');
+                                    }
+                                    setShowScheduleInput(!showScheduleInput);
+                                }}
+                                className={`text-sm font-medium flex items-center gap-2 px-3 py-1.5 rounded-lg transition-colors ${showScheduleInput
+                                    ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300'
+                                    : 'text-gray-600 hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-gray-800'
+                                    }`}
+                            >
+                                <Clock className="w-4 h-4" />
+                                {showScheduleInput ? 'Cancel Schedule' : 'Schedule for later'}
+                            </button>
+                        </div>
+
+                        {showScheduleInput && (
+                            <div className="bg-gray-50 dark:bg-gray-900/50 p-3 rounded-lg border border-gray-200 dark:border-gray-700 flex items-center gap-4 animate-in fade-in slide-in-from-top-2">
+                                <div className="flex-1">
+                                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">
+                                        Send Data & Time
+                                    </label>
+                                    <div className="relative">
+                                        <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                                        <input
+                                            type="datetime-local"
+                                            value={scheduledFor}
+                                            onChange={(e) => setScheduledFor(e.target.value)}
+                                            min={new Date().toISOString().slice(0, 16)}
+                                            className="w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 dark:bg-gray-800 dark:text-white"
+                                        />
+                                    </div>
+                                </div>
+                                <div className="text-xs text-gray-500 max-w-[200px]">
+                                    Email will be queued and sent automatically at the selected time.
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </div>
 
@@ -466,7 +517,7 @@ const EmailComposer: React.FC<EmailComposerProps> = ({
                         className="px-6 py-2 text-sm font-medium text-white bg-gradient-to-r from-indigo-600 to-purple-600 rounded-lg hover:from-indigo-700 hover:to-purple-700 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                         <Send className="w-4 h-4" />
-                        {isSending ? 'Sending...' : 'Send Email'}
+                        {isSending ? 'Sending...' : (scheduledFor ? 'Schedule Email' : 'Send Email')}
                     </button>
                 </div>
             </div>

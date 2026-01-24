@@ -664,6 +664,101 @@ namespace CRM.Api.Controllers
             return NoContent();
         }
 
+        // =============================================
+        // MERGE CONTACTS (New)
+        // =============================================
+
+        [HttpPost("merge")]
+        public async Task<IActionResult> MergeContacts([FromBody] MergeContactsRequestDto request)
+        {
+            if (request.SourceContactIds == null || !request.SourceContactIds.Any())
+                return BadRequest("No source contacts specified.");
+
+            if (request.SourceContactIds.Contains(request.TargetContactId))
+                return BadRequest("Target contact cannot be one of the source contacts.");
+
+            using var transaction = await _context.Database.BeginTransactionAsync();
+            try
+            {
+                var target = await _context.Contacts
+                    .Include(c => c.ContactEmails)
+                    .Include(c => c.ContactAddresses)
+                    .FirstOrDefaultAsync(c => c.Id == request.TargetContactId);
+
+                if (target == null) return NotFound($"Target contact {request.TargetContactId} not found.");
+
+                var sources = await _context.Contacts
+                    .Include(c => c.ContactEmails)
+                    .Include(c => c.ContactAddresses)
+                    .Where(c => request.SourceContactIds.Contains(c.Id))
+                    .ToListAsync();
+
+                if (sources.Count != request.SourceContactIds.Count)
+                    return BadRequest("Some source contacts were not found.");
+
+                foreach (var source in sources)
+                {
+                    // 1. Move Opportunities
+                    var opps = await _context.Opportunities.Where(o => o.ContactId == source.Id).ToListAsync();
+                    foreach (var o in opps) o.ContactId = target.Id;
+
+                    // 2. Move Activities
+                    var activities = await _context.Activities.Where(a => a.ContactId == source.Id).ToListAsync();
+                    foreach (var a in activities) a.ContactId = target.Id;
+
+                    // 3. Move/Merge Emails
+                    foreach (var email in source.ContactEmails)
+                    {
+                        // Check if email already exists in target
+                        if (!target.ContactEmails.Any(e => e.Email.Equals(email.Email, StringComparison.OrdinalIgnoreCase)))
+                        {
+                            email.ContactId = target.Id;
+                            email.IsPrimary = false; // Ensure moved emails are secondary
+                            _context.Entry(email).State = EntityState.Modified;
+                        }
+                        else
+                        {
+                            // Duplicate email, will be deleted with source or we can detach 
+                            // Easier to let it be deleted cascade if configured, but here context tracks it.
+                            // We need to explicitly handle it if we are moving relationships.
+                            // If we don't move it, it gets deleted with Source.
+                        }
+                    }
+
+                    // 4. Move/Merge Addresses
+                    foreach (var addr in source.ContactAddresses)
+                    {
+                        addr.ContactId = target.Id;
+                        addr.IsPrimary = false;
+                        _context.Entry(addr).State = EntityState.Modified;
+                    }
+
+                    // 5. Fill Empty Target Fields from Source (Basic)
+                    if (string.IsNullOrEmpty(target.JobTitle) && !string.IsNullOrEmpty(source.JobTitle))
+                        target.JobTitle = source.JobTitle;
+                    if (string.IsNullOrEmpty(target.Phone) && !string.IsNullOrEmpty(source.Phone))
+                        target.Phone = source.Phone;
+                    if (string.IsNullOrEmpty(target.MobilePhone) && !string.IsNullOrEmpty(source.MobilePhone))
+                        target.MobilePhone = source.MobilePhone;
+                }
+
+                await _context.SaveChangesAsync();
+
+                // 6. Delete Sources
+                _context.Contacts.RemoveRange(sources);
+                await _context.SaveChangesAsync();
+
+                await transaction.CommitAsync();
+
+                return Ok(new { message = $"Successfully merged {sources.Count} contacts into {target.FirstName} {target.LastName}" });
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                return BadRequest($"Merge failed: {ex.Message}");
+            }
+        }
+
         private bool ContactExists(int id)
         {
             return _context.Contacts.Any(e => e.Id == id);

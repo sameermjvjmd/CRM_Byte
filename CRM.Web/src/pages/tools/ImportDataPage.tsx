@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Upload, FileText, CheckCircle, AlertCircle, Download, ArrowRight, Loader2, RefreshCw } from 'lucide-react';
-import { importApi, CONTACT_IMPORT_FIELDS, type ImportPreviewResponse, type ImportResult } from '../../api/importApi';
+import { importApi, CONTACT_IMPORT_FIELDS, COMPANY_IMPORT_FIELDS, type ImportPreviewResponse, type ImportResult } from '../../api/importApi';
 import toast from 'react-hot-toast';
 
 const ImportDataPage = () => {
@@ -34,9 +34,10 @@ const ImportDataPage = () => {
                 // Intelligent auto-mapping
                 const newMapping: Record<string, string> = {};
                 data.headers.forEach(header => {
-                    // Try to find a match in CONTACT_IMPORT_FIELDS (case-insensitive)
+                    // Try to find a match (case-insensitive)
+                    const fieldsToUse = importType === 'Contact' ? CONTACT_IMPORT_FIELDS : COMPANY_IMPORT_FIELDS;
                     const normalizedHeader = header.toLowerCase().replace(/[^a-z0-9]/g, '');
-                    const match = CONTACT_IMPORT_FIELDS.find(f =>
+                    const match = fieldsToUse.find(f =>
                         f.label.toLowerCase().replace(/[^a-z0-9]/g, '') === normalizedHeader ||
                         f.value.toLowerCase() === normalizedHeader
                     );
@@ -157,7 +158,7 @@ Michael,Johnson,michael.j@globalinc.com,555-0301,555-0302,Global Industries,VP M
                                         className="w-full px-4 py-3 border border-slate-200 rounded-lg font-bold text-slate-700 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-shadow"
                                     >
                                         <option value="Contact">Contacts</option>
-                                        <option value="Company" disabled>Companies (Coming Soon)</option>
+                                        <option value="Company">Companies</option>
                                         <option value="Group" disabled>Groups (Coming Soon)</option>
                                     </select>
                                 </div>
@@ -267,7 +268,7 @@ Michael,Johnson,michael.j@globalinc.com,555-0301,555-0302,Global Industries,VP M
                                                 className={`w-full px-3 py-2 border rounded text-xs font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500 ${mapping[header] ? 'border-indigo-300 text-indigo-700 bg-indigo-50' : 'border-slate-200 text-slate-500'}`}
                                             >
                                                 <option value="">-- Ignore Column --</option>
-                                                {CONTACT_IMPORT_FIELDS.map(f => (
+                                                {(importType === 'Contact' ? CONTACT_IMPORT_FIELDS : COMPANY_IMPORT_FIELDS).map(f => (
                                                     <option key={f.value} value={f.value}>{f.label} {f.required ? '*' : ''}</option>
                                                 ))}
                                             </select>

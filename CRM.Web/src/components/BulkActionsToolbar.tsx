@@ -9,6 +9,7 @@ interface BulkActionsToolbarProps {
     onBulkArchive?: () => void;
     onBulkComplete?: () => void;
     onBulkAssign?: () => void;
+    onBulkMerge?: () => void;
     recordType: 'contacts' | 'activities' | 'companies' | 'opportunities';
 }
 
@@ -21,6 +22,7 @@ const BulkActionsToolbar = ({
     onBulkArchive,
     onBulkComplete,
     onBulkAssign,
+    onBulkMerge,
     recordType
 }: BulkActionsToolbarProps) => {
     if (selectedCount === 0) return null;
@@ -97,6 +99,18 @@ const BulkActionsToolbar = ({
                         >
                             <Archive size={16} />
                             Archive
+                        </button>
+                    )}
+
+                    {/* Merge (for contacts/companies) */}
+                    {onBulkMerge && (
+                        <button
+                            onClick={onBulkMerge}
+                            className="px-4 py-2 bg-indigo-50 text-indigo-700 rounded-lg font-bold text-sm hover:bg-indigo-100 transition-all flex items-center gap-2"
+                            title="Merge Selected"
+                        >
+                            <span className="rotate-90"><Users size={16} /></span>
+                            Merge
                         </button>
                     )}
 

@@ -54,7 +54,7 @@ const WinLossAnalysisPage = () => {
     const fetchAnalytics = async () => {
         try {
             setLoading(true);
-            const response = await api.get(`/opportunities/win-loss-analysis?timeRange=${timeRange}`);
+            const response = await api.get(`/reports/opportunities/win-loss-analysis?timeRange=${timeRange}`);
             const data = response.data;
 
             setStats(data.stats);

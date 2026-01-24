@@ -14,6 +14,7 @@ import type { DashboardSummary, SavedReport } from '../types/reporting';
 import { formatCurrency } from '../utils/formatters';
 import ReportBuilderModal from '../components/reports/ReportBuilderModal';
 import toast from 'react-hot-toast';
+import { ContactsReportView, CompaniesReportView, OpportunitiesReportView, ActivitiesReportView } from '../components/reports/StandardReportViews';
 
 const ReportsPage = () => {
     const [activeTab, setActiveTab] = useState<'dashboard' | 'standard' | 'custom'>('dashboard');
@@ -24,6 +25,7 @@ const ReportsPage = () => {
     const [selectedReport, setSelectedReport] = useState<SavedReport | null>(null);
     const [pipelineData, setPipelineData] = useState<any[]>([]);
     const [activityTypeData, setActivityTypeData] = useState<any[]>([]);
+    const [viewingReport, setViewingReport] = useState<string | null>(null);
 
     useEffect(() => {
         fetchDashboardData();
@@ -310,7 +312,10 @@ const ReportsPage = () => {
                                 <Download size={16} />
                                 Export CSV
                             </button>
-                            <button className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700">
+                            <button
+                                onClick={() => setViewingReport(report.id)}
+                                className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700"
+                            >
                                 View
                             </button>
                         </div>
@@ -428,7 +433,10 @@ const ReportsPage = () => {
                     ].map(tab => (
                         <button
                             key={tab.id}
-                            onClick={() => setActiveTab(tab.id as any)}
+                            onClick={() => {
+                                setActiveTab(tab.id as any);
+                                setViewingReport(null);
+                            }}
                             className={`
                                 py-4 px-1 border-b-2 font-medium text-sm transition-colors
                                 ${activeTab === tab.id
@@ -451,9 +459,20 @@ const ReportsPage = () => {
                     </div>
                 ) : (
                     <>
-                        {activeTab === 'dashboard' && renderDashboard()}
-                        {activeTab === 'standard' && renderStandardReports()}
-                        {activeTab === 'custom' && renderCustomReports()}
+                        {viewingReport ? (
+                            <div className="animate-fade-in">
+                                {viewingReport === 'contacts' && <ContactsReportView onBack={() => setViewingReport(null)} />}
+                                {viewingReport === 'companies' && <CompaniesReportView onBack={() => setViewingReport(null)} />}
+                                {viewingReport === 'opportunities' && <OpportunitiesReportView onBack={() => setViewingReport(null)} />}
+                                {viewingReport === 'activities' && <ActivitiesReportView onBack={() => setViewingReport(null)} />}
+                            </div>
+                        ) : (
+                            <>
+                                {activeTab === 'dashboard' && renderDashboard()}
+                                {activeTab === 'standard' && renderStandardReports()}
+                                {activeTab === 'custom' && renderCustomReports()}
+                            </>
+                        )}
                     </>
                 )}
             </div>

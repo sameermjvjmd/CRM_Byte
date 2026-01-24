@@ -41,11 +41,11 @@ const DealVelocityPage = () => {
             setLoading(true);
 
             // Fetch velocity data
-            const velocityResponse = await api.get('/opportunities/velocity');
+            const velocityResponse = await api.get('/reports/opportunities/velocity');
             setStats(velocityResponse.data);
 
             // Fetch stage-specific velocity
-            const stageResponse = await api.get('/opportunities/stage-velocity');
+            const stageResponse = await api.get('/reports/opportunities/stage-velocity');
             const stageData = stageResponse.data || [];
             setStageVelocity(stageData);
 
@@ -55,7 +55,7 @@ const DealVelocityPage = () => {
             setBottlenecks(bottleneckStages);
 
             // Fetch velocity trends (mock data for now - can be enhanced)
-            const trendsResponse = await api.get('/opportunities/velocity-trends');
+            const trendsResponse = await api.get('/reports/opportunities/velocity-trends');
             setVelocityTrends(trendsResponse.data || []);
 
         } catch (error) {
@@ -195,9 +195,9 @@ const DealVelocityPage = () => {
                                 <div className="w-full bg-white rounded-full h-3 overflow-hidden shadow-inner">
                                     <div
                                         className={`h-full rounded-full transition-all ${stage.avgDaysInStage <= 30 ? 'bg-green-500' :
-                                                stage.avgDaysInStage <= 60 ? 'bg-yellow-500' :
-                                                    stage.avgDaysInStage <= 90 ? 'bg-orange-500' :
-                                                        'bg-red-500'
+                                            stage.avgDaysInStage <= 60 ? 'bg-yellow-500' :
+                                                stage.avgDaysInStage <= 90 ? 'bg-orange-500' :
+                                                    'bg-red-500'
                                             }`}
                                         style={{ width: `${Math.min((stage.avgDaysInStage / 120) * 100, 100)}%` }}
                                     />

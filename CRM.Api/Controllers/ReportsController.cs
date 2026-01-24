@@ -379,6 +379,217 @@ namespace CRM.Api.Controllers
             });
         }
 
+        [HttpGet("opportunities/win-loss-analysis")]
+        public async Task<ActionResult<object>> GetWinLossAnalysis([FromQuery] string timeRange = "all")
+        {
+            DateTime? startDate = timeRange?.ToLower() switch
+            {
+                "30days" => DateTime.UtcNow.AddDays(-30),
+                "90days" => DateTime.UtcNow.AddDays(-90),
+                "year" => DateTime.UtcNow.AddYears(-1),
+                _ => null
+            };
+
+            var query = _context.Opportunities
+                .Include(o => o.StageHistory)
+                .Where(o => o.Stage == "Closed Won" || o.Stage == "Closed Lost");
+
+            if (startDate.HasValue)
+            {
+                query = query.Where(o => o.ActualCloseDate >= startDate);
+            }
+
+            var closedDeals = await query.ToListAsync();
+
+            // Stats Calculations
+            var wonDeals = closedDeals.Where(o => o.Stage == "Closed Won").ToList();
+            var lostDeals = closedDeals.Where(o => o.Stage == "Closed Lost").ToList();
+
+            var stats = new
+            {
+                totalOpportunities = closedDeals.Count,
+                wonCount = wonDeals.Count,
+                lostCount = lostDeals.Count,
+                winRate = closedDeals.Count > 0 ? (double)wonDeals.Count / closedDeals.Count * 100 : 0,
+                totalWonValue = wonDeals.Sum(o => o.Amount),
+                totalLostValue = lostDeals.Sum(o => o.Amount),
+                avgWonValue = wonDeals.Count > 0 ? wonDeals.Average(o => o.Amount) : 0,
+                avgLostValue = lostDeals.Count > 0 ? lostDeals.Average(o => o.Amount) : 0,
+                avgDaysToWin = wonDeals.Count > 0 ? wonDeals.Average(o => o.TotalDaysToClose > 0 ? o.TotalDaysToClose : (o.ActualCloseDate.HasValue ? (o.ActualCloseDate.Value - o.CreatedAt).Days : 0)) : 0,
+                avgDaysToLose = lostDeals.Count > 0 ? lostDeals.Average(o => o.TotalDaysToClose > 0 ? o.TotalDaysToClose : (o.ActualCloseDate.HasValue ? (o.ActualCloseDate.Value - o.CreatedAt).Days : 0)) : 0
+            };
+
+            // Win Reasons
+            var winReasons = wonDeals
+                .Where(o => !string.IsNullOrEmpty(o.WinReason))
+                .GroupBy(o => o.WinReason)
+                .Select(g => new {
+                    reason = g.Key,
+                    count = g.Count(),
+                    percentage = (double)g.Count() / wonDeals.Count * 100,
+                    totalValue = g.Sum(o => o.Amount)
+                })
+                .OrderByDescending(x => x.count)
+                .ToList();
+
+            // Loss Reasons
+            var lossReasons = lostDeals
+                .Where(o => !string.IsNullOrEmpty(o.LostReason))
+                .GroupBy(o => o.LostReason)
+                .Select(g => new {
+                    reason = g.Key,
+                    count = g.Count(),
+                    percentage = (double)g.Count() / lostDeals.Count * 100,
+                    totalValue = g.Sum(o => o.Amount)
+                })
+                .OrderByDescending(x => x.count)
+                .ToList();
+
+            // Competitor Analysis
+            var competitorAnalysis = closedDeals
+                .Where(o => !string.IsNullOrEmpty(o.PrimaryCompetitor))
+                .GroupBy(o => o.PrimaryCompetitor)
+                .Select(g => new {
+                    competitor = g.Key,
+                    wonAgainst = g.Count(x => x.Stage == "Closed Won"),
+                    lostAgainst = g.Count(x => x.Stage == "Closed Lost"),
+                    winRate = g.Any() ? (double)g.Count(x => x.Stage == "Closed Won") / g.Count() * 100 : 0
+                })
+                .OrderByDescending(x => x.lostAgainst + x.wonAgainst)
+                .ToList();
+
+            // Stage Analysis (Last stage before close)
+            // Logic: Determine from which stage each deal was closed.
+            // Since we don't have a direct "ClosedFromStage" field, we check StageHistory.
+            // If unavailable, we can't reliably report this. For now return empty.
+            var stageAnalysis = new List<object>();
+
+            return Ok(new
+            {
+                stats,
+                winReasons,
+                lossReasons,
+                competitorAnalysis,
+                stageAnalysis
+            });
+        }
+
+        [HttpGet("opportunities/velocity")]
+        public async Task<ActionResult<object>> GetVelocityStats()
+        {
+            var wonDeals = await _context.Opportunities
+                .Where(o => o.Stage == "Closed Won")
+                .ToListAsync();
+            
+            var thirtyDaysAgo = DateTime.UtcNow.AddDays(-30);
+            var wonLast30 = wonDeals.Where(o => o.ActualCloseDate >= thirtyDaysAgo).ToList();
+            var allClosedLast30 = await _context.Opportunities
+                .Where(o => (o.Stage == "Closed Won" || o.Stage == "Closed Lost") && o.ActualCloseDate >= thirtyDaysAgo)
+                .CountAsync();
+
+            double avgSalesCycle = 0;
+            if (wonDeals.Any())
+            {
+                avgSalesCycle = wonDeals.Average(o => {
+                    if (o.TotalDaysToClose > 0) return o.TotalDaysToClose;
+                    if (o.ActualCloseDate.HasValue) return (o.ActualCloseDate.Value - o.CreatedAt).TotalDays;
+                    return 0;
+                });
+            }
+
+            return Ok(new
+            {
+                avgSalesCycle,
+                dealsClosed30Days = wonLast30.Count,
+                revenueClosed30Days = wonLast30.Sum(o => o.Amount),
+                winRate30Days = allClosedLast30 > 0 ? (double)wonLast30.Count / allClosedLast30 * 100 : 0
+            });
+        }
+
+        [HttpGet("opportunities/stage-velocity")]
+        public async Task<ActionResult<IEnumerable<object>>> GetStageVelocity()
+        {
+            var history = await _context.StageHistories
+                .Where(h => h.DaysInPreviousStage > 0)
+                .GroupBy(h => h.FromStage)
+                .Select(g => new {
+                    Stage = g.Key,
+                    AvgDays = g.Average(h => h.DaysInPreviousStage),
+                    Count = g.Count(),
+                    MinDays = g.Min(h => h.DaysInPreviousStage),
+                    MaxDays = g.Max(h => h.DaysInPreviousStage)
+                })
+                .ToListAsync();
+            
+            var result = history.Select(h => new {
+                stage = h.Stage ?? "New",
+                avgDaysInStage = h.AvgDays,
+                count = h.Count,
+                minDays = h.MinDays,
+                maxDays = h.MaxDays
+            }).ToList();
+
+            return Ok(result);
+        }
+
+        [HttpGet("opportunities/velocity-trends")]
+        public async Task<ActionResult<IEnumerable<object>>> GetVelocityTrends()
+        {
+             var trends = await _context.Opportunities
+                .Where(o => o.Stage == "Closed Won" && o.ActualCloseDate.HasValue)
+                .ToListAsync(); 
+                
+             var grouped = trends
+                .GroupBy(o => new { o.ActualCloseDate.Value.Year, o.ActualCloseDate.Value.Month })
+                .Select(g => new {
+                    Period = $"{g.Key.Month}/{g.Key.Year}",
+                    AvgDays = g.Average(o => o.TotalDaysToClose > 0 ? o.TotalDaysToClose : (o.ActualCloseDate.Value - o.CreatedAt).TotalDays),
+                    DealsCount = g.Count(),
+                    SortDate = new DateTime(g.Key.Year, g.Key.Month, 1)
+                })
+                .OrderByDescending(x => x.SortDate)
+                .Take(12)
+                .OrderBy(x => x.SortDate)
+                .Select(x => new {
+                    period = x.Period,
+                    avgDays = x.AvgDays,
+                    dealsCount = x.DealsCount
+                })
+                .ToList();
+
+            return Ok(grouped);
+        }
+
+        [HttpGet("opportunities/leaderboard")]
+        public async Task<ActionResult<IEnumerable<object>>> GetLeaderboard()
+        {
+            var opportunities = await _context.Opportunities.ToListAsync();
+
+            var leaderboard = opportunities
+                .GroupBy(o => string.IsNullOrWhiteSpace(o.Owner) ? "Unassigned" : o.Owner)
+                .Select(g => {
+                     var won = g.Where(o => o.Stage == "Closed Won").ToList();
+                     var lost = g.Where(o => o.Stage == "Closed Lost").ToList();
+                     var open = g.Where(o => o.Stage != "Closed Won" && o.Stage != "Closed Lost").ToList();
+                     var closedCount = won.Count + lost.Count;
+
+                     return new {
+                        owner = g.Key,
+                        totalDeals = g.Count(),
+                        wonDeals = won.Count,
+                        lostDeals = lost.Count,
+                        openDeals = open.Count,
+                        wonValue = won.Sum(o => o.Amount),
+                        pipelineValue = open.Sum(o => o.Amount),
+                        winRate = closedCount > 0 ? (double)won.Count / closedCount * 100 : 0
+                     };
+                })
+                .OrderByDescending(x => x.wonValue)
+                .ToList();
+
+            return Ok(leaderboard);
+        }
+
         // =============================================
         // MARKETING REPORTS
         // =============================================

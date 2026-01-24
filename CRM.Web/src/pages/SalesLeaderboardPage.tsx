@@ -27,7 +27,7 @@ const SalesLeaderboardPage = () => {
     const fetchLeaderboard = async () => {
         try {
             setLoading(true);
-            const response = await api.get('/opportunities/leaderboard');
+            const response = await api.get('/reports/opportunities/leaderboard');
             setLeaderboard(response.data || []);
         } catch (error) {
             console.error('Failed to load leaderboard:', error);

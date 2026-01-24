@@ -58,3 +58,17 @@ export const CONTACT_IMPORT_FIELDS = [
     { value: 'Notes', label: 'Notes' },
     { value: 'LeadSource', label: 'Lead Source' },
 ];
+
+export const COMPANY_IMPORT_FIELDS = [
+    { value: 'Name', label: 'Company Name', required: true },
+    { value: 'Industry', label: 'Industry' },
+    { value: 'Website', label: 'Website' },
+    { value: 'Phone', label: 'Phone' },
+    { value: 'Address', label: 'Address' },
+    { value: 'City', label: 'City' },
+    { value: 'State', label: 'State' },
+    { value: 'ZipCode', label: 'Zip Code' },
+    { value: 'Country', label: 'Country' },
+    { value: 'Description', label: 'Description' },
+    { value: 'TickerSymbol', label: 'Ticker Symbol' }
+];
