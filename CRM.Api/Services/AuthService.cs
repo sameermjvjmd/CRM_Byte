@@ -58,6 +58,18 @@ namespace CRM.Api.Services
             var roles = await GetUserRolesAsync(user.Id);
             var permissions = await GetUserPermissionsAsync(user.Id);
 
+            // 2FA Check
+            if (user.TwoFactorEnabled)
+            {
+                return new LoginResponse 
+                { 
+                    Success = false, 
+                    Message = "2FA Required" 
+                    // In a production system, you would return a short-lived temporary token here 
+                    // to prove the password was correct for the subsequent 2FA verification.
+                };
+            }
+
             // Generate tokens
             var accessToken = _jwtService.GenerateAccessToken(user, roles, permissions);
             var refreshToken = _jwtService.GenerateRefreshToken();
@@ -93,7 +105,8 @@ namespace CRM.Api.Services
                     FullName = user.FullName,
                     AvatarUrl = user.AvatarUrl,
                     Roles = roles,
-                    Permissions = permissions
+                    Permissions = permissions,
+                    TwoFactorEnabled = user.TwoFactorEnabled
                 }
             };
         }
@@ -211,7 +224,8 @@ namespace CRM.Api.Services
                     FullName = user.FullName,
                     AvatarUrl = user.AvatarUrl,
                     Roles = roles,
-                    Permissions = permissions
+                    Permissions = permissions,
+                    TwoFactorEnabled = user.TwoFactorEnabled
                 }
             };
         }

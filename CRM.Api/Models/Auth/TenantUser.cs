@@ -41,6 +41,11 @@ namespace CRM.Api.Models.Auth
         public bool IsActive { get; set; } = true;
         public bool EmailVerified { get; set; } = false;
 
+        // Two-Factor Authentication
+        public bool TwoFactorEnabled { get; set; } = false;
+        public string? TwoFactorSecret { get; set; }
+        public string? TwoFactorRecoveryCodes { get; set; }
+
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         public DateTime? LastLoginAt { get; set; }
         public int? CreatedBy { get; set; }

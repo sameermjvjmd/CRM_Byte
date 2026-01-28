@@ -32,6 +32,7 @@ namespace CRM.Api.DTOs.Auth
         public string? AvatarUrl { get; set; }
         public List<string> Roles { get; set; } = new();
         public List<string> Permissions { get; set; } = new();
+        public bool TwoFactorEnabled { get; set; }
     }
 
     public class RegisterRequest
@@ -96,5 +97,34 @@ namespace CRM.Api.DTOs.Auth
         [Required]
         [MinLength(8)]
         public string NewPassword { get; set; } = string.Empty;
+    }
+
+    public class TwoFactorSetupResponse
+    {
+        public bool Success { get; set; }
+        public string Secret { get; set; } = string.Empty;
+        public string QrCodeUri { get; set; } = string.Empty;
+    }
+
+    public class TwoFactorEnableRequest
+    {
+        [Required]
+        public string Secret { get; set; } = string.Empty;
+        
+        [Required]
+        public string Code { get; set; } = string.Empty;
+    }
+
+    public class TwoFactorValidateRequest
+    {
+        [Required]
+        public string Email { get; set; } = string.Empty;
+
+        [Required]
+        public string Code { get; set; } = string.Empty;
+        
+        // Temporary token from the initial login attempt to verify identity
+        [Required]
+        public string TempToken { get; set; } = string.Empty;
     }
 }

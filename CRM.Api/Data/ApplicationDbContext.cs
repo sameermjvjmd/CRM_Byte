@@ -48,6 +48,7 @@ namespace CRM.Api.Data
         
         // Reporting & Analytics (Module 8)
         public DbSet<SavedReport> SavedReports { get; set; }
+        public DbSet<ScheduledReport> ScheduledReports { get; set; }
         public DbSet<ReportExecutionLog> ReportExecutionLogs { get; set; }
         
         // New tab-related entities
@@ -112,6 +113,9 @@ namespace CRM.Api.Data
         // External Integrations (Week 23-24)
         public DbSet<Webhook> Webhooks { get; set; }
         public DbSet<WebhookLog> WebhookLogs { get; set; }
+
+        // Audit Logging (Week 15)
+        public DbSet<AuditLog> AuditLogs { get; set; }
 
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)

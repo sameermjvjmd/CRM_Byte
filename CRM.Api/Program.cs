@@ -27,9 +27,14 @@ builder.Services.AddControllers()
     });
 
 // Database Contexts
+// Database Contexts
+builder.Services.AddSingleton<IHttpContextAccessor, HttpContextAccessor>();
+builder.Services.AddScoped<CRM.Api.Data.Interceptors.AuditInterceptor>();
+
 builder.Services.AddDbContext<ApplicationDbContext>((sp, options) =>
 {
     var tenantContext = sp.GetService<ITenantContext>();
+    var interceptor = sp.GetService<CRM.Api.Data.Interceptors.AuditInterceptor>();
     var connectionString = tenantContext?.ConnectionString;
 
     if (string.IsNullOrEmpty(connectionString))
@@ -37,7 +42,8 @@ builder.Services.AddDbContext<ApplicationDbContext>((sp, options) =>
         connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
     }
 
-    options.UseSqlServer(connectionString);
+    options.UseSqlServer(connectionString)
+           .AddInterceptors(interceptor);
 });
 
 builder.Services.AddDbContext<MasterDbContext>(options =>
@@ -81,6 +87,8 @@ builder.Services.AddScoped<CRM.Api.Services.Reporting.IExcelExportService, CRM.A
 
 // Security Services
 builder.Services.AddSingleton<IEncryptionService, EncryptionService>();
+builder.Services.AddScoped<ITwoFactorService, TwoFactorService>();
+builder.Services.AddScoped<IAuditService, AuditService>();
 
 // Search Services
 builder.Services.AddScoped<CRM.Api.Services.Search.ISearchService, CRM.Api.Services.Search.SearchService>();
@@ -433,6 +441,50 @@ using (var scope = app.Services.CreateScope())
             logger.LogInformation("Ensured Webhooks tables exist.");
         } catch (Exception ex) {
             logger.LogError(ex, "Failed to manually create Webhooks tables.");
+        }
+
+        // EMERGENCY FIX: Add missing TFA columns to TenantUsers
+        try {
+            context.Database.ExecuteSqlRaw(@"
+                IF EXISTS (SELECT * FROM sysobjects WHERE name='TenantUsers' AND xtype='U')
+                BEGIN
+                    IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('TenantUsers') AND name = 'TwoFactorEnabled')
+                        ALTER TABLE [TenantUsers] ADD [TwoFactorEnabled] bit NOT NULL DEFAULT 0 WITH VALUES;
+                    
+                    IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('TenantUsers') AND name = 'TwoFactorSecret')
+                        ALTER TABLE [TenantUsers] ADD [TwoFactorSecret] nvarchar(max) NULL;
+
+                    IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('TenantUsers') AND name = 'TwoFactorRecoveryCodes')
+                        ALTER TABLE [TenantUsers] ADD [TwoFactorRecoveryCodes] nvarchar(max) NULL;
+                END
+            ");
+            logger.LogInformation("Ensured TenantUsers TFA columns exist.");
+        } catch (Exception ex) {
+            logger.LogError(ex, "Failed to update TenantUsers schema for TFA.");
+        }
+
+        // EMERGENCY FIX: Create AuditLogs table if missing
+        try {
+            context.Database.ExecuteSqlRaw(@"
+                IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='AuditLogs' AND xtype='U')
+                BEGIN
+                    CREATE TABLE [AuditLogs] (
+                        [Id] int NOT NULL IDENTITY,
+                        [UserId] int NULL,
+                        [UserName] nvarchar(max) NULL,
+                        [Action] nvarchar(max) NOT NULL,
+                        [EntityName] nvarchar(max) NOT NULL,
+                        [EntityId] nvarchar(max) NULL,
+                        [Changes] nvarchar(max) NULL,
+                        [Timestamp] datetime2 NOT NULL DEFAULT GETUTCDATE(),
+                        [IpAddress] nvarchar(max) NULL,
+                        CONSTRAINT [PK_AuditLogs] PRIMARY KEY ([Id])
+                    );
+                END
+            ");
+            logger.LogInformation("Ensured AuditLogs table exists.");
+        } catch (Exception ex) {
+            logger.LogError(ex, "Failed to create AuditLogs table.");
         }
 
         DbInitializer.Initialize(context);

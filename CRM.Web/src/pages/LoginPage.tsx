@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { Loader2, AlertCircle, CheckCircle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import api from '../api/api';
 
 const LoginPage = () => {
     const navigate = useNavigate();
@@ -15,6 +16,9 @@ const LoginPage = () => {
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState<string | null>(null);
+
+    const [showTwoFactor, setShowTwoFactor] = useState(false);
+    const [twoFactorCode, setTwoFactorCode] = useState('');
 
     // Get redirect path from location state
     const from = (location.state as { from?: { pathname: string } })?.from?.pathname || '/';
@@ -44,7 +48,10 @@ const LoginPage = () => {
         try {
             const result = await login({ email, password, rememberMe });
 
-            if (result.success) {
+            if (!result.success && result.message === "2FA Required") {
+                setShowTwoFactor(true);
+                setSuccess('Please enter your 2FA code.');
+            } else if (result.success) {
                 navigate(from, { replace: true });
             } else {
                 setError(result.message || 'Invalid email or password');
@@ -52,6 +59,39 @@ const LoginPage = () => {
         } catch (err) {
             setError('An error occurred. Please try again.');
             console.error('Login error:', err);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleTwoFactorVerify = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setError(null);
+        setIsLoading(true);
+
+        try {
+            const result = await api.post('/auth/2fa/validate', {
+                email,
+                code: twoFactorCode,
+                tempToken: 'unused'
+            });
+
+            if (result.data.success) {
+                // Manually set tokens since we bypassed the standard login context flow
+                // In a perfect world, we'd update the context state, but a page reload or navigation handles it
+                // The context checks localStorage on mount/update usually.
+                localStorage.setItem('nexus_access_token', result.data.accessToken);
+                localStorage.setItem('nexus_refresh_token', result.data.refreshToken);
+                localStorage.setItem('nexus_user', JSON.stringify(result.data.user));
+
+                // Force a hard reload to ensure context picks up the new token state if context doesn't listen to storage events
+                // Or navigate and hope context re-checks.
+                window.location.href = from;
+            } else {
+                setError('Invalid verification code.');
+            }
+        } catch (err) {
+            setError('Invalid verification code.');
         } finally {
             setIsLoading(false);
         }
@@ -77,11 +117,15 @@ const LoginPage = () => {
             <div className="relative bg-white/80 backdrop-blur-xl p-10 rounded-2xl shadow-[0_8px_32px_rgba(0,0,0,0.08)] border border-white/50 w-full max-w-[420px] flex flex-col items-center text-center">
                 {/* Logo */}
                 <div className="w-16 h-16 bg-gradient-to-br from-indigo-600 to-violet-600 rounded-2xl flex items-center justify-center mb-6 shadow-lg shadow-indigo-500/30">
-                    <span className="text-white font-bold text-2xl tracking-tight">Nx</span>
+                    <span className="text-white font-bold text-2xl tracking-tight">Re</span>
                 </div>
 
-                <h1 className="text-2xl font-bold text-slate-800 mb-2">Welcome back</h1>
-                <p className="text-slate-500 mb-6">Sign in to your account to continue</p>
+                <h1 className="text-2xl font-bold text-slate-800 mb-2">
+                    {showTwoFactor ? 'Two-Factor Authentication' : 'Welcome back'}
+                </h1>
+                <p className="text-slate-500 mb-6">
+                    {showTwoFactor ? 'Enter the code from your authenticator app' : 'Sign in to your account to continue'}
+                </p>
 
                 {/* Error message */}
                 {error && (
@@ -99,81 +143,120 @@ const LoginPage = () => {
                     </div>
                 )}
 
-                <form onSubmit={handleLogin} className="w-full space-y-4">
-                    <div className="relative">
-                        <label className="block text-left text-sm font-medium text-slate-600 mb-1.5">Email</label>
-                        <input
-                            type="email"
-                            placeholder="you@company.com"
-                            value={email}
-                            onChange={(e) => setEmail(e.target.value)}
-                            disabled={isLoading}
-                            className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 outline-none text-slate-700 transition-all placeholder:text-slate-400 disabled:bg-slate-50 disabled:cursor-not-allowed"
-                            required
-                        />
-                    </div>
-
-                    <div className="relative">
-                        <label className="block text-left text-sm font-medium text-slate-600 mb-1.5">Password</label>
+                {!showTwoFactor ? (
+                    <form onSubmit={handleLogin} className="w-full space-y-4">
                         <div className="relative">
+                            <label className="block text-left text-sm font-medium text-slate-600 mb-1.5">Email</label>
                             <input
-                                type={showPassword ? "text" : "password"}
-                                placeholder="••••••••"
-                                value={password}
-                                onChange={(e) => setPassword(e.target.value)}
+                                type="email"
+                                placeholder="you@company.com"
+                                value={email}
+                                onChange={(e) => setEmail(e.target.value)}
                                 disabled={isLoading}
-                                className="w-full px-4 py-3 pr-12 rounded-xl border border-slate-200 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 outline-none text-slate-700 transition-all placeholder:text-slate-400 disabled:bg-slate-50 disabled:cursor-not-allowed"
+                                className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 outline-none text-slate-700 transition-all placeholder:text-slate-400 disabled:bg-slate-50 disabled:cursor-not-allowed"
                                 required
                             />
-                            <button
-                                type="button"
-                                onClick={() => setShowPassword(!showPassword)}
-                                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
-                            >
-                                {showPassword ? (
-                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
-                                    </svg>
-                                ) : (
-                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                                    </svg>
-                                )}
-                            </button>
                         </div>
-                    </div>
 
-                    <div className="flex items-center justify-between w-full">
-                        <label className="flex items-center cursor-pointer text-sm text-slate-600 gap-2 select-none">
+                        <div className="relative">
+                            <label className="block text-left text-sm font-medium text-slate-600 mb-1.5">Password</label>
+                            <div className="relative">
+                                <input
+                                    type={showPassword ? "text" : "password"}
+                                    placeholder="••••••••"
+                                    value={password}
+                                    onChange={(e) => setPassword(e.target.value)}
+                                    disabled={isLoading}
+                                    className="w-full px-4 py-3 pr-12 rounded-xl border border-slate-200 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 outline-none text-slate-700 transition-all placeholder:text-slate-400 disabled:bg-slate-50 disabled:cursor-not-allowed"
+                                    required
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => setShowPassword(!showPassword)}
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+                                >
+                                    {showPassword ? (
+                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+                                        </svg>
+                                    ) : (
+                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                        </svg>
+                                    )}
+                                </button>
+                            </div>
+                        </div>
+
+                        <div className="flex items-center justify-between w-full">
+                            <label className="flex items-center cursor-pointer text-sm text-slate-600 gap-2 select-none">
+                                <input
+                                    type="checkbox"
+                                    checked={rememberMe}
+                                    onChange={() => setRememberMe(!rememberMe)}
+                                    className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-600"
+                                />
+                                Remember me
+                            </label>
+                            <a href="#" className="text-indigo-600 font-medium text-sm hover:text-indigo-700 transition-colors">
+                                Forgot password?
+                            </a>
+                        </div>
+
+                        <button
+                            type="submit"
+                            disabled={isLoading}
+                            className="w-full bg-gradient-to-r from-indigo-600 to-violet-600 text-white font-semibold py-3.5 rounded-xl hover:shadow-lg hover:shadow-indigo-500/30 transition-all shadow-sm text-base disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2 mt-2"
+                        >
+                            {isLoading ? (
+                                <>
+                                    <Loader2 className="w-5 h-5 animate-spin" />
+                                    Signing in...
+                                </>
+                            ) : (
+                                'Sign In'
+                            )}
+                        </button>
+                    </form>
+                ) : (
+                    <form onSubmit={handleTwoFactorVerify} className="w-full space-y-4">
+                        <div className="relative">
+                            <label className="block text-left text-sm font-medium text-slate-600 mb-1.5">Verification Code</label>
                             <input
-                                type="checkbox"
-                                checked={rememberMe}
-                                onChange={() => setRememberMe(!rememberMe)}
-                                className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-600"
+                                type="text"
+                                placeholder="000 000"
+                                value={twoFactorCode}
+                                onChange={(e) => setTwoFactorCode(e.target.value)}
+                                disabled={isLoading}
+                                className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 outline-none text-slate-700 transition-all placeholder:text-slate-400 disabled:bg-slate-50 disabled:cursor-not-allowed text-center text-xl tracking-widest font-mono"
+                                required
+                                autoFocus
                             />
-                            Remember me
-                        </label>
-                        <a href="#" className="text-indigo-600 font-medium text-sm hover:text-indigo-700 transition-colors">
-                            Forgot password?
-                        </a>
-                    </div>
-
-                    <button
-                        type="submit"
-                        disabled={isLoading}
-                        className="w-full bg-gradient-to-r from-indigo-600 to-violet-600 text-white font-semibold py-3.5 rounded-xl hover:shadow-lg hover:shadow-indigo-500/30 transition-all shadow-sm text-base disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2 mt-2"
-                    >
-                        {isLoading ? (
-                            <>
-                                <Loader2 className="w-5 h-5 animate-spin" />
-                                Signing in...
-                            </>
-                        ) : (
-                            'Sign In'
-                        )}
-                    </button>
-                </form>
+                        </div>
+                        <button
+                            type="submit"
+                            disabled={isLoading}
+                            className="w-full bg-gradient-to-r from-indigo-600 to-violet-600 text-white font-semibold py-3.5 rounded-xl hover:shadow-lg hover:shadow-indigo-500/30 transition-all shadow-sm text-base disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2 mt-2"
+                        >
+                            {isLoading ? (
+                                <>
+                                    <Loader2 className="w-5 h-5 animate-spin" />
+                                    Verifying...
+                                </>
+                            ) : (
+                                'Verify'
+                            )}
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setShowTwoFactor(false)}
+                            className="w-full bg-transparent text-slate-500 font-medium py-2 rounded-xl hover:text-slate-700 transition-all text-sm"
+                        >
+                            Cancel
+                        </button>
+                    </form>
+                )}
 
                 {/* Divider */}
                 <div className="w-full flex items-center gap-4 my-6">
@@ -184,7 +267,7 @@ const LoginPage = () => {
 
                 {/* Register link */}
                 <p className="text-slate-600 text-sm">
-                    New to Nexus?{' '}
+                    New to Relavo?{' '}
                     <Link to="/register" className="text-indigo-600 font-semibold hover:text-indigo-700 transition-colors">
                         Create an organization
                     </Link>

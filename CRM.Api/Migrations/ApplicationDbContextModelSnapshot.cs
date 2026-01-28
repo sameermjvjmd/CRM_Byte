@@ -3750,6 +3750,77 @@ namespace CRM.Api.Migrations
                     b.ToTable("SavedReports");
                 });
 
+            modelBuilder.Entity("CRM.Api.Models.Reporting.ScheduledReport", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("CreatedByUserId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("DayOfMonth")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("DayOfWeek")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Format")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)");
+
+                    b.Property<string>("Frequency")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime?>("LastRunAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<DateTime>("NextRunAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Recipients")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("ReportType")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<int>("RunAtHour")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("SavedReportId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("StandardReportName")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SavedReportId");
+
+                    b.ToTable("ScheduledReports");
+                });
+
             modelBuilder.Entity("CRM.Api.Models.SalesQuota", b =>
                 {
                     b.Property<int>("Id")
@@ -4952,6 +5023,15 @@ namespace CRM.Api.Migrations
                 });
 
             modelBuilder.Entity("CRM.Api.Models.Reporting.ReportExecutionLog", b =>
+                {
+                    b.HasOne("CRM.Api.Models.Reporting.SavedReport", "SavedReport")
+                        .WithMany()
+                        .HasForeignKey("SavedReportId");
+
+                    b.Navigation("SavedReport");
+                });
+
+            modelBuilder.Entity("CRM.Api.Models.Reporting.ScheduledReport", b =>
                 {
                     b.HasOne("CRM.Api.Models.Reporting.SavedReport", "SavedReport")
                         .WithMany()

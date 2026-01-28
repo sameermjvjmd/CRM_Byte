@@ -7,6 +7,7 @@ export interface User {
     avatarUrl?: string;
     roles: string[];
     permissions: string[];
+    twoFactorEnabled: boolean;
 }
 
 export interface LoginRequest {
